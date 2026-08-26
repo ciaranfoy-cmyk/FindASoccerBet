@@ -20,3 +20,39 @@ the Python standard library, so no dependencies need to be installed.
 
 By default the email is sent to `ciaranfoy@gmail.com`; override with the
 `TO_EMAIL` environment variable.
+
+## Weekly matchweek analysis
+
+`analyze_matchweek.py` ranks a Premier League matchweek's fixtures by how
+likely each is to finish 0-0, using a Poisson expected-goals model built
+from each team's home/away scoring and conceding record over the last 3
+completed seasons. It also flags fixtures where a historically prolific
+home-scoring side hosts a team that's both bottom-of-the-table and leaky
+defensively over that same window.
+
+Requires a free API key from https://www.football-data.org/client/register,
+passed via `FOOTBALL_DATA_API_KEY`.
+
+```bash
+export FOOTBALL_DATA_API_KEY=your-key-here
+
+# Analyze the next unplayed matchweek
+python3 analyze_matchweek.py
+
+# Analyze a specific matchday
+python3 analyze_matchweek.py --matchday 5
+
+# Use a different 3-season (or custom) historical window
+python3 analyze_matchweek.py --seasons 2022 2023 2024
+```
+
+Standings for completed seasons are cached on disk under `.cache/` (they
+never change, so they're fetched once); fixture lists are always fetched
+fresh.
+
+`fetch_matches.py` remains available for a plain fixture listing without
+the analysis:
+
+```bash
+python3 fetch_matches.py --matchday 2
+```

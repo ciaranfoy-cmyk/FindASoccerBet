@@ -9,20 +9,9 @@ Usage:
 """
 
 import argparse
-import json
-import os
 import sys
-import urllib.error
-import urllib.request
 
-API_BASE = "https://api.football-data.org/v4"
-
-
-def fetch_matches(competition: str, matchday: int, api_key: str) -> dict:
-    url = f"{API_BASE}/competitions/{competition}/matches?matchday={matchday}"
-    request = urllib.request.Request(url, headers={"X-Auth-Token": api_key})
-    with urllib.request.urlopen(request, timeout=15) as response:
-        return json.load(response)
+import football_data
 
 
 def format_match(match: dict) -> str:
@@ -47,20 +36,12 @@ def main() -> int:
     parser.add_argument("--matchday", type=int, default=2, help="Matchday/matchweek number")
     args = parser.parse_args()
 
-    api_key = os.environ.get("FOOTBALL_DATA_API_KEY")
-    if not api_key:
-        print("Missing FOOTBALL_DATA_API_KEY environment variable.", file=sys.stderr)
-        print("Get a free key at https://www.football-data.org/client/register", file=sys.stderr)
-        return 1
-
     try:
-        data = fetch_matches(args.competition, args.matchday, api_key)
-    except urllib.error.HTTPError as exc:
-        print(f"API request failed: {exc.code} {exc.reason}", file=sys.stderr)
-        print(exc.read().decode(errors="replace"), file=sys.stderr)
-        return 1
-    except urllib.error.URLError as exc:
-        print(f"Could not reach {API_BASE}: {exc.reason}", file=sys.stderr)
+        data = football_data.get(
+            f"/competitions/{args.competition}/matches", {"matchday": args.matchday}, ttl_seconds=0
+        )
+    except football_data.FootballDataError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
         return 1
 
     matches = data.get("matches", [])
