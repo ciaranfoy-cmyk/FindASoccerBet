@@ -34,8 +34,29 @@ export FOOTBALL_DATA_API_KEY=your-key-here
 python3 fetch_matches.py --matchday 2
 ```
 
-There's no prediction model here yet — an earlier attempt (a Poisson
-over/under-2.5-goals model) was backtested and found statistically
-indistinguishable from chance on one season of data, so it was pulled
-rather than kept as something that looked more validated than it was.
 See `docs/football-data-api-reference.md` for the underlying API.
+
+## Dataset + statistical analysis
+
+An earlier prediction model (Poisson-based) was backtested and found
+statistically indistinguishable from chance on one season of data, so it
+was pulled. This is the proper follow-up: a real per-match dataset with
+point-in-time features (no lookahead), tested proportionately —
+multiple-comparison-corrected significance, and an honest chronological
+train/test split rather than in-sample fit. Full writeup:
+`docs/dataset-analysis.md`.
+
+Short version: a few features (recent scoring form, top-flight
+experience, which league) are genuinely, statistically correlated with
+total goals — but none of them, alone or combined, predict an individual
+match's over/under-2.5 outcome better than chance out-of-sample (AUC
+~0.50). Real signal, not enough of it to be useful for prediction from
+box-score data alone.
+
+```bash
+export FOOTBALL_DATA_API_KEY=your-key-here
+pip install -r requirements.txt
+
+python3 build_dataset.py     # writes data/matches.csv (2,700+ matches)
+python3 analyze_dataset.py   # correlation table + model results
+```
