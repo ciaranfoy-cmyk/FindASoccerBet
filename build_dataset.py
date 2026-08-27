@@ -15,9 +15,17 @@ Output: data/matches.csv, one row per match with:
   home_gf_last5, home_ga_last5, away_gf_last5, away_ga_last5
   home_gf_last10, home_ga_last10, away_gf_last10, away_ga_last10
   home_gf_season, home_ga_season, away_gf_season, away_ga_season
+  home_league_position, away_league_position     (in that competition's table, this season, right before this match)
+  home_points, away_points, home_goal_diff, away_goal_diff
   home_rest_days, away_rest_days
   h2h_games, h2h_avg_goals
   total_goals, over_2_5                          (the outcome)
+
+League position/points/goal difference are computed from a table we
+build ourselves match-by-match (not fetched from the standings
+endpoint), so they reflect the exact state right before this match —
+mid-week, not just after a full round — with the same no-lookahead
+guarantee as everything else here.
 
 Only rows where both teams already have MIN_PRIOR_GAMES of tracked
 history are kept, so the rolling features are meaningful.
@@ -78,6 +86,27 @@ def season_avg(games: deque, season_label: str, key: str) -> float | None:
     return sum(g[key] for g in season_games) / len(season_games)
 
 
+def table_standing(table: dict[str, dict], season_label: str, team: str) -> tuple:
+    """This team's position/points/goal-difference in its season's table,
+    right now — before today's match. Position is ranked among only the
+    teams that have already played at least one game this season (same
+    logic as a real mid-week standings table, where some sides have
+    games in hand). Returns (None, None, None) if the team hasn't played
+    a league game yet this season.
+    """
+    season_table = table.get(season_label, {})
+    if team not in season_table or season_table[team]["played"] == 0:
+        return None, None, None
+
+    ranked = sorted(
+        season_table.values(),
+        key=lambda t: (-t["points"], -(t["gf"] - t["ga"]), -t["gf"]),
+    )
+    team_row = season_table[team]
+    position = next(i for i, t in enumerate(ranked, start=1) if t is team_row)
+    return position, team_row["points"], team_row["gf"] - team_row["ga"]
+
+
 def main() -> int:
     try:
         matches = fetch_all_matches()
@@ -91,6 +120,7 @@ def main() -> int:
     team_competition_games: dict[tuple[str, str], int] = defaultdict(int)
     team_last_played: dict[str, datetime.datetime] = {}
     h2h_history: dict[tuple[str, str], list[int]] = defaultdict(list)
+    table: dict[str, dict[str, dict]] = defaultdict(dict)
 
     rows = []
     for m in matches:
@@ -105,6 +135,9 @@ def main() -> int:
 
         home_games_played = len(home_hist)
         away_games_played = len(away_hist)
+
+        home_pos, home_pts, home_gd = table_standing(table, season_label, home)
+        away_pos, away_pts, away_gd = table_standing(table, season_label, away)
 
         if home_games_played >= MIN_PRIOR_GAMES and away_games_played >= MIN_PRIOR_GAMES:
             home_rest = (date - team_last_played[home]).days if home in team_last_played else None
@@ -135,6 +168,12 @@ def main() -> int:
                 "home_ga_season": season_avg(home_hist, season_label, "ga"),
                 "away_gf_season": season_avg(away_hist, season_label, "gf"),
                 "away_ga_season": season_avg(away_hist, season_label, "ga"),
+                "home_league_position": home_pos,
+                "away_league_position": away_pos,
+                "home_points": home_pts,
+                "away_points": away_pts,
+                "home_goal_diff": home_gd,
+                "away_goal_diff": away_gd,
                 "home_rest_days": home_rest,
                 "away_rest_days": away_rest,
                 "h2h_games": len(h2h_goals),
@@ -152,6 +191,23 @@ def main() -> int:
         team_last_played[home] = date
         team_last_played[away] = date
         h2h_history[tuple(sorted([home, away]))].append(home_goals + away_goals)
+
+        season_table = table[season_label]
+        home_row = season_table.setdefault(home, {"points": 0, "played": 0, "gf": 0, "ga": 0})
+        away_row = season_table.setdefault(away, {"points": 0, "played": 0, "gf": 0, "ga": 0})
+        home_row["played"] += 1
+        away_row["played"] += 1
+        home_row["gf"] += home_goals
+        home_row["ga"] += away_goals
+        away_row["gf"] += away_goals
+        away_row["ga"] += home_goals
+        if home_goals > away_goals:
+            home_row["points"] += 3
+        elif away_goals > home_goals:
+            away_row["points"] += 3
+        else:
+            home_row["points"] += 1
+            away_row["points"] += 1
 
     os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
     with open(OUTPUT_PATH, "w", newline="") as f:

@@ -30,10 +30,13 @@ CANDIDATE_FEATURES = [
     "home_gf_last5", "home_ga_last5", "away_gf_last5", "away_ga_last5",
     "home_gf_last10", "home_ga_last10", "away_gf_last10", "away_ga_last10",
     "home_gf_season", "home_ga_season", "away_gf_season", "away_ga_season",
+    "home_league_position", "away_league_position",
+    "home_points", "away_points", "home_goal_diff", "away_goal_diff",
     "home_rest_days", "away_rest_days",
     "h2h_games", "h2h_avg_goals",
     "combined_gf_last5", "combined_ga_last5",
     "naive_expected_total_last5", "min_competition_experience",
+    "position_gap", "goal_diff_gap",
 ]
 
 
@@ -48,6 +51,8 @@ def load() -> pd.DataFrame:
         df["home_gf_last5"] + df["away_ga_last5"] + df["away_gf_last5"] + df["home_ga_last5"]
     )
     df["min_competition_experience"] = df[["home_competition_games", "away_competition_games"]].min(axis=1)
+    df["position_gap"] = (df["home_league_position"] - df["away_league_position"]).abs()
+    df["goal_diff_gap"] = (df["home_goal_diff"] - df["away_goal_diff"]).abs()
     return df
 
 
@@ -73,7 +78,7 @@ def univariate_correlations(df: pd.DataFrame) -> None:
         sig1 = "**" if p1 < bonferroni_alpha else ("*" if p1 < alpha else "  ")
         sig2 = "**" if p2 < bonferroni_alpha else ("*" if p2 < alpha else "  ")
         print(f"{feat:<32}{n:<8}{r1:+.3f} (p={p1:.4f}){sig1}      {r2:+.3f} (p={p2:.4f}){sig2}")
-    print("\n(* = significant at p<0.05, ** = survives Bonferroni correction for 24 comparisons)")
+    print(f"\n(* = significant at p<0.05, ** = survives Bonferroni correction for {len(CANDIDATE_FEATURES)} comparisons)")
 
 
 def evaluate_model(df: pd.DataFrame, features: list[str], label: str) -> None:
@@ -101,7 +106,13 @@ def evaluate_model(df: pd.DataFrame, features: list[str], label: str) -> None:
 def main() -> None:
     df = load()
     univariate_correlations(df)
-    evaluate_model(df, ["naive_expected_total_last5", "min_competition_experience", "is_PL"], "Best 3-feature model")
+    evaluate_model(df, ["naive_expected_total_last5", "min_competition_experience", "is_PL"], "Best 3-feature model (no position)")
+    evaluate_model(df, ["position_gap", "goal_diff_gap", "is_PL"], "Table-position model")
+    evaluate_model(
+        df,
+        ["naive_expected_total_last5", "position_gap", "goal_diff_gap", "min_competition_experience", "is_PL"],
+        "Best model + position",
+    )
     evaluate_model(df, ["is_PL"], "is_PL only")
     evaluate_model(
         df,
@@ -109,9 +120,11 @@ def main() -> None:
             "home_gf_last5", "home_ga_last5", "away_gf_last5", "away_ga_last5",
             "home_gf_last10", "home_ga_last10", "away_gf_last10", "away_ga_last10",
             "home_competition_games", "away_competition_games",
+            "home_league_position", "away_league_position",
+            "home_points", "away_points", "home_goal_diff", "away_goal_diff",
             "home_rest_days", "away_rest_days", "is_PL",
         ],
-        "Kitchen sink (all features)",
+        "Kitchen sink (all features, incl. position)",
     )
 
 
