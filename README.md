@@ -23,18 +23,10 @@ By default the email is sent to `ciaranfoy@gmail.com`; override with the
 
 ## Weekly matchweek analysis
 
-`analyze_matchweek.py` ranks a Premier League matchweek's fixtures by how
-likely each is to finish 0-0, using a Poisson expected-goals model built
-from each team's home/away scoring and conceding record over the last 3
-completed seasons, blended with each team's last few games of form (a
-multi-season baseline alone can miss a real in-season trend). It also
-flags fixtures where a historically prolific home-scoring side hosts a
-team that's both bottom-of-the-table and leaky defensively over that same
-window.
-
-It also reports an over/under-2.5-goals read — a separate model that
-ignores home/away and just compares each team's overall attacking/
-defensive rate, since that's what backtesting validated (see
+`analyze_matchweek.py` flags Premier League fixtures likely to finish
+over 2.5 goals, using a Poisson expected-goals model that ignores home/
+away and just compares each team's overall attacking/defensive rate —
+that's the version backtesting actually validated (see
 `docs/over25-model-validation.md`). Rather than forcing a fixed number of
 picks each week, it lists whichever fixtures clear `--over25-threshold`:
 a full-season backtest of 2025-26 showed the model's real edge over
@@ -57,8 +49,7 @@ passed via `FOOTBALL_DATA_API_KEY`.
 ```bash
 export FOOTBALL_DATA_API_KEY=your-key-here
 
-# Analyze the next unplayed matchweek (blends in recent form; takes a
-# couple of minutes due to the free tier's 10 requests/minute limit)
+# Analyze the next unplayed matchweek
 python3 analyze_matchweek.py
 
 # Analyze a specific matchday
@@ -67,14 +58,8 @@ python3 analyze_matchweek.py --matchday 5
 # Use a different 3-season (or custom) historical window
 python3 analyze_matchweek.py --seasons 2022 2023 2024
 
-# Skip the recent-form blend — season history only, much faster
-python3 analyze_matchweek.py --no-form
-
-# Tune the recent-form blend
-python3 analyze_matchweek.py --form-games 6 --form-weight 0.4
-
-# Only flag over-2.5 picks at 65%+ confidence (where backtesting showed
-# a real edge over ~1.60 odds), instead of the 60% default
+# Only flag picks at 65%+ confidence (where backtesting showed a real
+# edge over ~1.60 odds), instead of the 60% default
 python3 analyze_matchweek.py --over25-threshold 0.65
 
 # Skip pulling in the other English league's data for promoted/relegated teams
