@@ -53,6 +53,74 @@ def build_team_stats(standings_by_season: dict[int, dict]) -> dict[str, dict]:
     return dict(stats)
 
 
+def build_combined_team_stats(*standings_by_season_sets: dict[int, dict]) -> dict[str, dict]:
+    """Merge home/away goal stats across multiple competitions' standings
+    (e.g. Premier League + Championship), so a team keeps its scoring/
+    conceding history through promotion or relegation instead of losing it
+    entirely when it changes divisions.
+
+    Positions aren't included here — league position isn't comparable
+    across divisions, so use build_team_stats (single competition) for
+    position-based rankings.
+    """
+    stats: dict[str, dict] = defaultdict(
+        lambda: {"home": {"gf": 0, "ga": 0, "played": 0}, "away": {"gf": 0, "ga": 0, "played": 0}}
+    )
+    for standings_by_season in standings_by_season_sets:
+        for standings in standings_by_season.values():
+            tables = _tables_by_type(standings)
+            for row in tables["HOME"]:
+                side = stats[row["team"]["name"]]["home"]
+                side["gf"] += row["goalsFor"]
+                side["ga"] += row["goalsAgainst"]
+                side["played"] += row["playedGames"]
+            for row in tables["AWAY"]:
+                side = stats[row["team"]["name"]]["away"]
+                side["gf"] += row["goalsFor"]
+                side["ga"] += row["goalsAgainst"]
+                side["played"] += row["playedGames"]
+    return dict(stats)
+
+
+def top_flight_teams(primary_team_stats: dict[str, dict]) -> set[str]:
+    """Names of teams that have played top-flight games in the window used
+    to build primary_team_stats (i.e. have real PL history, not just a
+    Championship record merged in via build_combined_team_stats).
+    """
+    return {
+        name
+        for name, s in primary_team_stats.items()
+        if s["home"]["played"] or s["away"]["played"]
+    }
+
+
+# Applied to a team's per-game rates when it has no top-flight history in
+# the analysis window (i.e. its stats come entirely from a lower division).
+# Derived empirically from the three teams promoted into the Premier League
+# for 2025-26 (Burnley, Leeds United, Sunderland): on average they scored
+# 0.34 fewer goals/game and conceded 0.58 more goals/game than their
+# Championship-blended baseline predicted — the step up in competition
+# hits a promoted side's defense harder than its attack. Small sample
+# (n=3), but directionally consistent across all three, so worth applying;
+# revisit as more promoted-team seasons of data become available.
+PROMOTION_PENALTY = {"attack": -0.34, "defense": 0.58}
+
+
+def league_average_goals(standings_by_season: dict[int, dict]) -> float:
+    """Overall average goals scored per team per game across a single
+    competition's standings — the normalizer expected_goals_novenue needs
+    for that competition, separate from the merged cross-division dict
+    (which shouldn't be used to compute an average, since it blends two
+    different scoring environments together).
+    """
+    total_gf = total_played = 0
+    for standings in standings_by_season.values():
+        for row in _tables_by_type(standings)["TOTAL"]:
+            total_gf += row["goalsFor"]
+            total_played += row["playedGames"]
+    return total_gf / total_played
+
+
 def league_averages(team_stats: dict[str, dict]) -> dict[str, float]:
     home_gf = sum(s["home"]["gf"] for s in team_stats.values())
     home_played = sum(s["home"]["played"] for s in team_stats.values())
@@ -87,13 +155,32 @@ def bottom_by_goals_conceded(team_stats: dict[str, dict], n: int = 10) -> list[t
     return sorted(totals, key=lambda x: -x[1])[:n]
 
 
+def _apply_promotion_penalty(
+    gf_pg: float, ga_pg: float, team: str, top_flight: set[str] | None
+) -> tuple[float, float]:
+    if top_flight is not None and team not in top_flight:
+        gf_pg = max(0.0, gf_pg + PROMOTION_PENALTY["attack"])
+        ga_pg = ga_pg + PROMOTION_PENALTY["defense"]
+    return gf_pg, ga_pg
+
+
 def expected_goals(
-    home_team: str, away_team: str, team_stats: dict[str, dict], averages: dict[str, float]
+    home_team: str,
+    away_team: str,
+    team_stats: dict[str, dict],
+    averages: dict[str, float],
+    top_flight: set[str] | None = None,
 ) -> tuple[float, float] | None:
     """Poisson expected goals for a fixture, from attack/defense strength ratios.
 
     Returns None if either team has no historical data in the given window
-    (e.g. a newly promoted side).
+    (e.g. a newly promoted side with no data at all, even from a lower
+    division — pass team_stats built with build_combined_team_stats to
+    cover promoted/relegated teams via their other-division record).
+
+    If top_flight is given, a team not in it gets PROMOTION_PENALTY applied
+    — its combined-division rates alone tend to overrate a promoted side,
+    especially defensively.
     """
     home = team_stats.get(home_team)
     away = team_stats.get(away_team)
@@ -105,8 +192,43 @@ def expected_goals(
     away_gf_pg = away["away"]["gf"] / away["away"]["played"]
     away_ga_pg = away["away"]["ga"] / away["away"]["played"]
 
+    home_gf_pg, home_ga_pg = _apply_promotion_penalty(home_gf_pg, home_ga_pg, home_team, top_flight)
+    away_gf_pg, away_ga_pg = _apply_promotion_penalty(away_gf_pg, away_ga_pg, away_team, top_flight)
+
     lambda_home = home_gf_pg * away_ga_pg / averages["home_gf_per_game"]
     lambda_away = away_gf_pg * home_ga_pg / averages["away_gf_per_game"]
+    return lambda_home, lambda_away
+
+
+def expected_goals_novenue(
+    home_team: str,
+    away_team: str,
+    team_stats: dict[str, dict],
+    league_avg_goals_per_game: float,
+    top_flight: set[str] | None = None,
+) -> tuple[float, float] | None:
+    """Poisson expected goals ignoring home/away splits — each team's
+    overall (any-venue) goals-for/against rate vs. the other's, normalized
+    by the competition's overall average goals/team/game.
+
+    team_stats here should carry overall "gf"/"ga"/"played" per team (see
+    build_combined_team_stats), not the home/away split used by
+    expected_goals.
+    """
+    home = team_stats.get(home_team)
+    away = team_stats.get(away_team)
+    if not home or not away or not home["played"] or not away["played"]:
+        return None
+
+    home_gf_pg, home_ga_pg = home["gf"] / home["played"], home["ga"] / home["played"]
+    away_gf_pg, away_ga_pg = away["gf"] / away["played"], away["ga"] / away["played"]
+
+    home_gf_pg, home_ga_pg = _apply_promotion_penalty(home_gf_pg, home_ga_pg, home_team, top_flight)
+    away_gf_pg, away_ga_pg = _apply_promotion_penalty(away_gf_pg, away_ga_pg, away_team, top_flight)
+
+    avg = league_avg_goals_per_game
+    lambda_home = avg * (home_gf_pg / avg) * (away_ga_pg / avg)
+    lambda_away = avg * (away_gf_pg / avg) * (home_ga_pg / avg)
     return lambda_home, lambda_away
 
 
@@ -162,6 +284,7 @@ def expected_goals_with_form(
     before_date: str,
     form_games: int = 5,
     form_weight: float = 0.3,
+    top_flight: set[str] | None = None,
 ) -> tuple[float, float] | None:
     """Like expected_goals, but blends each team's long-run (multi-season)
     venue-specific rate with its recent overall form (last form_games
@@ -170,7 +293,7 @@ def expected_goals_with_form(
     Returns None under the same conditions as expected_goals (no season
     history for one of the teams).
     """
-    if expected_goals(home_team, away_team, team_stats, averages) is None:
+    if expected_goals(home_team, away_team, team_stats, averages, top_flight=top_flight) is None:
         return None
 
     home = team_stats[home_team]
@@ -189,6 +312,9 @@ def expected_goals_with_form(
     if away_form:
         away_gf_pg = (1 - form_weight) * away_gf_pg + form_weight * away_form["gf_per_game"]
         away_ga_pg = (1 - form_weight) * away_ga_pg + form_weight * away_form["ga_per_game"]
+
+    home_gf_pg, home_ga_pg = _apply_promotion_penalty(home_gf_pg, home_ga_pg, home_team, top_flight)
+    away_gf_pg, away_ga_pg = _apply_promotion_penalty(away_gf_pg, away_ga_pg, away_team, top_flight)
 
     lambda_home = home_gf_pg * away_ga_pg / averages["home_gf_per_game"]
     lambda_away = away_gf_pg * home_ga_pg / averages["away_gf_per_game"]

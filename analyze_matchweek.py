@@ -9,11 +9,25 @@ can miss a real in-season trend — see --form-weight). Also flags fixtures
 where a historically prolific home-scoring side hosts a team that's both
 bottom-of-the-table and leaky defensively over that same window.
 
+Also reports an over/under-2.5-goals read (ignoring home/away, since that
+model was validated without it — see docs/over25-model-validation.md):
+rather than forcing a fixed number of picks, it lists every fixture whose
+predicted probability clears --over25-threshold, since backtesting a full
+season showed the real edge only shows up above ~65% confidence and
+appears in maybe 1-2 games a week, not every week.
+
+Teams get their scoring/conceding record pulled from the Championship too
+(when analyzing PL) so promoted/relegated sides keep some history instead
+of being dropped entirely; a team with no top-flight games in the window
+gets PROMOTION_PENALTY applied, since a Championship record alone tends to
+overrate a promoted side (backtested from the 2025-26 promoted teams).
+
 Usage:
     FOOTBALL_DATA_API_KEY=xxxx python3 analyze_matchweek.py
     FOOTBALL_DATA_API_KEY=xxxx python3 analyze_matchweek.py --matchday 5
     FOOTBALL_DATA_API_KEY=xxxx python3 analyze_matchweek.py --seasons 2022 2023 2024
     FOOTBALL_DATA_API_KEY=xxxx python3 analyze_matchweek.py --no-form
+    FOOTBALL_DATA_API_KEY=xxxx python3 analyze_matchweek.py --over25-threshold 0.65
 """
 
 import argparse
@@ -22,6 +36,10 @@ import sys
 
 import analysis
 import football_data
+
+# PL <-> Championship is the only pairing this API's two English leagues
+# support; used to give promoted/relegated teams cross-division history.
+_SECONDARY_COMPETITION = {"PL": "ELC", "ELC": "PL"}
 
 
 def print_table(title: str, rows: list[tuple[str, object]], value_label: str) -> None:
@@ -41,6 +59,8 @@ def main() -> int:
     parser.add_argument("--no-form", action="store_true", help="Skip the recent-form blend; use the season-history baseline only (faster, fewer API calls)")
     parser.add_argument("--form-games", type=int, default=5, help="Number of each team's most recent games to blend in, default 5")
     parser.add_argument("--form-weight", type=float, default=0.3, help="Weight given to recent form vs. season history, 0-1, default 0.3")
+    parser.add_argument("--no-cross-division", action="store_true", help="Don't pull promoted/relegated teams' history from the other English league")
+    parser.add_argument("--over25-threshold", type=float, default=0.60, help="Minimum P(over 2.5) to flag as a pick, default 0.60 (backtesting shows the real edge over typical odds starts closer to 0.65)")
     args = parser.parse_args()
 
     try:
@@ -52,6 +72,23 @@ def main() -> int:
         standings_by_season = analysis.load_standings(seasons, competition=args.competition)
         team_stats = analysis.build_team_stats(standings_by_season)
         averages = analysis.league_averages(team_stats)
+        pl_avg_goals = analysis.league_average_goals(standings_by_season)
+        top_flight = analysis.top_flight_teams(team_stats)
+
+        secondary_code = None if args.no_cross_division else _SECONDARY_COMPETITION.get(args.competition)
+        if secondary_code:
+            secondary_standings = analysis.load_standings(seasons, competition=secondary_code)
+            combined_venue_stats = analysis.build_combined_team_stats(standings_by_season, secondary_standings)
+        else:
+            combined_venue_stats = team_stats
+        combined_overall_stats = {
+            name: {
+                "gf": s["home"]["gf"] + s["away"]["gf"],
+                "ga": s["home"]["ga"] + s["away"]["ga"],
+                "played": s["home"]["played"] + s["away"]["played"],
+            }
+            for name, s in combined_venue_stats.items()
+        }
 
         top_scorers = analysis.top_home_scorers(team_stats, n=args.top_n)
         bottom_position = analysis.bottom_by_position(team_stats, n=args.bottom_n)
@@ -83,24 +120,27 @@ def main() -> int:
     for match in fixtures:
         home = match["homeTeam"]["name"]
         away = match["awayTeam"]["name"]
-        baseline_eg = analysis.expected_goals(home, away, team_stats, averages)
+        baseline_eg = analysis.expected_goals(home, away, combined_venue_stats, averages, top_flight=top_flight)
 
         eg = baseline_eg
         if use_form and baseline_eg is not None:
             eg = analysis.expected_goals_with_form(
                 home, away,
                 match["homeTeam"]["id"], match["awayTeam"]["id"],
-                team_stats, averages,
+                combined_venue_stats, averages,
                 match["competition"]["id"], today,
                 form_games=args.form_games, form_weight=args.form_weight,
+                top_flight=top_flight,
             )
 
         heuristic_hit = (
             home in top_scorer_names and away in bottom_position_names and away in bottom_defense_names
         )
+        novenue_eg = analysis.expected_goals_novenue(home, away, combined_overall_stats, pl_avg_goals, top_flight=top_flight)
         results.append({
             "match": match, "home": home, "away": away,
             "expected_goals": eg, "baseline_expected_goals": baseline_eg,
+            "novenue_expected_goals": novenue_eg,
             "heuristic_hit": heuristic_hit,
         })
 
@@ -130,9 +170,29 @@ def main() -> int:
         )
 
     if without_data:
-        print("\nNo historical data for (likely newly promoted):")
+        print("\nNo historical data for (not in PL or Championship in the window used):")
         for r in without_data:
             print(f"  {r['home']} vs {r['away']}")
+
+    novenue_with_data = [r for r in results if r["novenue_expected_goals"] is not None]
+    for r in novenue_with_data:
+        r["novenue_probs"] = analysis.match_probabilities(*r["novenue_expected_goals"])
+    novenue_with_data.sort(key=lambda r: -r["novenue_probs"]["p_over_2_5"])
+
+    print(f"\nOver 2.5 goals — non-venue attack/defense model, picks above {args.over25_threshold*100:.0f}% "
+          f"(backtested across all of 2025-26: this model hit 60.5% on a forced top-5/week, "
+          f"but only clears typical 1.60-odds breakeven — 62.5% — from ~65% confidence up, "
+          f"which shows up in about 1-2 games a week, not every week)")
+    print("-" * 70)
+    any_pick = False
+    for r in novenue_with_data:
+        p = r["novenue_probs"]["p_over_2_5"]
+        if p >= args.over25_threshold:
+            any_pick = True
+            print(f"  PICK  {r['home']:<26s} vs {r['away']:<26s}  P(o2.5)={p*100:5.1f}%  "
+                  f"xG_total={r['novenue_probs']['expected_goals_total']:.2f}")
+    if not any_pick:
+        print("  No fixture this week clears the threshold — that's the point of the threshold, not a bug.")
 
     heuristic_matches = [r for r in with_data if r["heuristic_hit"]]
     print("\nRecommendation (least likely 0-0):")

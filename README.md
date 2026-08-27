@@ -32,6 +32,25 @@ flags fixtures where a historically prolific home-scoring side hosts a
 team that's both bottom-of-the-table and leaky defensively over that same
 window.
 
+It also reports an over/under-2.5-goals read — a separate model that
+ignores home/away and just compares each team's overall attacking/
+defensive rate, since that's what backtesting validated (see
+`docs/over25-model-validation.md`). Rather than forcing a fixed number of
+picks each week, it lists whichever fixtures clear `--over25-threshold`:
+a full-season backtest of 2025-26 showed the model's real edge over
+typical bookmaker odds only shows up from ~65% confidence upward — maybe
+1-2 games a week, not every week — so a forced weekly pick count would
+have diluted the very thing worth using it for.
+
+Promoted/relegated teams get their scoring record pulled from the
+Championship too (this API's only other English league), so they're not
+simply excluded for lack of Premier League history. A team with no
+top-flight games in the window gets a defensive penalty applied on top —
+backtesting the three teams promoted for 2025-26 found their Premier
+League defense was ~0.6 goals/game leakier than their Championship-
+blended record predicted; their attack undershot it too, by ~0.3
+goals/game.
+
 Requires a free API key from https://www.football-data.org/client/register,
 passed via `FOOTBALL_DATA_API_KEY`.
 
@@ -53,6 +72,13 @@ python3 analyze_matchweek.py --no-form
 
 # Tune the recent-form blend
 python3 analyze_matchweek.py --form-games 6 --form-weight 0.4
+
+# Only flag over-2.5 picks at 65%+ confidence (where backtesting showed
+# a real edge over ~1.60 odds), instead of the 60% default
+python3 analyze_matchweek.py --over25-threshold 0.65
+
+# Skip pulling in the other English league's data for promoted/relegated teams
+python3 analyze_matchweek.py --no-cross-division
 ```
 
 Standings for completed seasons are cached on disk under `.cache/` (they
