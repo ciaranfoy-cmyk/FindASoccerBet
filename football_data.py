@@ -14,9 +14,21 @@ import urllib.request
 API_BASE = "https://api.football-data.org/v4"
 CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cache")
 
+# Free tier allows 10 requests/minute; stay comfortably under that.
+_MIN_REQUEST_INTERVAL = 6.5
+_last_request_at = 0.0
+
 
 class FootballDataError(RuntimeError):
     pass
+
+
+def _throttle() -> None:
+    global _last_request_at
+    elapsed = time.monotonic() - _last_request_at
+    if elapsed < _MIN_REQUEST_INTERVAL:
+        time.sleep(_MIN_REQUEST_INTERVAL - elapsed)
+    _last_request_at = time.monotonic()
 
 
 def _api_key() -> str:
@@ -56,6 +68,7 @@ def get(path: str, params: dict | None = None, ttl_seconds: float | None = None)
     if query:
         url += f"?{query}"
 
+    _throttle()
     request = urllib.request.Request(url, headers={"X-Auth-Token": _api_key()})
     try:
         with urllib.request.urlopen(request, timeout=20) as response:

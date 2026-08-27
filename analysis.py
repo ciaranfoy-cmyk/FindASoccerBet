@@ -1,5 +1,6 @@
 """Historical scoring/conceding analysis over a window of completed PL seasons."""
 
+import datetime
 from collections import defaultdict
 from math import exp, factorial
 
@@ -103,6 +104,91 @@ def expected_goals(
     home_ga_pg = home["home"]["ga"] / home["home"]["played"]
     away_gf_pg = away["away"]["gf"] / away["away"]["played"]
     away_ga_pg = away["away"]["ga"] / away["away"]["played"]
+
+    lambda_home = home_gf_pg * away_ga_pg / averages["home_gf_per_game"]
+    lambda_away = away_gf_pg * home_ga_pg / averages["away_gf_per_game"]
+    return lambda_home, lambda_away
+
+
+def recent_form(
+    team_id: int, before_date: str, competition_id: int, n: int = 5
+) -> dict | None:
+    """A team's goals-for/against per game over its last n finished matches
+    in the given competition, strictly before before_date (YYYY-MM-DD).
+
+    Unlike the season-long home/away splits, this isn't venue-specific —
+    with only ~5 games there usually aren't enough of one venue to average
+    separately, so it's meant to nudge the season baseline, not replace it.
+    """
+    date_to = datetime.date.fromisoformat(before_date)
+    date_from = date_to - datetime.timedelta(days=200)
+
+    is_past = date_to < datetime.date.today()
+    data = football_data.get(
+        f"/teams/{team_id}/matches",
+        {
+            "competitions": competition_id,
+            "dateFrom": date_from.isoformat(),
+            "dateTo": date_to.isoformat(),
+        },
+        ttl_seconds=None if is_past else 3600,
+    )
+
+    matches = [m for m in data.get("matches", []) if m["status"] == "FINISHED"]
+    matches.sort(key=lambda m: m["utcDate"], reverse=True)
+    recent = matches[:n]
+    if not recent:
+        return None
+
+    gf = ga = 0
+    for m in recent:
+        is_home = m["homeTeam"]["id"] == team_id
+        home_goals = m["score"]["fullTime"]["home"]
+        away_goals = m["score"]["fullTime"]["away"]
+        gf += home_goals if is_home else away_goals
+        ga += away_goals if is_home else home_goals
+
+    return {"games": len(recent), "gf_per_game": gf / len(recent), "ga_per_game": ga / len(recent)}
+
+
+def expected_goals_with_form(
+    home_team: str,
+    away_team: str,
+    home_id: int,
+    away_id: int,
+    team_stats: dict[str, dict],
+    averages: dict[str, float],
+    competition_id: int,
+    before_date: str,
+    form_games: int = 5,
+    form_weight: float = 0.3,
+) -> tuple[float, float] | None:
+    """Like expected_goals, but blends each team's long-run (multi-season)
+    venue-specific rate with its recent overall form (last form_games
+    matches, any venue), weighted by form_weight.
+
+    Returns None under the same conditions as expected_goals (no season
+    history for one of the teams).
+    """
+    if expected_goals(home_team, away_team, team_stats, averages) is None:
+        return None
+
+    home = team_stats[home_team]
+    away = team_stats[away_team]
+    home_gf_pg = home["home"]["gf"] / home["home"]["played"]
+    home_ga_pg = home["home"]["ga"] / home["home"]["played"]
+    away_gf_pg = away["away"]["gf"] / away["away"]["played"]
+    away_ga_pg = away["away"]["ga"] / away["away"]["played"]
+
+    home_form = recent_form(home_id, before_date, competition_id, n=form_games)
+    away_form = recent_form(away_id, before_date, competition_id, n=form_games)
+
+    if home_form:
+        home_gf_pg = (1 - form_weight) * home_gf_pg + form_weight * home_form["gf_per_game"]
+        home_ga_pg = (1 - form_weight) * home_ga_pg + form_weight * home_form["ga_per_game"]
+    if away_form:
+        away_gf_pg = (1 - form_weight) * away_gf_pg + form_weight * away_form["gf_per_game"]
+        away_ga_pg = (1 - form_weight) * away_ga_pg + form_weight * away_form["ga_per_game"]
 
     lambda_home = home_gf_pg * away_ga_pg / averages["home_gf_per_game"]
     lambda_away = away_gf_pg * home_ga_pg / averages["away_gf_per_game"]
