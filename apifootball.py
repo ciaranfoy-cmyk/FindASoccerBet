@@ -6,11 +6,18 @@ header this API actually uses: x-apisports-key.
 """
 
 import hashlib
+import http.client
 import json
 import os
 import time
 import urllib.error
 import urllib.request
+
+# Transient network failures worth retrying — RemoteDisconnected (a bare
+# socket drop) is NOT a subclass of URLError, so it needs its own clause;
+# a single one of these killed an hours-long run with no retry before.
+_TRANSIENT_ERRORS = (urllib.error.URLError, ConnectionError, http.client.HTTPException, TimeoutError)
+_MAX_RETRIES = 4
 
 API_BASE = "https://v3.football.api-sports.io"
 CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cache_apifootball")
@@ -66,16 +73,25 @@ def get(path: str, params: dict | None = None, ttl_seconds: float | None = None)
     if query:
         url += f"?{query}"
 
-    _throttle()
     request = urllib.request.Request(url, headers={"x-apisports-key": _api_key()})
-    try:
-        with urllib.request.urlopen(request, timeout=20) as response:
-            data = json.load(response)
-    except urllib.error.HTTPError as exc:
-        body = exc.read().decode(errors="replace")
-        raise ApiFootballError(f"API request failed: {exc.code} {exc.reason} — {body}") from exc
-    except urllib.error.URLError as exc:
-        raise ApiFootballError(f"Could not reach {API_BASE}: {exc.reason}") from exc
+
+    data = None
+    last_exc: Exception | None = None
+    for attempt in range(_MAX_RETRIES):
+        _throttle()
+        try:
+            with urllib.request.urlopen(request, timeout=20) as response:
+                data = json.load(response)
+            break
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode(errors="replace")
+            raise ApiFootballError(f"API request failed: {exc.code} {exc.reason} — {body}") from exc
+        except _TRANSIENT_ERRORS as exc:
+            last_exc = exc
+            if attempt < _MAX_RETRIES - 1:
+                time.sleep(2**attempt)
+    if data is None:
+        raise ApiFootballError(f"Could not reach {API_BASE} after {_MAX_RETRIES} attempts: {last_exc}")
 
     if data.get("errors"):
         raise ApiFootballError(f"{path} {params}: {data['errors']}")
