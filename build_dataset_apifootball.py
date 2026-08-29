@@ -8,16 +8,28 @@ Same no-lookahead feature engineering as build_dataset.py (rolling
 goals-for/against, season-to-date, league table position/points/goal-diff
 built from a table we track ourselves, rest days, head-to-head), all
 consistent within this one provider's team naming — no cross-provider
-name-matching needed.
+name-matching needed. Also adds, from shot statistics and injuries data
+football-data.org doesn't offer at all:
+
+  - Rolling shot volume/quality (total shots, shots on goal, shots inside
+    the box) over each team's last 5 games WITH shot data available —
+    shot-tracking coverage is only ~72% of matches, so "last 5" here
+    means last 5 games with data, not strictly the last 5 calendar games.
+  - Clean-sheet percentage over the last 5/10 games (derived from goals
+    already tracked, no extra data needed).
+  - A team-level shot-conversion rate (goals per shot) over the last 5.
+  - Missing-player count for the match itself (not rolled — this is
+    same-game team-news information, not history).
 
 Two-stage design:
-  --core-only   Just fixtures + the features above (~30 API calls, fast).
+  --core-only   Skip shot-stats/injuries entirely (~30 API calls, fast).
                 Use this to validate the pipeline before spending the
                 large per-match budget below.
   (default)     Also pulls shot statistics and injuries per match
                 (2 extra calls/match) — this is the expensive part
                 (~27,000 requests for full history), throttled to stay
-                under the 450 requests/minute cap.
+                under the 450 requests/minute cap. Already-cached
+                responses (e.g. from a prior run) cost nothing to replay.
 
 Usage:
     APIFOOTBALL_KEY=xxxx python3 build_dataset_apifootball.py --core-only
@@ -30,7 +42,6 @@ import csv
 import datetime
 import os
 import sys
-import time
 from collections import defaultdict, deque
 
 import apifootball
@@ -79,6 +90,13 @@ def rolling_avg(games: deque, n: int, key: str) -> float | None:
     return sum(g[key] for g in recent) / len(recent)
 
 
+def clean_sheet_pct(games: deque, n: int) -> float | None:
+    recent = list(games)[-n:]
+    if not recent:
+        return None
+    return sum(1 for g in recent if g["ga"] == 0) / len(recent)
+
+
 def season_avg(games: deque, season_label: str, key: str) -> float | None:
     season_games = [g for g in games if g["season_label"] == season_label]
     if not season_games:
@@ -96,6 +114,12 @@ def table_standing(table: dict, season_label: str, team: str) -> tuple:
     return position, team_row["points"], team_row["gf"] - team_row["ga"]
 
 
+def safe_div(a: float | None, b: float | None) -> float | None:
+    if a is None or b is None or b == 0:
+        return None
+    return a / b
+
+
 def shot_stats_for(fixture_id: int) -> dict[int, dict]:
     """team_id -> {total_shots, shots_on_goal, shots_inside_box, shots_outside_box}"""
     data = apifootball.get("/fixtures/statistics", {"fixture": fixture_id})
@@ -103,12 +127,14 @@ def shot_stats_for(fixture_id: int) -> dict[int, dict]:
     for team_block in data.get("response", []):
         team_id = team_block["team"]["id"]
         stats = {s["type"]: s["value"] for s in team_block["statistics"]}
-        out[team_id] = {
+        values = {
             "total_shots": stats.get("Total Shots"),
             "shots_on_goal": stats.get("Shots on Goal"),
             "shots_inside_box": stats.get("Shots insidebox"),
             "shots_outside_box": stats.get("Shots outsidebox"),
         }
+        if all(v is not None for v in values.values()):
+            out[team_id] = values
     return out
 
 
@@ -147,29 +173,43 @@ def main() -> int:
           f"({'seasons ' + str(args.seasons) if args.seasons else 'full available history'})")
 
     team_history: dict[str, deque] = defaultdict(lambda: deque())
+    team_shot_history: dict[str, deque] = defaultdict(lambda: deque())
     team_competition_games: dict[tuple[str, str], int] = defaultdict(int)
     team_last_played: dict[str, datetime.datetime] = {}
     h2h_history: dict[tuple[str, str], list[int]] = defaultdict(list)
     table: dict[str, dict[str, dict]] = defaultdict(dict)
-    team_name_to_id: dict[str, int] = {}
 
     rows = []
-    fixture_team_ids: dict[int, tuple[int, int]] = {}
-    for m in matches:
+    for i, m in enumerate(matches, start=1):
         date = datetime.datetime.fromisoformat(m["date"].replace("Z", "+00:00"))
         home, away = m["home"], m["away"]
         home_goals, away_goals = m["home_goals"], m["away_goals"]
         competition = m["competition"]
         season_label = f"{competition}-{m['season']}"
-        fixture_team_ids[m["fixture_id"]] = (m["home_id"], m["away_id"])
 
         home_hist = team_history[home]
         away_hist = team_history[away]
+        home_shot_hist = team_shot_history[home]
+        away_shot_hist = team_shot_history[away]
         home_games_played = len(home_hist)
         away_games_played = len(away_hist)
 
         home_pos, home_pts, home_gd = table_standing(table, season_label, home)
         away_pos, away_pts, away_gd = table_standing(table, season_label, away)
+
+        home_shots_this = away_shots_this = None
+        home_missing = away_missing = None
+        if not args.core_only:
+            try:
+                shots = shot_stats_for(m["fixture_id"])
+                injuries = injury_count_for(m["fixture_id"])
+            except apifootball.ApiFootballError as exc:
+                print(f"  [{i}/{len(matches)}] fixture {m['fixture_id']}: {exc}", file=sys.stderr)
+                shots, injuries = {}, {}
+            home_shots_this = shots.get(m["home_id"])
+            away_shots_this = shots.get(m["away_id"])
+            home_missing = injuries.get(m["home_id"], 0)
+            away_missing = injuries.get(m["away_id"], 0)
 
         if home_games_played >= MIN_PRIOR_GAMES and away_games_played >= MIN_PRIOR_GAMES:
             home_rest = (date - team_last_played[home]).days if home in team_last_played else None
@@ -177,7 +217,10 @@ def main() -> int:
             pair_key = tuple(sorted([home, away]))
             h2h_goals = h2h_history[pair_key]
 
-            rows.append({
+            home_shots_last5 = rolling_avg(home_shot_hist, 5, "total_shots")
+            away_shots_last5 = rolling_avg(away_shot_hist, 5, "total_shots")
+
+            row = {
                 "fixture_id": m["fixture_id"],
                 "date": date.date().isoformat(),
                 "competition": competition,
@@ -200,6 +243,10 @@ def main() -> int:
                 "home_ga_season": season_avg(home_hist, season_label, "ga"),
                 "away_gf_season": season_avg(away_hist, season_label, "gf"),
                 "away_ga_season": season_avg(away_hist, season_label, "ga"),
+                "home_clean_sheet_pct_last5": clean_sheet_pct(home_hist, 5),
+                "away_clean_sheet_pct_last5": clean_sheet_pct(away_hist, 5),
+                "home_clean_sheet_pct_last10": clean_sheet_pct(home_hist, 10),
+                "away_clean_sheet_pct_last10": clean_sheet_pct(away_hist, 10),
                 "home_league_position": home_pos,
                 "away_league_position": away_pos,
                 "home_points": home_pts,
@@ -212,10 +259,38 @@ def main() -> int:
                 "h2h_avg_goals": (sum(h2h_goals) / len(h2h_goals)) if h2h_goals else None,
                 "total_goals": home_goals + away_goals,
                 "over_2_5": int((home_goals + away_goals) > 2.5),
-            })
+            }
+
+            if not args.core_only:
+                row.update({
+                    "home_shots_last5": home_shots_last5,
+                    "home_shots_on_goal_last5": rolling_avg(home_shot_hist, 5, "shots_on_goal"),
+                    "home_shots_inside_box_last5": rolling_avg(home_shot_hist, 5, "shots_inside_box"),
+                    "away_shots_last5": away_shots_last5,
+                    "away_shots_on_goal_last5": rolling_avg(away_shot_hist, 5, "shots_on_goal"),
+                    "away_shots_inside_box_last5": rolling_avg(away_shot_hist, 5, "shots_inside_box"),
+                    "home_conversion_rate_last5": safe_div(rolling_avg(home_hist, 5, "gf"), home_shots_last5),
+                    "away_conversion_rate_last5": safe_div(rolling_avg(away_hist, 5, "gf"), away_shots_last5),
+                    "home_total_shots": home_shots_this["total_shots"] if home_shots_this else None,
+                    "home_shots_on_goal": home_shots_this["shots_on_goal"] if home_shots_this else None,
+                    "home_shots_inside_box": home_shots_this["shots_inside_box"] if home_shots_this else None,
+                    "home_shots_outside_box": home_shots_this["shots_outside_box"] if home_shots_this else None,
+                    "away_total_shots": away_shots_this["total_shots"] if away_shots_this else None,
+                    "away_shots_on_goal": away_shots_this["shots_on_goal"] if away_shots_this else None,
+                    "away_shots_inside_box": away_shots_this["shots_inside_box"] if away_shots_this else None,
+                    "away_shots_outside_box": away_shots_this["shots_outside_box"] if away_shots_this else None,
+                    "home_missing_players": home_missing,
+                    "away_missing_players": away_missing,
+                })
+
+            rows.append(row)
 
         home_hist.append({"gf": home_goals, "ga": away_goals, "season_label": season_label})
         away_hist.append({"gf": away_goals, "ga": home_goals, "season_label": season_label})
+        if home_shots_this:
+            home_shot_hist.append(home_shots_this)
+        if away_shots_this:
+            away_shot_hist.append(away_shots_this)
         team_competition_games[(home, competition)] += 1
         team_competition_games[(away, competition)] += 1
         team_last_played[home] = date
@@ -239,37 +314,10 @@ def main() -> int:
             home_row["points"] += 1
             away_row["points"] += 1
 
+        if not args.core_only and i % 1000 == 0:
+            print(f"  ...{i}/{len(matches)}")
+
     print(f"Built {len(rows)} feature rows (dropped {len(matches) - len(rows)} early-history games)")
-
-    if not args.core_only:
-        print(f"Pulling shot statistics + injuries for {len(rows)} matches "
-              f"({len(rows) * 2} requests, throttled under 450/min)...")
-        fixture_ids_by_row = {r["fixture_id"]: r for r in rows}
-        for i, (fixture_id, row) in enumerate(fixture_ids_by_row.items(), start=1):
-            try:
-                shots = shot_stats_for(fixture_id)
-                injuries = injury_count_for(fixture_id)
-            except apifootball.ApiFootballError as exc:
-                print(f"  [{i}/{len(rows)}] fixture {fixture_id}: {exc}", file=sys.stderr)
-                continue
-
-            home_id, away_id = fixture_team_ids[fixture_id]
-            if home_id in shots:
-                row["home_total_shots"] = shots[home_id]["total_shots"]
-                row["home_shots_on_goal"] = shots[home_id]["shots_on_goal"]
-                row["home_shots_inside_box"] = shots[home_id]["shots_inside_box"]
-                row["home_shots_outside_box"] = shots[home_id]["shots_outside_box"]
-            if away_id in shots:
-                row["away_total_shots"] = shots[away_id]["total_shots"]
-                row["away_shots_on_goal"] = shots[away_id]["shots_on_goal"]
-                row["away_shots_inside_box"] = shots[away_id]["shots_inside_box"]
-                row["away_shots_outside_box"] = shots[away_id]["shots_outside_box"]
-
-            row["home_missing_players"] = injuries.get(home_id, 0)
-            row["away_missing_players"] = injuries.get(away_id, 0)
-
-            if i % 200 == 0:
-                print(f"  ...{i}/{len(rows)}")
 
     os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
     fieldnames = list(rows[0].keys())
