@@ -109,6 +109,36 @@ odds themselves) or scale far beyond what a free-tier, box-score-only
 API can provide. That's a real finding, not a dead end to paper over —
 it tells you where the ceiling is for this data source specifically.
 
+## Side test: does early-season form alone predict the rest of that season?
+
+A narrower question than the main dataset above: forget prior seasons
+entirely — does a team's first 10 matchweeks of 2025-26 say anything
+about matchday 11 onward of that *same* season? `analyze_early_season_form.py`
+freezes each team's goals-for/against/points from matchdays 1-10 only
+(both PL and Championship) and tests it against the remaining 712
+matches.
+
+Result: **no measurable signal, weaker than the main dataset.**
+
+| | n | corr w/ total goals | corr w/ over 2.5 |
+|---|---|---|---|
+| PL only | 280 | r=+0.015, p=0.80 | r=−0.040, p=0.51 |
+| Championship only | 432 | r=+0.076, p=0.12 | r=+0.079, p=0.10 |
+| Combined | 712 | r=+0.062, p=0.10 | r=+0.043, p=0.25 |
+
+None clear p<0.05. A logistic model (fit on the earlier matchday-11+
+games, tested on the later ones) makes it unambiguous: **LLR p-value
+0.909** — the whole model isn't distinguishable from one with no
+predictors at all — and out-of-sample accuracy (52.6%) came in *below*
+the always-guess-majority baseline (53.0%).
+
+Makes sense in hindsight: 10 games is a small, noisy sample for
+estimating a team's true quality, and dropping all prior-season history
+removes most of what gave the main dataset its (already weak) signal.
+The main dataset's edge came substantially from multi-season history and
+longer rolling windows, not from a single season's early form in
+isolation.
+
 ## Reproducing this
 
 ```bash
