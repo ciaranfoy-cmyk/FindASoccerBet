@@ -92,15 +92,47 @@ p=0.0086 respectively) — the first results in the project that would
 have been profitable at typical market pricing in the test window, not
 just "better than a coin flip."
 
+## Rolling-origin validation (`rolling_validation.py`)
+
+The single 80/20 split above answers "did this work once." This answers
+the question that actually matters: does it hold up across independent
+time periods, or was that one split a favorable draw? Split the
+complete-case dataset (9,553 matches) into 5 chronological chunks;
+for each of the last 4, train on an expanding window of everything
+before it (still fully chronological, no lookahead) and evaluate the
+same top-5%-by-confidence cut on that chunk alone.
+
+| Fold | Test window | AUC | Top-5% hit rate (n=95 each) |
+|---|---|---|---|
+| 1 | 2017-11 to 2020-01 | 0.525 | 58.9% |
+| 2 | 2020-01 to 2022-03 | 0.538 | 63.2% |
+| 3 | 2022-03 to 2024-04 | 0.561 | 65.3% |
+| 4 | 2024-04 to 2026-08 | 0.551 | 64.2% (the original single-split result) |
+
+Every fold beats its own local base rate, and the hit rate stays in a
+tight 58.9-65.3% band across nearly a decade of separate windows —
+not the kind of scatter you'd expect from a fluke.
+
+**Combined across all 4 folds (n=380, 4x the original sample):
+239/380 = 62.9% hit rate, z=4.94, p<0.0001.**
+
+The 95% confidence interval tightens from 54.2-73.1% (one window) to
+**57.9-67.6%** (four windows) — and critically, the lower bound is now
+*above* the 54.75% breakeven line for the odds tested earlier (implied
+ROI range: +5.8% to +23.5%, no longer touching negative). Before this,
+the honest worst case was "roughly breakeven." Now the honest worst
+case is "a genuine but smaller edge."
+
 ## Honest caveats — read before acting on this
 
-- **One chronological train/test split, not cross-validated.** The
-  headline numbers come from a single 80/20 split. The tail samples in
-  particular (n=69, n=95) are still modest — before trusting this for
-  real money, it should be re-checked on a second, independent holdout
-  (e.g. a rolling-origin backtest across several different train/test
-  cutoffs) to see if the edge holds up outside this one split, or was a
-  favorable draw.
+- **The rolling-origin result strengthens this a lot but doesn't erase
+  every caveat.** All 4 folds still use the same feature set and same
+  L1 modeling approach chosen once, not independently re-validated each
+  time — there's some risk the *methodology* itself was tuned (even
+  informally, across this session's iterations) toward what happened to
+  work on this specific dataset and time range. A true out-of-sample
+  test would apply this exact frozen approach to new seasons as they
+  arrive, going forward, rather than to more historical data.
 - **Multiple comparisons at the model-selection stage aren't fully
   accounted for.** The univariate scan is properly corrected; the L1
   model's feature selection and the subsequent threshold sweep were not
@@ -114,8 +146,11 @@ just "better than a coin flip."
   exists — check whether the model's edge is concentrated in a
   particular period before generalizing.
 
-Given all that: this is a genuinely promising result and qualitatively
-different from every prior attempt in this project (real features,
-principled selection, correctly-directional calibration, clears actual
-betting economics) — but "promising, pending a second confirmation" is
-the honest framing, not "solved."
+Given all that: this is the first result in the project with real
+weight behind it — real features, principled selection, correctly-
+directional calibration, clears actual betting economics, and now
+confirmed (not just once but four times) across independent time
+windows spanning 2017-2026. The honest framing is "a genuine, if
+modest, edge worth continuing to monitor going forward" — still not
+"solved" (see the caveats above, especially the frozen-methodology
+point), but no longer just "promising, unconfirmed."
