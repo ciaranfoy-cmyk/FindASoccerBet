@@ -1,0 +1,299 @@
+#!/usr/bin/env python3
+"""Score upcoming (not-yet-played) fixtures with the validated over-2.5
+model, and rank them — this is the actual "what should I look at next
+week" tool.
+
+Rebuilds each team's current rolling stats (goals, shots, clean sheets,
+table position, etc.) by replaying all finished historical matches up to
+today — same logic as build_dataset_apifootball.py, reused via import so
+a live prediction is computed identically to how the model was trained.
+Then fetches actual upcoming fixtures, pulls live injury/team-news for
+each, and scores them with a model trained on the FULL historical
+dataset (not the 80% split used for validation — that split's job was to
+prove the approach works; a live model should use every match available).
+
+Usage:
+    APIFOOTBALL_KEY=xxxx python3 predict_upcoming.py
+    APIFOOTBALL_KEY=xxxx python3 predict_upcoming.py --days 14
+"""
+
+import argparse
+import datetime
+import sys
+import warnings
+from collections import defaultdict, deque
+
+import pandas as pd
+from sklearn.linear_model import LogisticRegressionCV
+from sklearn.preprocessing import StandardScaler
+
+import apifootball
+from analyze_dataset_apifootball import ALL_CANDIDATES, add_derived_features, load
+from build_dataset_apifootball import (
+    LEAGUES,
+    clean_sheet_pct,
+    fetch_all_fixtures,
+    injury_count_for,
+    rolling_avg,
+    season_avg,
+    shot_stats_for,
+    table_standing,
+)
+
+warnings.filterwarnings("ignore")
+
+
+def replay_to_current_state(matches: list[dict]) -> dict:
+    """Replay every finished match chronologically to arrive at each
+    team's current tracked state — identical bookkeeping to
+    build_dataset_apifootball.main(), just returning the final state
+    instead of a training-row list.
+    """
+    state = {
+        "team_history": defaultdict(lambda: deque()),
+        "team_shot_history": defaultdict(lambda: deque()),
+        "team_competition_games": defaultdict(int),
+        "team_last_played": {},
+        "h2h_history": defaultdict(list),
+        "table": defaultdict(dict),
+    }
+
+    for i, m in enumerate(matches, start=1):
+        date = datetime.datetime.fromisoformat(m["date"].replace("Z", "+00:00"))
+        home, away = m["home"], m["away"]
+        home_goals, away_goals = m["home_goals"], m["away_goals"]
+        competition = m["competition"]
+        season_label = f"{competition}-{m['season']}"
+
+        try:
+            shots = shot_stats_for(m["fixture_id"])
+        except apifootball.ApiFootballError:
+            shots = {}
+        home_shots_this = shots.get(m["home_id"])
+        away_shots_this = shots.get(m["away_id"])
+
+        state["team_history"][home].append({"gf": home_goals, "ga": away_goals, "season_label": season_label})
+        state["team_history"][away].append({"gf": away_goals, "ga": home_goals, "season_label": season_label})
+        if home_shots_this:
+            state["team_shot_history"][home].append(home_shots_this)
+        if away_shots_this:
+            state["team_shot_history"][away].append(away_shots_this)
+        state["team_competition_games"][(home, competition)] += 1
+        state["team_competition_games"][(away, competition)] += 1
+        state["team_last_played"][home] = date
+        state["team_last_played"][away] = date
+        state["h2h_history"][tuple(sorted([home, away]))].append(home_goals + away_goals)
+
+        season_table = state["table"][season_label]
+        home_row = season_table.setdefault(home, {"points": 0, "played": 0, "gf": 0, "ga": 0})
+        away_row = season_table.setdefault(away, {"points": 0, "played": 0, "gf": 0, "ga": 0})
+        home_row["played"] += 1
+        away_row["played"] += 1
+        home_row["gf"] += home_goals
+        home_row["ga"] += away_goals
+        away_row["gf"] += away_goals
+        away_row["ga"] += home_goals
+        if home_goals > away_goals:
+            home_row["points"] += 3
+        elif away_goals > home_goals:
+            away_row["points"] += 3
+        else:
+            home_row["points"] += 1
+            away_row["points"] += 1
+
+        if i % 2000 == 0:
+            print(f"  ...replayed {i}/{len(matches)} historical matches", file=sys.stderr)
+
+    return state
+
+
+def fetch_upcoming_fixtures(days_ahead: int) -> list[dict]:
+    current_year = datetime.date.today().year if datetime.date.today().month >= 7 else datetime.date.today().year - 1
+    today = datetime.date.today()
+    cutoff = today + datetime.timedelta(days=days_ahead)
+
+    upcoming = []
+    for code, info in LEAGUES.items():
+        data = apifootball.get("/fixtures", {"league": info["id"], "season": current_year}, ttl_seconds=300)
+        for m in data.get("response", []):
+            if m["fixture"]["status"]["short"] not in ("NS", "TBD"):
+                continue
+            match_date = datetime.datetime.fromisoformat(m["fixture"]["date"].replace("Z", "+00:00")).date()
+            if not (today <= match_date <= cutoff):
+                continue
+            upcoming.append({
+                "fixture_id": m["fixture"]["id"],
+                "date": m["fixture"]["date"],
+                "competition": code,
+                "season": current_year,
+                "home": m["teams"]["home"]["name"],
+                "away": m["teams"]["away"]["name"],
+                "home_id": m["teams"]["home"]["id"],
+                "away_id": m["teams"]["away"]["id"],
+            })
+    upcoming.sort(key=lambda m: m["date"])
+    return upcoming
+
+
+def build_feature_row(m: dict, state: dict) -> dict | None:
+    home, away = m["home"], m["away"]
+    competition = m["competition"]
+    season_label = f"{competition}-{m['season']}"
+
+    home_hist = state["team_history"][home]
+    away_hist = state["team_history"][away]
+    home_shot_hist = state["team_shot_history"][home]
+    away_shot_hist = state["team_shot_history"][away]
+    home_games_played = len(home_hist)
+    away_games_played = len(away_hist)
+
+    if home_games_played < 5 or away_games_played < 5:
+        return None
+
+    match_date = datetime.datetime.fromisoformat(m["date"].replace("Z", "+00:00"))
+    home_pos, home_pts, home_gd = table_standing(state["table"], season_label, home)
+    away_pos, away_pts, away_gd = table_standing(state["table"], season_label, away)
+    home_rest = (match_date - state["team_last_played"][home]).days if home in state["team_last_played"] else None
+    away_rest = (match_date - state["team_last_played"][away]).days if away in state["team_last_played"] else None
+    pair_key = tuple(sorted([home, away]))
+    h2h_goals = state["h2h_history"][pair_key]
+
+    try:
+        injuries = injury_count_for(m["fixture_id"])
+    except apifootball.ApiFootballError:
+        injuries = {}
+    home_missing = injuries.get(m["home_id"], 0)
+    away_missing = injuries.get(m["away_id"], 0)
+
+    home_shots_last5 = rolling_avg(home_shot_hist, 5, "total_shots")
+    away_shots_last5 = rolling_avg(away_shot_hist, 5, "total_shots")
+
+    def safe_div(a, b):
+        return None if a is None or b is None or b == 0 else a / b
+
+    return {
+        "fixture_id": m["fixture_id"],
+        "date": match_date.date().isoformat(),
+        "competition": competition,
+        "season": m["season"],
+        "home_team": home,
+        "away_team": away,
+        "home_games_played": home_games_played,
+        "away_games_played": away_games_played,
+        "home_competition_games": state["team_competition_games"][(home, competition)],
+        "away_competition_games": state["team_competition_games"][(away, competition)],
+        "home_gf_last5": rolling_avg(home_hist, 5, "gf"),
+        "home_ga_last5": rolling_avg(home_hist, 5, "ga"),
+        "away_gf_last5": rolling_avg(away_hist, 5, "gf"),
+        "away_ga_last5": rolling_avg(away_hist, 5, "ga"),
+        "home_gf_last10": rolling_avg(home_hist, 10, "gf"),
+        "home_ga_last10": rolling_avg(home_hist, 10, "ga"),
+        "away_gf_last10": rolling_avg(away_hist, 10, "gf"),
+        "away_ga_last10": rolling_avg(away_hist, 10, "ga"),
+        "home_gf_season": season_avg(home_hist, season_label, "gf"),
+        "home_ga_season": season_avg(home_hist, season_label, "ga"),
+        "away_gf_season": season_avg(away_hist, season_label, "gf"),
+        "away_ga_season": season_avg(away_hist, season_label, "ga"),
+        "home_clean_sheet_pct_last5": clean_sheet_pct(home_hist, 5),
+        "away_clean_sheet_pct_last5": clean_sheet_pct(away_hist, 5),
+        "home_clean_sheet_pct_last10": clean_sheet_pct(home_hist, 10),
+        "away_clean_sheet_pct_last10": clean_sheet_pct(away_hist, 10),
+        "home_league_position": home_pos,
+        "away_league_position": away_pos,
+        "home_points": home_pts,
+        "away_points": away_pts,
+        "home_goal_diff": home_gd,
+        "away_goal_diff": away_gd,
+        "home_rest_days": home_rest,
+        "away_rest_days": away_rest,
+        "h2h_games": len(h2h_goals),
+        "h2h_avg_goals": (sum(h2h_goals) / len(h2h_goals)) if h2h_goals else None,
+        "home_shots_last5": home_shots_last5,
+        "home_shots_on_goal_last5": rolling_avg(home_shot_hist, 5, "shots_on_goal"),
+        "home_shots_inside_box_last5": rolling_avg(home_shot_hist, 5, "shots_inside_box"),
+        "away_shots_last5": away_shots_last5,
+        "away_shots_on_goal_last5": rolling_avg(away_shot_hist, 5, "shots_on_goal"),
+        "away_shots_inside_box_last5": rolling_avg(away_shot_hist, 5, "shots_inside_box"),
+        "home_conversion_rate_last5": safe_div(rolling_avg(home_hist, 5, "gf"), home_shots_last5),
+        "away_conversion_rate_last5": safe_div(rolling_avg(away_hist, 5, "gf"), away_shots_last5),
+        "home_missing_players": home_missing,
+        "away_missing_players": away_missing,
+    }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--days", type=int, default=10, help="Look at fixtures in the next N days, default 10")
+    args = parser.parse_args()
+
+    print("Training the live model on the full historical dataset...")
+    historical = load()
+    model_df = historical[ALL_CANDIDATES + ["over_2_5"]].dropna()
+    print(f"  {len(model_df)} complete-case matches used for training")
+
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(model_df[ALL_CANDIDATES])
+    model = LogisticRegressionCV(
+        Cs=15, cv=5, penalty="l1", solver="liblinear", scoring="roc_auc", max_iter=2000, random_state=0,
+    )
+    model.fit(X_train, model_df["over_2_5"])
+
+    print("\nFetching upcoming fixtures...")
+    try:
+        upcoming = fetch_upcoming_fixtures(args.days)
+    except apifootball.ApiFootballError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+    if not upcoming:
+        print(f"No upcoming PL/Championship fixtures found in the next {args.days} days.")
+        return 0
+
+    print(f"Found {len(upcoming)} upcoming fixtures. Rebuilding current team state "
+          f"(replaying historical matches, mostly cached — may take a minute)...")
+    try:
+        all_finished = fetch_all_fixtures(None)
+    except apifootball.ApiFootballError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    state = replay_to_current_state(all_finished)
+
+    print("\nScoring upcoming fixtures...")
+    rows = []
+    for m in upcoming:
+        row = build_feature_row(m, state)
+        if row is not None:
+            rows.append(row)
+
+    if not rows:
+        print("No upcoming fixtures had enough team history to score.")
+        return 0
+
+    live_df = pd.DataFrame(rows)
+    live_df = add_derived_features(live_df)
+    live_df = live_df.dropna(subset=ALL_CANDIDATES)
+
+    if live_df.empty:
+        print("All upcoming fixtures were missing at least one required feature (likely shot-stat gaps).")
+        return 0
+
+    X_live = scaler.transform(live_df[ALL_CANDIDATES])
+    live_df["pred_p_over_2_5"] = model.predict_proba(X_live)[:, 1]
+    live_df = live_df.sort_values("pred_p_over_2_5", ascending=False)
+
+    print(f"\nUpcoming fixtures ranked by predicted P(over 2.5 goals):")
+    print("-" * 70)
+    for _, r in live_df.iterrows():
+        print(f"{r['date']}  [{r['competition']}]  {r['home_team']:<24s} vs {r['away_team']:<24s}  "
+              f"P(over 2.5) = {r['pred_p_over_2_5']*100:.1f}%")
+
+    top = live_df.iloc[0]
+    print(f"\nTop pick: {top['home_team']} vs {top['away_team']} ({top['date']}) — "
+          f"P(over 2.5) = {top['pred_p_over_2_5']*100:.1f}%")
+    print("Model-derived estimate, not betting advice — see docs/apifootball-dataset-analysis.md for validation and caveats.")
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

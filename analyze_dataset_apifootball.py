@@ -52,11 +52,11 @@ LEAKAGE_SANITY_CHECK = [
 ]
 
 
-def load() -> pd.DataFrame:
-    df = pd.read_csv(DATA_PATH)
-    df["date"] = pd.to_datetime(df["date"])
-    df = df.sort_values("date").reset_index(drop=True)
-
+def add_derived_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Shared by the historical loader and the live scorer, so a live
+    prediction is computed with exactly the same derivation as training —
+    no risk of the two drifting apart.
+    """
     df["is_PL"] = (df["competition"] == "PL").astype(int)
     df["combined_gf_last5"] = df["home_gf_last5"] + df["away_gf_last5"]
     df["combined_ga_last5"] = df["home_ga_last5"] + df["away_ga_last5"]
@@ -73,8 +73,14 @@ def load() -> pd.DataFrame:
     df["missing_players_gap"] = (df["home_missing_players"] - df["away_missing_players"]).abs()
     df["clean_sheet_pct_combined_last5"] = (df["home_clean_sheet_pct_last5"] + df["away_clean_sheet_pct_last5"]) / 2
     df["season_year"] = df["season"]
-
     return df
+
+
+def load() -> pd.DataFrame:
+    df = pd.read_csv(DATA_PATH)
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values("date").reset_index(drop=True)
+    return add_derived_features(df)
 
 
 DERIVED_FEATURES = [
