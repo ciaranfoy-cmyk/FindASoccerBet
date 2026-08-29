@@ -43,13 +43,8 @@ from build_dataset_apifootball import (
 warnings.filterwarnings("ignore")
 
 
-def replay_to_current_state(matches: list[dict]) -> dict:
-    """Replay every finished match chronologically to arrive at each
-    team's current tracked state — identical bookkeeping to
-    build_dataset_apifootball.main(), just returning the final state
-    instead of a training-row list.
-    """
-    state = {
+def new_state() -> dict:
+    return {
         "team_history": defaultdict(lambda: deque()),
         "team_shot_history": defaultdict(lambda: deque()),
         "team_competition_games": defaultdict(int),
@@ -58,52 +53,68 @@ def replay_to_current_state(matches: list[dict]) -> dict:
         "table": defaultdict(dict),
     }
 
+
+def apply_match(state: dict, m: dict) -> None:
+    """Fold one finished match into the tracked state — the same
+    bookkeeping build_dataset_apifootball.main() does per row, extracted
+    so a walk-forward backtest can advance the state incrementally
+    (week by week) instead of replaying full history from scratch at
+    every step.
+    """
+    date = datetime.datetime.fromisoformat(m["date"].replace("Z", "+00:00"))
+    home, away = m["home"], m["away"]
+    home_goals, away_goals = m["home_goals"], m["away_goals"]
+    competition = m["competition"]
+    season_label = f"{competition}-{m['season']}"
+
+    try:
+        shots = shot_stats_for(m["fixture_id"])
+    except apifootball.ApiFootballError:
+        shots = {}
+    home_shots_this = shots.get(m["home_id"])
+    away_shots_this = shots.get(m["away_id"])
+
+    state["team_history"][home].append({"gf": home_goals, "ga": away_goals, "season_label": season_label})
+    state["team_history"][away].append({"gf": away_goals, "ga": home_goals, "season_label": season_label})
+    if home_shots_this:
+        state["team_shot_history"][home].append(home_shots_this)
+    if away_shots_this:
+        state["team_shot_history"][away].append(away_shots_this)
+    state["team_competition_games"][(home, competition)] += 1
+    state["team_competition_games"][(away, competition)] += 1
+    state["team_last_played"][home] = date
+    state["team_last_played"][away] = date
+    state["h2h_history"][tuple(sorted([home, away]))].append(home_goals + away_goals)
+
+    season_table = state["table"][season_label]
+    home_row = season_table.setdefault(home, {"points": 0, "played": 0, "gf": 0, "ga": 0})
+    away_row = season_table.setdefault(away, {"points": 0, "played": 0, "gf": 0, "ga": 0})
+    home_row["played"] += 1
+    away_row["played"] += 1
+    home_row["gf"] += home_goals
+    home_row["ga"] += away_goals
+    away_row["gf"] += away_goals
+    away_row["ga"] += home_goals
+    if home_goals > away_goals:
+        home_row["points"] += 3
+    elif away_goals > home_goals:
+        away_row["points"] += 3
+    else:
+        home_row["points"] += 1
+        away_row["points"] += 1
+
+
+def replay_to_current_state(matches: list[dict]) -> dict:
+    """Replay every finished match chronologically to arrive at each
+    team's current tracked state — identical bookkeeping to
+    build_dataset_apifootball.main(), just returning the final state
+    instead of a training-row list.
+    """
+    state = new_state()
     for i, m in enumerate(matches, start=1):
-        date = datetime.datetime.fromisoformat(m["date"].replace("Z", "+00:00"))
-        home, away = m["home"], m["away"]
-        home_goals, away_goals = m["home_goals"], m["away_goals"]
-        competition = m["competition"]
-        season_label = f"{competition}-{m['season']}"
-
-        try:
-            shots = shot_stats_for(m["fixture_id"])
-        except apifootball.ApiFootballError:
-            shots = {}
-        home_shots_this = shots.get(m["home_id"])
-        away_shots_this = shots.get(m["away_id"])
-
-        state["team_history"][home].append({"gf": home_goals, "ga": away_goals, "season_label": season_label})
-        state["team_history"][away].append({"gf": away_goals, "ga": home_goals, "season_label": season_label})
-        if home_shots_this:
-            state["team_shot_history"][home].append(home_shots_this)
-        if away_shots_this:
-            state["team_shot_history"][away].append(away_shots_this)
-        state["team_competition_games"][(home, competition)] += 1
-        state["team_competition_games"][(away, competition)] += 1
-        state["team_last_played"][home] = date
-        state["team_last_played"][away] = date
-        state["h2h_history"][tuple(sorted([home, away]))].append(home_goals + away_goals)
-
-        season_table = state["table"][season_label]
-        home_row = season_table.setdefault(home, {"points": 0, "played": 0, "gf": 0, "ga": 0})
-        away_row = season_table.setdefault(away, {"points": 0, "played": 0, "gf": 0, "ga": 0})
-        home_row["played"] += 1
-        away_row["played"] += 1
-        home_row["gf"] += home_goals
-        home_row["ga"] += away_goals
-        away_row["gf"] += away_goals
-        away_row["ga"] += home_goals
-        if home_goals > away_goals:
-            home_row["points"] += 3
-        elif away_goals > home_goals:
-            away_row["points"] += 3
-        else:
-            home_row["points"] += 1
-            away_row["points"] += 1
-
+        apply_match(state, m)
         if i % 2000 == 0:
             print(f"  ...replayed {i}/{len(matches)} historical matches", file=sys.stderr)
-
     return state
 
 
