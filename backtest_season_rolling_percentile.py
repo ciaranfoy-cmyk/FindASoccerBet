@@ -3,12 +3,15 @@
 rolling_percentile_validation.py) across one full season of PL +
 Championship fixtures and report exactly what it would have bet.
 
-Reuses the same expanding-window fold predictions as
-rolling_percentile_validation.py (retrain 4 times total on strictly
-prior data, score every game chronologically) — no per-week retraining
-needed, since the trailing-window bar is computed purely from the
-stream of past predictions, which the fold structure already produces
-in full chronological, no-lookahead order.
+Hybrid model: builds two expanding-window prediction streams — the core
+model (5 folds, full history) and the xG-augmented model (4 folds, real
+xG only exists PL 2022-23+ / ELC 2023-24+) — then for each game prefers
+the xG prediction when available (its own out-of-sample fold), falling
+back to the core prediction otherwise. This mirrors predict_upcoming.py's
+live hybrid logic. No per-week retraining needed either way — the
+trailing-window bar is computed purely from the stream of past
+predictions, which the fold structure already produces in full
+chronological, no-lookahead order.
 
 Usage:
     python3 backtest_season_rolling_percentile.py --season 2025
@@ -25,12 +28,14 @@ from sklearn.linear_model import LogisticRegressionCV
 from sklearn.preprocessing import StandardScaler
 
 import apifootball
-from analyze_dataset_apifootball import ALL_CANDIDATES, load
+from analyze_dataset_apifootball import ALL_CANDIDATES
+from analyze_xg_features import XG_DERIVED_FEATURES, XG_RAW_FEATURES, load_with_xg
 from build_dataset_apifootball import LEAGUES
 
 warnings.filterwarnings("ignore")
 
-N_FOLDS = 5
+N_FOLDS_CORE = 5
+N_FOLDS_XG = 4
 STAKE = 100.0
 PROFIT_ON_WIN = 90.0
 
@@ -45,9 +50,30 @@ def fit_and_predict(train: pd.DataFrame, test: pd.DataFrame, features: list[str]
     )
     model.fit(X_train, train["over_2_5"])
     pred_prob = model.predict_proba(X_test)[:, 1]
-    out = test[["date", "over_2_5", "home_team", "away_team", "competition"]].copy()
+    out = test[["fixture_id", "date", "over_2_5", "home_team", "away_team", "competition"]].copy()
     out["pred_p"] = pred_prob
     return out
+
+
+def build_stream(df: pd.DataFrame, features: list[str], n_folds: int, label: str) -> pd.DataFrame:
+    cols = ["fixture_id", "date", "home_team", "away_team", "competition", "over_2_5"] + features
+    model_df = df[cols].dropna().reset_index(drop=True)
+    fold_size = len(model_df) // n_folds
+    boundaries = [i * fold_size for i in range(n_folds + 1)]
+    boundaries[-1] = len(model_df)
+
+    all_predictions = []
+    for fold in range(1, n_folds):
+        train_end = boundaries[fold]
+        test_start, test_end = boundaries[fold], boundaries[fold + 1]
+        train, test = model_df.iloc[:train_end], model_df.iloc[test_start:test_end]
+        preds = fit_and_predict(train, test, features)
+        all_predictions.append(preds)
+        print(f"  [{label}] Fold {fold}: trained on {len(train)}, scored {len(preds)} games")
+
+    if not all_predictions:
+        return pd.DataFrame(columns=cols[:-len(features)] + ["pred_p"])
+    return pd.concat(all_predictions, ignore_index=True)
 
 
 def main() -> int:
@@ -68,24 +94,20 @@ def main() -> int:
     window_start, window_end = min(season_dates), max(season_dates)
     print(f"Season {args.season}-{args.season+1-2000}: {window_start.date()} to {window_end.date()}\n")
 
-    df = load()
-    model_df = df[ALL_CANDIDATES + ["over_2_5", "date", "home_team", "away_team", "competition"]].dropna().reset_index(drop=True)
+    df = load_with_xg()
+    xg_candidates = ALL_CANDIDATES + XG_RAW_FEATURES + XG_DERIVED_FEATURES
 
-    fold_size = len(model_df) // N_FOLDS
-    boundaries = [i * fold_size for i in range(N_FOLDS + 1)]
-    boundaries[-1] = len(model_df)
+    core_stream = build_stream(df, ALL_CANDIDATES, N_FOLDS_CORE, "core")
+    xg_stream = build_stream(df, xg_candidates, N_FOLDS_XG, "xG")
 
-    all_predictions = []
-    for fold in range(1, N_FOLDS):
-        train_end = boundaries[fold]
-        test_start, test_end = boundaries[fold], boundaries[fold + 1]
-        train, test = model_df.iloc[:train_end], model_df.iloc[test_start:test_end]
-        preds = fit_and_predict(train, test, ALL_CANDIDATES)
-        all_predictions.append(preds)
-        print(f"Fold {fold}: trained on {len(train)}, scored {len(preds)} games")
+    core_stream = core_stream.rename(columns={"pred_p": "pred_p_core"})
+    xg_small = xg_stream[["fixture_id", "pred_p"]].rename(columns={"pred_p": "pred_p_xg"})
+    merged = core_stream.merge(xg_small, on="fixture_id", how="left")
+    merged["pred_p"] = merged["pred_p_xg"].combine_first(merged["pred_p_core"])
+    merged["model_used"] = merged["pred_p_xg"].notna().map({True: "xG", False: "core"})
+    stream = merged.sort_values("date").reset_index(drop=True)
 
-    stream = pd.concat(all_predictions, ignore_index=True).sort_values("date").reset_index(drop=True)
-    print(f"\nWalking {len(stream)} games chronologically, "
+    print(f"\nWalking {len(stream)} games chronologically (hybrid xG/core), "
           f"window={args.window}, live bar=trailing p{args.percentile:.0f}, warmup={args.warmup}\n")
 
     trailing = deque(maxlen=args.window)
@@ -106,32 +128,34 @@ def main() -> int:
                     bets.append({
                         "date": row["date"].date(), "competition": row["competition"],
                         "home": row["home_team"], "away": row["away_team"],
-                        "pred_p": row["pred_p"], "bar": bar, "win": win, "bankroll": bankroll,
+                        "pred_p": row["pred_p"], "bar": bar, "model_used": row["model_used"],
+                        "win": win, "bankroll": bankroll,
                     })
         if in_season:
             season_games_seen += 1
         trailing.append(row["pred_p"])
 
     print("=" * 100)
-    print(f"Bets placed during season {args.season}-{args.season+1-2000}:")
+    print(f"Bets placed during season {args.season}-{args.season+1-2000} (hybrid xG/core):")
     print("=" * 100)
     for b in bets:
         outcome = "WIN " + f"+${PROFIT_ON_WIN:.0f}" if b["win"] else "LOSS " + f"-${STAKE:.0f}"
-        print(f"{b['date']}  [{b['competition']}] {b['home']:<20s} vs {b['away']:<20s}  "
+        print(f"{b['date']}  [{b['competition']}] [{b['model_used']:<4s}] {b['home']:<20s} vs {b['away']:<20s}  "
               f"pred={b['pred_p']*100:5.1f}%  bar={b['bar']*100:5.1f}%  {outcome:<12s}  bankroll={b['bankroll']:+.0f}")
 
     n_bets = len(bets)
     wins = sum(1 for b in bets if b["win"])
+    n_xg_bets = sum(1 for b in bets if b["model_used"] == "xG")
     print("\n" + "-" * 100)
     print(f"Season games in window: {season_games_seen}   Games with a live bar available: {season_games_scored}")
-    print(f"Bets placed: {n_bets}   Wins: {wins}   Losses: {n_bets - wins}")
+    print(f"Bets placed: {n_bets} ({n_xg_bets} via xG model, {n_bets - n_xg_bets} via core)   Wins: {wins}   Losses: {n_bets - wins}")
     if n_bets:
         total_staked = n_bets * STAKE
         print(f"Hit rate: {wins}/{n_bets} = {wins/n_bets*100:.1f}%")
         print(f"Total staked: ${total_staked:.0f}")
         print(f"Total P&L: ${bankroll:+.0f}")
         print(f"ROI: {bankroll/total_staked*100:+.1f}%")
-        baseline = model_df["over_2_5"].mean()
+        baseline = stream["over_2_5"].mean()
         expected = n_bets * baseline
         std = sqrt(n_bets * baseline * (1 - baseline))
         if std > 0:

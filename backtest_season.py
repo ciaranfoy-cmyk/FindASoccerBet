@@ -32,8 +32,11 @@ from sklearn.preprocessing import StandardScaler
 
 import apifootball
 from analyze_dataset_apifootball import ALL_CANDIDATES, add_derived_features, load
+from analyze_xg_features import XG_DERIVED_FEATURES, XG_RAW_FEATURES, add_xg_derived_features, load_with_xg
 from build_dataset_apifootball import LEAGUES, fetch_all_fixtures
 from predict_upcoming import apply_match, build_feature_row, new_state
+
+MIN_XG_TRAIN_ROWS = 200  # don't bother fitting an xG model on too small a weekly training set
 
 warnings.filterwarnings("ignore")
 
@@ -88,6 +91,8 @@ def main() -> int:
 
     print("Loading historical dataset for weekly model retraining...")
     historical = load()
+    xg_historical = load_with_xg()
+    xg_candidates = ALL_CANDIDATES + XG_RAW_FEATURES + XG_DERIVED_FEATURES
 
     # Group this season's matches into calendar weeks, chronological.
     df = pd.DataFrame(season_matches)
@@ -116,6 +121,19 @@ def main() -> int:
         )
         model.fit(X_train, model_df["over_2_5"])
 
+        # xG model, same week, same no-lookahead cutoff -- trained only if
+        # enough real-xG-covered history exists strictly before this week.
+        xg_model_df = xg_historical[xg_historical["date"] < cutoff_ts]
+        xg_model_df = xg_model_df[xg_candidates + ["over_2_5"]].dropna()
+        xg_scaler = xg_model = None
+        if len(xg_model_df) >= MIN_XG_TRAIN_ROWS:
+            xg_scaler = StandardScaler()
+            X_xg_train = xg_scaler.fit_transform(xg_model_df[xg_candidates])
+            xg_model = LogisticRegressionCV(
+                Cs=15, cv=5, penalty="l1", solver="liblinear", scoring="roc_auc", max_iter=2000, random_state=0,
+            )
+            xg_model.fit(X_xg_train, xg_model_df["over_2_5"])
+
         rows = []
         for m in week_matches:
             row = build_feature_row(m, state)
@@ -129,10 +147,25 @@ def main() -> int:
         if rows:
             live_df = pd.DataFrame(rows)
             live_df = add_derived_features(live_df)
+            live_df = add_xg_derived_features(live_df)
             scoreable = live_df.dropna(subset=ALL_CANDIDATES).copy()
             if not scoreable.empty:
-                X_live = scaler.transform(scoreable[ALL_CANDIDATES])
-                scoreable["pred_p"] = model.predict_proba(X_live)[:, 1]
+                has_xg = pd.Series(False, index=scoreable.index)
+                if xg_model is not None:
+                    has_xg = scoreable[xg_candidates].notna().all(axis=1)
+
+                scoreable["pred_p"] = pd.NA
+                scoreable["model_used"] = "core"
+                core_rows = scoreable.loc[~has_xg]
+                if not core_rows.empty:
+                    X_core = scaler.transform(core_rows[ALL_CANDIDATES])
+                    scoreable.loc[~has_xg, "pred_p"] = model.predict_proba(X_core)[:, 1]
+                xg_rows = scoreable.loc[has_xg]
+                if not xg_rows.empty:
+                    X_xg = xg_scaler.transform(xg_rows[xg_candidates])
+                    scoreable.loc[has_xg, "pred_p"] = xg_model.predict_proba(X_xg)[:, 1]
+                    scoreable.loc[has_xg, "model_used"] = "xG"
+                scoreable["pred_p"] = scoreable["pred_p"].astype(float)
                 scoreable = scoreable.sort_values("pred_p", ascending=False)
 
                 for rank, (_, cand) in enumerate(scoreable.head(args.top_n).iterrows(), start=1):
@@ -145,6 +178,7 @@ def main() -> int:
                         "home": cand["home_team"],
                         "away": cand["away_team"],
                         "pred_p": cand["pred_p"],
+                        "model_used": cand["model_used"],
                         "actual_score": f"{int(cand['actual_home_goals'])}-{int(cand['actual_away_goals'])}",
                         "actual_over": actual_over,
                     }
@@ -174,13 +208,13 @@ def main() -> int:
         else:
             report_rows.append({
                 "week_start": week.start_time.date(), "rank": None, "competition": "-", "home": "-", "away": "-",
-                "pred_p": None, "actual_score": "-", "actual_over": None,
+                "pred_p": None, "model_used": "-", "actual_score": "-", "actual_over": None,
                 "outcome": "no scoreable fixtures (season just started)", "pnl": "$0",
                 "bankroll": bankroll,
             })
 
     print("\n" + "=" * 100)
-    print(f"Full season {args.season}-{args.season+1-2000} walk-forward backtest — "
+    print(f"Full season {args.season}-{args.season+1-2000} walk-forward backtest (hybrid xG/core model) — "
           f"bet the top {args.top_n} ranked pick(s)/week when P(over 2.5) >= {args.threshold*100:.0f}%")
     print("=" * 100)
     for r in report_rows:
@@ -190,7 +224,7 @@ def main() -> int:
         conf = f"{r['pred_p']*100:.1f}%"
         actual = f"{r['actual_score']} ({'OVER' if r['actual_over'] else 'under'} 2.5)"
         rank_tag = f"#{r['rank']}" if args.top_n > 1 else ""
-        print(f"{r['week_start']} {rank_tag:<3s} [{r['competition']}] {r['home']:<20s} vs {r['away']:<20s}  "
+        print(f"{r['week_start']} {rank_tag:<3s} [{r['competition']}] [{r['model_used']:<4s}] {r['home']:<20s} vs {r['away']:<20s}  "
               f"P={conf:<7s} actual={actual:<20s} {r['outcome']:<25s} {r['pnl']:>6s}  bankroll={r['bankroll']:+.0f}")
 
     total_staked = bets * STAKE
