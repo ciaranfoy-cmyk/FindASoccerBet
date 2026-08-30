@@ -12,6 +12,14 @@ each, and scores them with a model trained on the FULL historical
 dataset (not the 80% split used for validation — that split's job was to
 prove the approach works; a live model should use every match available).
 
+Also trains a second, xG-augmented model (see build_xg_features.py /
+rolling_validation_xg.py) on the smaller but real-xG-covered recent-era
+subset. Since the current season falls entirely within that coverage
+window, live fixtures almost always have real rolling xG available —
+when they do, the xG model scores them (it's the stronger, though less
+long-proven, of the two); when they don't (e.g. very early in a newly
+promoted team's tracked history), falls back to the core model.
+
 Usage:
     APIFOOTBALL_KEY=xxxx python3 predict_upcoming.py
     APIFOOTBALL_KEY=xxxx python3 predict_upcoming.py --days 14
@@ -29,6 +37,7 @@ from sklearn.preprocessing import StandardScaler
 
 import apifootball
 from analyze_dataset_apifootball import ALL_CANDIDATES, add_derived_features, load
+from analyze_xg_features import XG_DERIVED_FEATURES, XG_RAW_FEATURES, add_xg_derived_features, load_with_xg
 from build_dataset_apifootball import (
     LEAGUES,
     clean_sheet_pct,
@@ -39,6 +48,9 @@ from build_dataset_apifootball import (
     shot_stats_for,
     table_standing,
 )
+from build_xg_features import MIN_GAMES_FOR_ROLLING as XG_MIN_GAMES
+from build_xg_features import ROLLING_N as XG_ROLLING_N
+from build_xg_features import xg_stats_for
 
 warnings.filterwarnings("ignore")
 
@@ -51,7 +63,16 @@ def new_state() -> dict:
         "team_last_played": {},
         "h2h_history": defaultdict(list),
         "table": defaultdict(dict),
+        "xg_for_history": defaultdict(lambda: deque(maxlen=XG_ROLLING_N)),
+        "xg_against_history": defaultdict(lambda: deque(maxlen=XG_ROLLING_N)),
+        "xg_finishing_history": defaultdict(lambda: deque(maxlen=XG_ROLLING_N)),
     }
+
+
+def rolling_avg_xg(dq: deque) -> float | None:
+    if len(dq) < XG_MIN_GAMES:
+        return None
+    return sum(dq) / len(dq)
 
 
 def apply_match(state: dict, m: dict) -> None:
@@ -73,6 +94,20 @@ def apply_match(state: dict, m: dict) -> None:
         shots = {}
     home_shots_this = shots.get(m["home_id"])
     away_shots_this = shots.get(m["away_id"])
+
+    try:
+        xg = xg_stats_for(m["fixture_id"])
+    except apifootball.ApiFootballError:
+        xg = {}
+    home_id, away_id = m.get("home_id"), m.get("away_id")
+    if home_id in xg and away_id in xg:
+        home_xg, away_xg = xg[home_id]["xg"], xg[away_id]["xg"]
+        state["xg_for_history"][home].append(home_xg)
+        state["xg_against_history"][home].append(away_xg)
+        state["xg_for_history"][away].append(away_xg)
+        state["xg_against_history"][away].append(home_xg)
+        state["xg_finishing_history"][home].append(home_goals - home_xg)
+        state["xg_finishing_history"][away].append(away_goals - away_xg)
 
     state["team_history"][home].append({"gf": home_goals, "ga": away_goals, "season_label": season_label})
     state["team_history"][away].append({"gf": away_goals, "ga": home_goals, "season_label": season_label})
@@ -229,6 +264,12 @@ def build_feature_row(m: dict, state: dict) -> dict | None:
         "away_conversion_rate_last5": safe_div(rolling_avg(away_hist, 5, "gf"), away_shots_last5),
         "home_missing_players": home_missing,
         "away_missing_players": away_missing,
+        "home_xg_last5": rolling_avg_xg(state["xg_for_history"][home]),
+        "away_xg_last5": rolling_avg_xg(state["xg_for_history"][away]),
+        "home_xg_against_last5": rolling_avg_xg(state["xg_against_history"][home]),
+        "away_xg_against_last5": rolling_avg_xg(state["xg_against_history"][away]),
+        "home_finishing_last5": rolling_avg_xg(state["xg_finishing_history"][home]),
+        "away_finishing_last5": rolling_avg_xg(state["xg_finishing_history"][away]),
     }
 
 
@@ -237,7 +278,7 @@ def main() -> int:
     parser.add_argument("--days", type=int, default=10, help="Look at fixtures in the next N days, default 10")
     args = parser.parse_args()
 
-    print("Training the live model on the full historical dataset...")
+    print("Training the core model on the full historical dataset...")
     historical = load()
     model_df = historical[ALL_CANDIDATES + ["over_2_5"]].dropna()
     print(f"  {len(model_df)} complete-case matches used for training")
@@ -248,6 +289,21 @@ def main() -> int:
         Cs=15, cv=5, penalty="l1", solver="liblinear", scoring="roc_auc", max_iter=2000, random_state=0,
     )
     model.fit(X_train, model_df["over_2_5"])
+
+    print("Training the xG-augmented model on the real-xG-covered recent-era subset...")
+    xg_candidates = ALL_CANDIDATES + XG_RAW_FEATURES + XG_DERIVED_FEATURES
+    xg_historical = load_with_xg()
+    xg_model_df = xg_historical[xg_candidates + ["over_2_5"]].dropna()
+    print(f"  {len(xg_model_df)} complete-case matches used for training "
+          f"(real xG only exists PL 2022-23+ / ELC 2023-24+ — validated on 3 rolling-origin "
+          f"folds vs. the core model's 4, shorter track record)")
+
+    xg_scaler = StandardScaler()
+    X_xg_train = xg_scaler.fit_transform(xg_model_df[xg_candidates])
+    xg_model = LogisticRegressionCV(
+        Cs=15, cv=5, penalty="l1", solver="liblinear", scoring="roc_auc", max_iter=2000, random_state=0,
+    )
+    xg_model.fit(X_xg_train, xg_model_df["over_2_5"])
 
     print("\nFetching upcoming fixtures...")
     try:
@@ -282,26 +338,47 @@ def main() -> int:
 
     live_df = pd.DataFrame(rows)
     live_df = add_derived_features(live_df)
+    live_df = add_xg_derived_features(live_df)
     live_df = live_df.dropna(subset=ALL_CANDIDATES)
 
     if live_df.empty:
         print("All upcoming fixtures were missing at least one required feature (likely shot-stat gaps).")
         return 0
 
-    X_live = scaler.transform(live_df[ALL_CANDIDATES])
-    live_df["pred_p_over_2_5"] = model.predict_proba(X_live)[:, 1]
+    has_xg = live_df[XG_RAW_FEATURES + XG_DERIVED_FEATURES].notna().all(axis=1)
+
+    live_df["pred_p_over_2_5"] = pd.NA
+    live_df["model_used"] = ""
+
+    core_rows = live_df.loc[~has_xg]
+    if not core_rows.empty:
+        X_core = scaler.transform(core_rows[ALL_CANDIDATES])
+        live_df.loc[~has_xg, "pred_p_over_2_5"] = model.predict_proba(X_core)[:, 1]
+        live_df.loc[~has_xg, "model_used"] = "core"
+
+    xg_rows = live_df.loc[has_xg]
+    if not xg_rows.empty:
+        X_xg = xg_scaler.transform(xg_rows[xg_candidates])
+        live_df.loc[has_xg, "pred_p_over_2_5"] = xg_model.predict_proba(X_xg)[:, 1]
+        live_df.loc[has_xg, "model_used"] = "xG"
+
+    live_df["pred_p_over_2_5"] = live_df["pred_p_over_2_5"].astype(float)
     live_df = live_df.sort_values("pred_p_over_2_5", ascending=False)
 
     print(f"\nUpcoming fixtures ranked by predicted P(over 2.5 goals):")
-    print("-" * 70)
+    print(f"  [xG]   = scored with the real-xG-augmented model (stronger, but only 3.5 years of track record)")
+    print(f"  [core] = scored with the long-validated goals/shots model (fixture lacks real xG history — "
+          f"e.g. a promoted team early in the season)")
+    print("-" * 80)
     for _, r in live_df.iterrows():
-        print(f"{r['date']}  [{r['competition']}]  {r['home_team']:<24s} vs {r['away_team']:<24s}  "
+        print(f"{r['date']}  [{r['competition']}] [{r['model_used']:<4s}]  {r['home_team']:<24s} vs {r['away_team']:<24s}  "
               f"P(over 2.5) = {r['pred_p_over_2_5']*100:.1f}%")
 
     top = live_df.iloc[0]
     print(f"\nTop pick: {top['home_team']} vs {top['away_team']} ({top['date']}) — "
-          f"P(over 2.5) = {top['pred_p_over_2_5']*100:.1f}%")
-    print("Model-derived estimate, not betting advice — see docs/apifootball-dataset-analysis.md for validation and caveats.")
+          f"P(over 2.5) = {top['pred_p_over_2_5']*100:.1f}%  [{top['model_used']} model]")
+    print("Model-derived estimate, not betting advice — see docs/apifootball-dataset-analysis.md "
+          "and rolling_validation_xg.py for validation and caveats.")
 
     return 0
 

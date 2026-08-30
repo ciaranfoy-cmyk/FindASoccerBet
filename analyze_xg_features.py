@@ -34,17 +34,23 @@ XG_DERIVED_FEATURES = [
 ]
 
 
-def load_with_xg() -> pd.DataFrame:
-    df = load()
-    xg_df = pd.read_csv(XG_PATH)[["fixture_id"] + XG_RAW_FEATURES]
-    df = df.merge(xg_df, on="fixture_id", how="left")
-
+def add_xg_derived_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Shared by the historical loader and the live scorer (predict_upcoming.py),
+    so a live prediction derives the xG combo features identically to training.
+    """
     df["combined_xg_last5"] = df["home_xg_last5"] + df["away_xg_last5"]
     df["xg_gap_last5"] = (df["home_xg_last5"] - df["away_xg_last5"]).abs()
     df["naive_expected_total_xg_last5"] = (
         df["home_xg_last5"] + df["away_xg_against_last5"] + df["away_xg_last5"] + df["home_xg_against_last5"]
     )
     return df
+
+
+def load_with_xg() -> pd.DataFrame:
+    df = load()
+    xg_df = pd.read_csv(XG_PATH)[["fixture_id"] + XG_RAW_FEATURES]
+    df = df.merge(xg_df, on="fixture_id", how="left")
+    return add_xg_derived_features(df)
 
 
 def main() -> None:
