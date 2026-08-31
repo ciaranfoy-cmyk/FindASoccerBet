@@ -16,6 +16,7 @@ import os
 import warnings
 
 import pandas as pd
+from scipy.stats import poisson
 
 from analyze_dataset_apifootball import ALL_CANDIDATES, calibration_check, lasso_feature_selection, load, univariate_correlations
 
@@ -31,6 +32,7 @@ XG_RAW_FEATURES = [
 XG_DERIVED_FEATURES = [
     "combined_xg_last5", "xg_gap_last5",
     "naive_expected_total_xg_last5",
+    "poisson_p_over_last5",
 ]
 
 
@@ -43,6 +45,19 @@ def add_xg_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     df["naive_expected_total_xg_last5"] = (
         df["home_xg_last5"] + df["away_xg_against_last5"] + df["away_xg_last5"] + df["home_xg_against_last5"]
     )
+    # naive_expected_total_xg_last5 sums 4 quantities (both teams' own attack
+    # AND both teams' opponents' leakiness) so it's on roughly double the
+    # scale of an actual expected-goals total; halving it recovers that
+    # scale, matching the real per-match xG values (home_xg_this_match +
+    # away_xg_this_match) it's meant to approximate.
+    expected_total_goals = df["naive_expected_total_xg_last5"] / 2
+    # Raw expected goals is a MEAN, not a probability -- goal counts are
+    # discrete and right-skewed, so "mean just above 2.5" does not mean
+    # "over is likely" (a mean of exactly 2.5 under a Poisson process is
+    # actually under 50% to produce 3+ goals). This converts the mean into
+    # the real probability of 3+ goals under a Poisson model, instead of
+    # leaving the model to approximate that curve from a raw linear number.
+    df["poisson_p_over_last5"] = 1 - poisson.cdf(2, expected_total_goals)
     return df
 
 
