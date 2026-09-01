@@ -31,10 +31,17 @@ from sklearn.linear_model import LogisticRegressionCV
 from sklearn.preprocessing import StandardScaler
 
 import apifootball
-from analyze_dataset_apifootball import ALL_CANDIDATES, add_derived_features, load
-from analyze_xg_features import XG_DERIVED_FEATURES, XG_RAW_FEATURES, add_xg_derived_features, load_with_xg
+from analyze_dataset_apifootball import add_derived_features
+from analyze_xg_features import add_xg_derived_features
 from build_dataset_apifootball import LEAGUES, fetch_all_fixtures
-from predict_upcoming import apply_match, build_feature_row, new_state
+from predict_upcoming import (
+    CORE_CANDIDATES,
+    XG_CANDIDATES,
+    apply_match,
+    build_feature_row,
+    new_state,
+)
+from analyze_player_form import add_player_form_derived_features, load_with_player_form, load_with_xg_and_player_form
 
 MIN_XG_TRAIN_ROWS = 200  # don't bother fitting an xG model on too small a weekly training set
 
@@ -89,10 +96,9 @@ def main() -> int:
         if i % 2000 == 0:
             print(f"  ...replayed {i}/{len(prior_history)}")
 
-    print("Loading historical dataset for weekly model retraining...")
-    historical = load()
-    xg_historical = load_with_xg()
-    xg_candidates = ALL_CANDIDATES + XG_RAW_FEATURES + XG_DERIVED_FEATURES
+    print("Loading historical dataset for weekly model retraining (player-form swapped in for team-goals-form)...")
+    historical = load_with_player_form()
+    xg_historical = load_with_xg_and_player_form()
 
     # Group this season's matches into calendar weeks, chronological.
     df = pd.DataFrame(season_matches)
@@ -112,10 +118,10 @@ def main() -> int:
         cutoff_ts = pd.Timestamp(cutoff.date())
 
         model_df = historical[historical["date"] < cutoff_ts]
-        model_df = model_df[ALL_CANDIDATES + ["over_2_5"]].dropna()
+        model_df = model_df[CORE_CANDIDATES + ["over_2_5"]].dropna()
 
         scaler = StandardScaler()
-        X_train = scaler.fit_transform(model_df[ALL_CANDIDATES])
+        X_train = scaler.fit_transform(model_df[CORE_CANDIDATES])
         model = LogisticRegressionCV(
             Cs=15, cv=5, penalty="l1", solver="liblinear", scoring="roc_auc", max_iter=2000, random_state=0,
         )
@@ -124,11 +130,11 @@ def main() -> int:
         # xG model, same week, same no-lookahead cutoff -- trained only if
         # enough real-xG-covered history exists strictly before this week.
         xg_model_df = xg_historical[xg_historical["date"] < cutoff_ts]
-        xg_model_df = xg_model_df[xg_candidates + ["over_2_5"]].dropna()
+        xg_model_df = xg_model_df[XG_CANDIDATES + ["over_2_5"]].dropna()
         xg_scaler = xg_model = None
         if len(xg_model_df) >= MIN_XG_TRAIN_ROWS:
             xg_scaler = StandardScaler()
-            X_xg_train = xg_scaler.fit_transform(xg_model_df[xg_candidates])
+            X_xg_train = xg_scaler.fit_transform(xg_model_df[XG_CANDIDATES])
             xg_model = LogisticRegressionCV(
                 Cs=15, cv=5, penalty="l1", solver="liblinear", scoring="roc_auc", max_iter=2000, random_state=0,
             )
@@ -148,21 +154,22 @@ def main() -> int:
             live_df = pd.DataFrame(rows)
             live_df = add_derived_features(live_df)
             live_df = add_xg_derived_features(live_df)
-            scoreable = live_df.dropna(subset=ALL_CANDIDATES).copy()
+            live_df = add_player_form_derived_features(live_df)
+            scoreable = live_df.dropna(subset=CORE_CANDIDATES).copy()
             if not scoreable.empty:
                 has_xg = pd.Series(False, index=scoreable.index)
                 if xg_model is not None:
-                    has_xg = scoreable[xg_candidates].notna().all(axis=1)
+                    has_xg = scoreable[XG_CANDIDATES].notna().all(axis=1)
 
                 scoreable["pred_p"] = pd.NA
                 scoreable["model_used"] = "core"
                 core_rows = scoreable.loc[~has_xg]
                 if not core_rows.empty:
-                    X_core = scaler.transform(core_rows[ALL_CANDIDATES])
+                    X_core = scaler.transform(core_rows[CORE_CANDIDATES])
                     scoreable.loc[~has_xg, "pred_p"] = model.predict_proba(X_core)[:, 1]
                 xg_rows = scoreable.loc[has_xg]
                 if not xg_rows.empty:
-                    X_xg = xg_scaler.transform(xg_rows[xg_candidates])
+                    X_xg = xg_scaler.transform(xg_rows[XG_CANDIDATES])
                     scoreable.loc[has_xg, "pred_p"] = xg_model.predict_proba(X_xg)[:, 1]
                     scoreable.loc[has_xg, "model_used"] = "xG"
                 scoreable["pred_p"] = scoreable["pred_p"].astype(float)

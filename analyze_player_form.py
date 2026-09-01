@@ -23,15 +23,46 @@ PLAYER_FORM_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dat
 PLAYER_FORM_RAW_FEATURES = ["home_attacking_form", "away_attacking_form"]
 PLAYER_FORM_DERIVED_FEATURES = ["attacking_form_total", "attacking_form_gap"]
 
+# The team-goals-form features player-form is meant to replace (not add
+# alongside) -- once real xG is present these are largely redundant with
+# it, and adding player-form on top of them just lets L1 arbitrarily pick
+# one of two correlated signals (see rolling_validation_player_form_v2.py
+# and rolling_validation_xg_player_form_v2.py for the validated swap).
+TEAM_GOALS_FORM = [
+    "home_gf_last5", "away_gf_last5", "home_gf_last10", "away_gf_last10",
+    "home_gf_season", "away_gf_season", "combined_gf_last5", "naive_expected_total_last5",
+]
+
+
+def add_player_form_derived_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Shared by the historical loaders and the live scorer (predict_upcoming.py),
+    so a live prediction derives these identically to training.
+    """
+    df["attacking_form_total"] = df["home_attacking_form"] + df["away_attacking_form"]
+    df["attacking_form_gap"] = (df["home_attacking_form"] - df["away_attacking_form"]).abs()
+    return df
+
 
 def load_with_player_form() -> pd.DataFrame:
     df = load_with_lineups()
     form_df = pd.read_csv(PLAYER_FORM_PATH)[["fixture_id"] + PLAYER_FORM_RAW_FEATURES]
     df = df.merge(form_df, on="fixture_id", how="left")
+    return add_player_form_derived_features(df)
 
-    df["attacking_form_total"] = df["home_attacking_form"] + df["away_attacking_form"]
-    df["attacking_form_gap"] = (df["home_attacking_form"] - df["away_attacking_form"]).abs()
-    return df
+
+def load_with_xg_and_player_form() -> pd.DataFrame:
+    """xG-covered rows + player-form, WITHOUT also requiring lineup-feature
+    completeness (that unrelated requirement starved rolling_validation_xg_player_form.py's
+    first attempt down to 1,720 rows and produced a degenerate 1-feature
+    L1 fit in 2 of 3 folds -- see rolling_validation_xg_player_form_v2.py,
+    which fixed it and is the validated basis for this loader).
+    """
+    from analyze_xg_features import load_with_xg
+
+    df = load_with_xg()
+    form_df = pd.read_csv(PLAYER_FORM_PATH)[["fixture_id"] + PLAYER_FORM_RAW_FEATURES]
+    df = df.merge(form_df, on="fixture_id", how="left")
+    return add_player_form_derived_features(df)
 
 
 def main() -> None:

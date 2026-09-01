@@ -20,6 +20,15 @@ when they do, the xG model scores them (it's the stronger, though less
 long-proven, of the two); when they don't (e.g. very early in a newly
 promoted team's tracked history), falls back to the core model.
 
+Both models use player-form (rolling goals-per-start of today's actual
+starting attackers) in place of team-goals-form -- validated to beat it
+in every fold, with or without xG present (rolling_validation_player_form_v2.py,
+rolling_validation_xg_player_form_v2.py). Since this tool normally runs
+days ahead of kickoff, before the real lineup is confirmed, it falls
+back to a "usual XI" proxy (each team's most-frequent recent starters)
+and only uses the real confirmed lineup when it's already been posted
+(within ~1hr of kickoff).
+
 Usage:
     APIFOOTBALL_KEY=xxxx python3 predict_upcoming.py
     APIFOOTBALL_KEY=xxxx python3 predict_upcoming.py --days 14
@@ -36,7 +45,15 @@ from sklearn.linear_model import LogisticRegressionCV
 from sklearn.preprocessing import StandardScaler
 
 import apifootball
-from analyze_dataset_apifootball import ALL_CANDIDATES, add_derived_features, load
+from analyze_dataset_apifootball import ALL_CANDIDATES, add_derived_features
+from analyze_player_form import (
+    PLAYER_FORM_DERIVED_FEATURES,
+    PLAYER_FORM_RAW_FEATURES,
+    TEAM_GOALS_FORM,
+    add_player_form_derived_features,
+    load_with_player_form,
+    load_with_xg_and_player_form,
+)
 from analyze_xg_features import XG_DERIVED_FEATURES, XG_RAW_FEATURES, add_xg_derived_features, load_with_xg
 from build_dataset_apifootball import (
     LEAGUES,
@@ -48,11 +65,22 @@ from build_dataset_apifootball import (
     shot_stats_for,
     table_standing,
 )
+from build_lineup_features import USUAL_XI_MIN_HISTORY, USUAL_XI_WINDOW, goal_scorers_for, lineup_for
+from build_player_form_features import ATTACKING_POS as FORM_ATTACKING_POS
+from build_player_form_features import MIN_STARTS_FOR_FORM
+from build_player_form_features import ROLLING_WINDOW as FORM_ROLLING_WINDOW
 from build_xg_features import MIN_GAMES_FOR_ROLLING as XG_MIN_GAMES
 from build_xg_features import ROLLING_N as XG_ROLLING_N
 from build_xg_features import xg_stats_for
 
 warnings.filterwarnings("ignore")
+
+# team-goals-form (home_gf_last5 etc.) replaced by player-form everywhere --
+# validated in rolling_validation_player_form_v2.py (beats team-goals-form
+# in every fold when xG isn't available) and rolling_validation_xg_player_form_v2.py
+# (ties-or-beats it in every fold when xG IS available too, never worse).
+CORE_CANDIDATES = [f for f in ALL_CANDIDATES if f not in TEAM_GOALS_FORM] + PLAYER_FORM_RAW_FEATURES + PLAYER_FORM_DERIVED_FEATURES
+XG_CANDIDATES = CORE_CANDIDATES + XG_RAW_FEATURES + XG_DERIVED_FEATURES
 
 
 def new_state() -> dict:
@@ -66,6 +94,9 @@ def new_state() -> dict:
         "xg_for_history": defaultdict(lambda: deque(maxlen=XG_ROLLING_N)),
         "xg_against_history": defaultdict(lambda: deque(maxlen=XG_ROLLING_N)),
         "xg_finishing_history": defaultdict(lambda: deque(maxlen=XG_ROLLING_N)),
+        "team_lineup_history": defaultdict(lambda: deque(maxlen=USUAL_XI_WINDOW)),  # team_id -> [set(starter pids), ...]
+        "player_goal_history": defaultdict(lambda: deque(maxlen=FORM_ROLLING_WINDOW)),  # player_id -> [goals per start, ...]
+        "player_positions": {},  # player_id -> last known position
     }
 
 
@@ -108,6 +139,27 @@ def apply_match(state: dict, m: dict) -> None:
         state["xg_against_history"][away].append(home_xg)
         state["xg_finishing_history"][home].append(home_goals - home_xg)
         state["xg_finishing_history"][away].append(away_goals - away_xg)
+
+    try:
+        lineups = lineup_for(m["fixture_id"])
+    except apifootball.ApiFootballError:
+        lineups = {}
+    try:
+        scorers = goal_scorers_for(m["fixture_id"])
+    except apifootball.ApiFootballError:
+        scorers = []
+    goals_this_match: dict[int, int] = defaultdict(int)
+    for _team_id, pid in scorers:
+        goals_this_match[pid] += 1
+    for team_id, lineup in ((home_id, lineups.get(home_id)), (away_id, lineups.get(away_id))):
+        if not lineup:
+            continue
+        starter_ids = {pid for pid, pos, name in lineup}
+        state["team_lineup_history"][team_id].append(starter_ids)
+        for pid, pos, name in lineup:
+            state["player_positions"][pid] = pos
+            if pos in FORM_ATTACKING_POS:
+                state["player_goal_history"][pid].append(goals_this_match.get(pid, 0))
 
     state["team_history"][home].append({"gf": home_goals, "ga": away_goals, "season_label": season_label})
     state["team_history"][away].append({"gf": away_goals, "ga": home_goals, "season_label": season_label})
@@ -181,6 +233,45 @@ def fetch_upcoming_fixtures(days_ahead: int) -> list[dict]:
     return upcoming
 
 
+def attacking_form_for(state: dict, team_id: int, confirmed_lineup: list[tuple[int, str, str]] | None) -> float | None:
+    """home/away_attacking_form for a live fixture -- prefers the REAL
+    confirmed starting lineup when API-Football has already posted it
+    (only true within ~1hr of kickoff), otherwise falls back to a "usual
+    XI" proxy (this team's most-frequent starters over their last
+    USUAL_XI_WINDOW tracked lineups, same logic build_lineup_features.py
+    uses for lineup-change detection) since a live run is normally days
+    ahead of kickoff and the real lineup doesn't exist yet.
+    """
+    if confirmed_lineup:
+        attacker_ids = [pid for pid, pos, name in confirmed_lineup if pos in FORM_ATTACKING_POS]
+    else:
+        hist = state["team_lineup_history"][team_id]
+        if len(hist) < USUAL_XI_MIN_HISTORY:
+            return None
+        freq: dict[int, int] = defaultdict(int)
+        for past_xi in hist:
+            for pid in past_xi:
+                freq[pid] += 1
+        usual_xi = set(sorted(freq, key=lambda p: -freq[p])[:11])
+        attacker_ids = [pid for pid in usual_xi if state["player_positions"].get(pid) in FORM_ATTACKING_POS]
+
+    if not attacker_ids:
+        return None
+
+    form_values = []
+    for pid in attacker_ids:
+        hist_g = state["player_goal_history"].get(pid)
+        if hist_g and len(hist_g) >= MIN_STARTS_FOR_FORM:
+            form_values.append(sum(hist_g) / len(hist_g))
+
+    # Require full coverage, same rule build_player_form_features.py uses --
+    # a missing player's contribution defaults to 0 rather than silently
+    # biasing the sum down.
+    if len(form_values) != len(attacker_ids):
+        return None
+    return round(sum(form_values), 4)
+
+
 def build_feature_row(m: dict, state: dict) -> dict | None:
     home, away = m["home"], m["away"]
     competition = m["competition"]
@@ -216,6 +307,13 @@ def build_feature_row(m: dict, state: dict) -> dict | None:
 
     def safe_div(a, b):
         return None if a is None or b is None or b == 0 else a / b
+
+    try:
+        live_lineups = lineup_for(m["fixture_id"])
+    except apifootball.ApiFootballError:
+        live_lineups = {}
+    home_attacking_form = attacking_form_for(state, m["home_id"], live_lineups.get(m["home_id"]))
+    away_attacking_form = attacking_form_for(state, m["away_id"], live_lineups.get(m["away_id"]))
 
     return {
         "fixture_id": m["fixture_id"],
@@ -270,6 +368,8 @@ def build_feature_row(m: dict, state: dict) -> dict | None:
         "away_xg_against_last5": rolling_avg_xg(state["xg_against_history"][away]),
         "home_finishing_last5": rolling_avg_xg(state["xg_finishing_history"][home]),
         "away_finishing_last5": rolling_avg_xg(state["xg_finishing_history"][away]),
+        "home_attacking_form": home_attacking_form,
+        "away_attacking_form": away_attacking_form,
     }
 
 
@@ -278,28 +378,27 @@ def main() -> int:
     parser.add_argument("--days", type=int, default=10, help="Look at fixtures in the next N days, default 10")
     args = parser.parse_args()
 
-    print("Training the core model on the full historical dataset...")
-    historical = load()
-    model_df = historical[ALL_CANDIDATES + ["over_2_5"]].dropna()
+    print("Training the core model on the full historical dataset (team-goals-form swapped for player-form)...")
+    historical = load_with_player_form()
+    model_df = historical[CORE_CANDIDATES + ["over_2_5"]].dropna()
     print(f"  {len(model_df)} complete-case matches used for training")
 
     scaler = StandardScaler()
-    X_train = scaler.fit_transform(model_df[ALL_CANDIDATES])
+    X_train = scaler.fit_transform(model_df[CORE_CANDIDATES])
     model = LogisticRegressionCV(
         Cs=15, cv=5, penalty="l1", solver="liblinear", scoring="roc_auc", max_iter=2000, random_state=0,
     )
     model.fit(X_train, model_df["over_2_5"])
 
     print("Training the xG-augmented model on the real-xG-covered recent-era subset...")
-    xg_candidates = ALL_CANDIDATES + XG_RAW_FEATURES + XG_DERIVED_FEATURES
-    xg_historical = load_with_xg()
-    xg_model_df = xg_historical[xg_candidates + ["over_2_5"]].dropna()
+    xg_historical = load_with_xg_and_player_form()
+    xg_model_df = xg_historical[XG_CANDIDATES + ["over_2_5"]].dropna()
     print(f"  {len(xg_model_df)} complete-case matches used for training "
           f"(real xG only exists PL 2022-23+ / ELC 2023-24+ — validated on 3 rolling-origin "
           f"folds vs. the core model's 4, shorter track record)")
 
     xg_scaler = StandardScaler()
-    X_xg_train = xg_scaler.fit_transform(xg_model_df[xg_candidates])
+    X_xg_train = xg_scaler.fit_transform(xg_model_df[XG_CANDIDATES])
     xg_model = LogisticRegressionCV(
         Cs=15, cv=5, penalty="l1", solver="liblinear", scoring="roc_auc", max_iter=2000, random_state=0,
     )
@@ -339,10 +438,16 @@ def main() -> int:
     live_df = pd.DataFrame(rows)
     live_df = add_derived_features(live_df)
     live_df = add_xg_derived_features(live_df)
-    live_df = live_df.dropna(subset=ALL_CANDIDATES)
+    live_df = add_player_form_derived_features(live_df)
+    n_before_form = len(live_df)
+    live_df = live_df.dropna(subset=CORE_CANDIDATES)
+    if len(live_df) < n_before_form:
+        print(f"  ({n_before_form - len(live_df)} fixture(s) dropped: missing a required feature, "
+              f"often attacking-form coverage — a promoted team, or a starting attacker with <"
+              f"{MIN_STARTS_FOR_FORM} tracked starts)")
 
     if live_df.empty:
-        print("All upcoming fixtures were missing at least one required feature (likely shot-stat gaps).")
+        print("All upcoming fixtures were missing at least one required feature (likely shot-stat or form gaps).")
         return 0
 
     has_xg = live_df[XG_RAW_FEATURES + XG_DERIVED_FEATURES].notna().all(axis=1)
@@ -352,13 +457,13 @@ def main() -> int:
 
     core_rows = live_df.loc[~has_xg]
     if not core_rows.empty:
-        X_core = scaler.transform(core_rows[ALL_CANDIDATES])
+        X_core = scaler.transform(core_rows[CORE_CANDIDATES])
         live_df.loc[~has_xg, "pred_p_over_2_5"] = model.predict_proba(X_core)[:, 1]
         live_df.loc[~has_xg, "model_used"] = "core"
 
     xg_rows = live_df.loc[has_xg]
     if not xg_rows.empty:
-        X_xg = xg_scaler.transform(xg_rows[xg_candidates])
+        X_xg = xg_scaler.transform(xg_rows[XG_CANDIDATES])
         live_df.loc[has_xg, "pred_p_over_2_5"] = xg_model.predict_proba(X_xg)[:, 1]
         live_df.loc[has_xg, "model_used"] = "xG"
 

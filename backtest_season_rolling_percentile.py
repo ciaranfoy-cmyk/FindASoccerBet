@@ -28,9 +28,9 @@ from sklearn.linear_model import LogisticRegressionCV
 from sklearn.preprocessing import StandardScaler
 
 import apifootball
-from analyze_dataset_apifootball import ALL_CANDIDATES
-from analyze_xg_features import XG_DERIVED_FEATURES, XG_RAW_FEATURES, load_with_xg
+from analyze_player_form import load_with_xg_and_player_form
 from build_dataset_apifootball import LEAGUES
+from predict_upcoming import CORE_CANDIDATES, XG_CANDIDATES
 
 warnings.filterwarnings("ignore")
 
@@ -94,11 +94,10 @@ def main() -> int:
     window_start, window_end = min(season_dates), max(season_dates)
     print(f"Season {args.season}-{args.season+1-2000}: {window_start.date()} to {window_end.date()}\n")
 
-    df = load_with_xg()
-    xg_candidates = ALL_CANDIDATES + XG_RAW_FEATURES + XG_DERIVED_FEATURES
+    df = load_with_xg_and_player_form()
 
-    core_stream = build_stream(df, ALL_CANDIDATES, N_FOLDS_CORE, "core")
-    xg_stream = build_stream(df, xg_candidates, N_FOLDS_XG, "xG")
+    core_stream = build_stream(df, CORE_CANDIDATES, N_FOLDS_CORE, "core")
+    xg_stream = build_stream(df, XG_CANDIDATES, N_FOLDS_XG, "xG")
 
     core_stream = core_stream.rename(columns={"pred_p": "pred_p_core"})
     xg_small = xg_stream[["fixture_id", "pred_p"]].rename(columns={"pred_p": "pred_p_xg"})
