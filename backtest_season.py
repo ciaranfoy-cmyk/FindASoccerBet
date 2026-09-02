@@ -41,7 +41,12 @@ from predict_upcoming import (
     build_feature_row,
     new_state,
 )
-from analyze_player_form import add_player_form_derived_features, load_with_player_form, load_with_xg_and_player_form
+from analyze_player_form import add_player_form_derived_features
+from analyze_shots_venue import (
+    add_shots_venue_derived_features,
+    load_with_player_form_and_shots_venue,
+    load_with_xg_player_form_and_shots_venue,
+)
 
 MIN_XG_TRAIN_ROWS = 200  # don't bother fitting an xG model on too small a weekly training set
 
@@ -96,9 +101,10 @@ def main() -> int:
         if i % 2000 == 0:
             print(f"  ...replayed {i}/{len(prior_history)}")
 
-    print("Loading historical dataset for weekly model retraining (player-form swapped in for team-goals-form)...")
-    historical = load_with_player_form()
-    xg_historical = load_with_xg_and_player_form()
+    print("Loading historical dataset for weekly model retraining "
+          "(player-form swapped for team-goals-form, venue-split swapped for blended shots)...")
+    historical = load_with_player_form_and_shots_venue()
+    xg_historical = load_with_xg_player_form_and_shots_venue()
 
     # Group this season's matches into calendar weeks, chronological.
     df = pd.DataFrame(season_matches)
@@ -155,6 +161,7 @@ def main() -> int:
             live_df = add_derived_features(live_df)
             live_df = add_xg_derived_features(live_df)
             live_df = add_player_form_derived_features(live_df)
+            live_df = add_shots_venue_derived_features(live_df)
             scoreable = live_df.dropna(subset=CORE_CANDIDATES).copy()
             if not scoreable.empty:
                 has_xg = pd.Series(False, index=scoreable.index)

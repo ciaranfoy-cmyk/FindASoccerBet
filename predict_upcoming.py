@@ -51,8 +51,14 @@ from analyze_player_form import (
     PLAYER_FORM_RAW_FEATURES,
     TEAM_GOALS_FORM,
     add_player_form_derived_features,
-    load_with_player_form,
-    load_with_xg_and_player_form,
+)
+from analyze_shots_venue import (
+    BLENDED_SHOTS,
+    VENUE_SHOTS_DERIVED_FEATURES,
+    VENUE_SHOTS_RAW_FEATURES,
+    add_shots_venue_derived_features,
+    load_with_player_form_and_shots_venue,
+    load_with_xg_player_form_and_shots_venue,
 )
 from analyze_xg_features import XG_DERIVED_FEATURES, XG_RAW_FEATURES, add_xg_derived_features, load_with_xg
 from build_dataset_apifootball import (
@@ -69,17 +75,25 @@ from build_lineup_features import USUAL_XI_MIN_HISTORY, USUAL_XI_WINDOW, goal_sc
 from build_player_form_features import ATTACKING_POS as FORM_ATTACKING_POS
 from build_player_form_features import MIN_STARTS_FOR_FORM
 from build_player_form_features import ROLLING_WINDOW as FORM_ROLLING_WINDOW
+from build_shots_venue_features import MIN_GAMES as VENUE_SHOTS_MIN_GAMES
+from build_shots_venue_features import ROLLING_N as VENUE_SHOTS_ROLLING_N
 from build_xg_features import MIN_GAMES_FOR_ROLLING as XG_MIN_GAMES
 from build_xg_features import ROLLING_N as XG_ROLLING_N
 from build_xg_features import xg_stats_for
 
 warnings.filterwarnings("ignore")
 
-# team-goals-form (home_gf_last5 etc.) replaced by player-form everywhere --
-# validated in rolling_validation_player_form_v2.py (beats team-goals-form
-# in every fold when xG isn't available) and rolling_validation_xg_player_form_v2.py
-# (ties-or-beats it in every fold when xG IS available too, never worse).
-CORE_CANDIDATES = [f for f in ALL_CANDIDATES if f not in TEAM_GOALS_FORM] + PLAYER_FORM_RAW_FEATURES + PLAYER_FORM_DERIVED_FEATURES
+# team-goals-form (home_gf_last5 etc.) replaced by player-form, and blended
+# shots-last5 replaced by venue-split shots, everywhere -- validated in
+# rolling_validation_player_form_v2.py / rolling_validation_xg_player_form_v2.py
+# (player-form beats or ties team-goals-form in every fold, with or
+# without xG) and rolling_validation_shots_venue.py (venue-split shots
+# outright beats blended shots, 63.0% vs 61.2% combined).
+CORE_CANDIDATES = (
+    [f for f in ALL_CANDIDATES if f not in TEAM_GOALS_FORM and f not in BLENDED_SHOTS]
+    + PLAYER_FORM_RAW_FEATURES + PLAYER_FORM_DERIVED_FEATURES
+    + VENUE_SHOTS_RAW_FEATURES + VENUE_SHOTS_DERIVED_FEATURES
+)
 XG_CANDIDATES = CORE_CANDIDATES + XG_RAW_FEATURES + XG_DERIVED_FEATURES
 
 
@@ -87,6 +101,7 @@ def new_state() -> dict:
     return {
         "team_history": defaultdict(lambda: deque()),
         "team_shot_history": defaultdict(lambda: deque()),
+        "team_venue_shot_history": defaultdict(lambda: deque()),  # (team, venue) -> [shot_stats_for dict, ...]
         "team_competition_games": defaultdict(int),
         "team_last_played": {},
         "h2h_history": defaultdict(list),
@@ -104,6 +119,13 @@ def rolling_avg_xg(dq: deque) -> float | None:
     if len(dq) < XG_MIN_GAMES:
         return None
     return sum(dq) / len(dq)
+
+
+def rolling_avg_venue_shots(dq: deque, key: str) -> float | None:
+    recent = list(dq)[-VENUE_SHOTS_ROLLING_N:]
+    if len(recent) < VENUE_SHOTS_MIN_GAMES:
+        return None
+    return sum(g[key] for g in recent) / len(recent)
 
 
 def apply_match(state: dict, m: dict) -> None:
@@ -165,8 +187,10 @@ def apply_match(state: dict, m: dict) -> None:
     state["team_history"][away].append({"gf": away_goals, "ga": home_goals, "season_label": season_label})
     if home_shots_this:
         state["team_shot_history"][home].append(home_shots_this)
+        state["team_venue_shot_history"][(home, "home")].append(home_shots_this)
     if away_shots_this:
         state["team_shot_history"][away].append(away_shots_this)
+        state["team_venue_shot_history"][(away, "away")].append(away_shots_this)
     state["team_competition_games"][(home, competition)] += 1
     state["team_competition_games"][(away, competition)] += 1
     state["team_last_played"][home] = date
@@ -281,6 +305,8 @@ def build_feature_row(m: dict, state: dict) -> dict | None:
     away_hist = state["team_history"][away]
     home_shot_hist = state["team_shot_history"][home]
     away_shot_hist = state["team_shot_history"][away]
+    home_venue_shot_hist = state["team_venue_shot_history"][(home, "home")]
+    away_venue_shot_hist = state["team_venue_shot_history"][(away, "away")]
     home_games_played = len(home_hist)
     away_games_played = len(away_hist)
 
@@ -370,6 +396,12 @@ def build_feature_row(m: dict, state: dict) -> dict | None:
         "away_finishing_last5": rolling_avg_xg(state["xg_finishing_history"][away]),
         "home_attacking_form": home_attacking_form,
         "away_attacking_form": away_attacking_form,
+        "home_venue_shots_last5": rolling_avg_venue_shots(home_venue_shot_hist, "total_shots"),
+        "away_venue_shots_last5": rolling_avg_venue_shots(away_venue_shot_hist, "total_shots"),
+        "home_venue_shots_on_goal_last5": rolling_avg_venue_shots(home_venue_shot_hist, "shots_on_goal"),
+        "away_venue_shots_on_goal_last5": rolling_avg_venue_shots(away_venue_shot_hist, "shots_on_goal"),
+        "home_venue_shots_inside_box_last5": rolling_avg_venue_shots(home_venue_shot_hist, "shots_inside_box"),
+        "away_venue_shots_inside_box_last5": rolling_avg_venue_shots(away_venue_shot_hist, "shots_inside_box"),
     }
 
 
@@ -378,8 +410,9 @@ def main() -> int:
     parser.add_argument("--days", type=int, default=10, help="Look at fixtures in the next N days, default 10")
     args = parser.parse_args()
 
-    print("Training the core model on the full historical dataset (team-goals-form swapped for player-form)...")
-    historical = load_with_player_form()
+    print("Training the core model on the full historical dataset "
+          "(team-goals-form swapped for player-form, blended shots swapped for venue-split)...")
+    historical = load_with_player_form_and_shots_venue()
     model_df = historical[CORE_CANDIDATES + ["over_2_5"]].dropna()
     print(f"  {len(model_df)} complete-case matches used for training")
 
@@ -391,7 +424,7 @@ def main() -> int:
     model.fit(X_train, model_df["over_2_5"])
 
     print("Training the xG-augmented model on the real-xG-covered recent-era subset...")
-    xg_historical = load_with_xg_and_player_form()
+    xg_historical = load_with_xg_player_form_and_shots_venue()
     xg_model_df = xg_historical[XG_CANDIDATES + ["over_2_5"]].dropna()
     print(f"  {len(xg_model_df)} complete-case matches used for training "
           f"(real xG only exists PL 2022-23+ / ELC 2023-24+ — validated on 3 rolling-origin "
@@ -439,6 +472,7 @@ def main() -> int:
     live_df = add_derived_features(live_df)
     live_df = add_xg_derived_features(live_df)
     live_df = add_player_form_derived_features(live_df)
+    live_df = add_shots_venue_derived_features(live_df)
     n_before_form = len(live_df)
     live_df = live_df.dropna(subset=CORE_CANDIDATES)
     if len(live_df) < n_before_form:

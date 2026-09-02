@@ -28,7 +28,7 @@ from sklearn.linear_model import LogisticRegressionCV
 from sklearn.preprocessing import StandardScaler
 
 import apifootball
-from analyze_player_form import load_with_xg_and_player_form
+from analyze_shots_venue import load_with_xg_player_form_and_shots_venue
 from build_dataset_apifootball import LEAGUES
 from predict_upcoming import CORE_CANDIDATES, XG_CANDIDATES
 
@@ -94,7 +94,7 @@ def main() -> int:
     window_start, window_end = min(season_dates), max(season_dates)
     print(f"Season {args.season}-{args.season+1-2000}: {window_start.date()} to {window_end.date()}\n")
 
-    df = load_with_xg_and_player_form()
+    df = load_with_xg_player_form_and_shots_venue()
 
     core_stream = build_stream(df, CORE_CANDIDATES, N_FOLDS_CORE, "core")
     xg_stream = build_stream(df, XG_CANDIDATES, N_FOLDS_XG, "xG")
