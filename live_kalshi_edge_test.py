@@ -54,9 +54,108 @@ KALSHI_BASE = "https://api.elections.kalshi.com/trade-api/v2"
 # both sides to their shortest common form before matching.
 _SUFFIXES = (" town", " united", " city", " fc")
 
+# MLS and Eredivisie diverge from API-Football far more than the suffix
+# rule below can fix -- Kalshi truncates to bare city/market names or odd
+# abbreviations ("Los Angeles G"/"Los Angeles F" for Galaxy/LAFC, "GA
+# Eagles" for Go Ahead Eagles) while API-Football uses full club names
+# with PREFIXES ("FC Cincinnati", "Real Salt Lake", "PSV Eindhoven") the
+# suffix rule can't touch, or compound suffixes ("Orlando City SC",
+# "Sporting Kansas City") it only partially strips. Verified against every
+# fixture in both leagues' currently-open Kalshi markets after a real
+# fixture (Inter Miami vs Atlanta United) silently fell through as
+# "unpriced" when a live $0.77 market actually existed for it.
+#
+# Checked first, as exact aliases, before the generic suffix rule -- which
+# also wrongly mangles "New York City" and "Kansas City" (proper-noun
+# "City" isn't a club-type suffix there) if left to fall through ungated;
+# the self-mapping entries below exist purely to short-circuit that.
+_TEAM_ALIASES = {
+    # MLS
+    "atlanta united fc": "atlanta",
+    "inter miami": "miami",
+    "fc cincinnati": "cincinnati",
+    "columbus crew": "columbus",
+    "colorado rapids": "colorado",
+    "houston dynamo": "houston",
+    "orlando city sc": "orlando",
+    "cf montreal": "montreal",
+    "philadelphia union": "philadelphia",
+    "fc dallas": "dallas",
+    "sporting kansas city": "kansas city",
+    "kansas city": "kansas city",
+    "seattle sounders": "seattle",
+    "new york rb": "new york red bulls",
+    "new york red bulls": "new york red bulls",
+    "new york city": "new york city",
+    "new york city fc": "new york city",
+    "san jose earthquakes": "san jose",
+    "los angeles g": "la galaxy",
+    "los angeles galaxy": "la galaxy",
+    "los angeles f": "lafc",
+    "los angeles fc": "lafc",
+    "new england revolution": "new england",
+    "real salt lake": "salt lake",
+    "portland timbers": "portland",
+    "minnesota united fc": "minnesota",
+    "saint louis": "st louis",
+    "st. louis city": "st louis",
+    "st louis city": "st louis",
+    "vancouver whitecaps": "vancouver",
+    "nashville sc": "nashville",
+    # Eredivisie
+    "sparta rotterdam": "sparta",
+    "pec zwolle": "zwolle",
+    "nec nijmegen": "nijmegen",
+    "ga eagles": "go ahead eagles",
+    "go ahead eagles": "go ahead eagles",
+    "psv eindhoven": "eindhoven",
+    # Championship -- found these ALSO silently mismatching in the
+    # original 6 leagues once actually checked, not just the 3 new ones.
+    "west bromwich": "west brom",
+    "sheffield united": "sheffield utd",
+    # La Liga
+    "bilbao": "athletic club",
+    "athletic club": "athletic club",
+    "atletico": "atletico madrid",
+    "vallecano": "rayo vallecano",
+    # Bundesliga -- every single open market mismatched before this fix
+    # (9/9), since API-Football keeps the German prefix ("1. FC Köln",
+    # "SC Freiburg", "Bayer Leverkusen") that Kalshi drops entirely.
+    "1. fc köln": "fc köln",
+    "vfb stuttgart": "stuttgart",
+    "m´gladbach": "monchengladbach",
+    "borussia monchengladbach": "monchengladbach",
+    "borussia mönchengladbach": "monchengladbach",
+    "leverkusen": "bayer leverkusen",
+    "paderborn": "sc paderborn 07",
+    "freiburg": "sc freiburg",
+    "bremen": "werder bremen",
+    "leipzig": "rb leipzig",
+    "hoffenheim": "1899 hoffenheim",
+    "dortmund": "borussia dortmund",
+    "schalke": "fc schalke 04",
+    "bayern münchen": "bayern munich",
+    "hamburg": "hamburger sv",
+    "mainz": "fsv mainz 05",
+    "frankfurt": "eintracht frankfurt",
+    "augsburg": "fc augsburg",
+    # Serie A
+    "as roma": "roma",
+    "parma calcio": "parma",
+    "ac milan": "milan",
+    # Ligue 1
+    "paris saint germain": "psg",
+    "stade brestois 29": "stade brest 29",
+    "estac troyes": "troyes",
+    "strasbourg alsace": "strasbourg",
+    "stade rennais": "rennes",
+}
+
 
 def _normalize(name: str) -> str:
     n = name.lower().strip()
+    if n in _TEAM_ALIASES:
+        return _TEAM_ALIASES[n]
     for suf in _SUFFIXES:
         if n.endswith(suf) and n != suf.strip():
             n = n[: -len(suf)]
