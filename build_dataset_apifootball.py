@@ -49,11 +49,18 @@ import apifootball
 MIN_PRIOR_GAMES = 5
 OUTPUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "matches_apifootball.csv")
 
-# league_id, first season with real fixture data (empirically confirmed —
-# earlier seasons return 0 results, no error, i.e. genuinely no data)
+# league_id, first season to pull. For PL/ELC this is the earliest season
+# with real fixture data at all (empirically confirmed -- earlier seasons
+# return 0 results, no error). For newly-added leagues it's a deliberately
+# shorter window: rolling_validation-style testing on the EPL/Championship
+# core model found identical performance (138/219 = 63.0% both ways)
+# training on ~6.5 years of history vs. the full ~11 -- the extra years
+# add no detectable value, so new leagues start at a matching ~7-season
+# depth instead of each league's own shot-stat-coverage start.
 LEAGUES = {
     "PL": {"id": 39, "first_season": 2010},
     "ELC": {"id": 40, "first_season": 2011},
+    "LALIGA": {"id": 140, "first_season": 2019},
 }
 
 
