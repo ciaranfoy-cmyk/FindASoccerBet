@@ -27,6 +27,7 @@ from sklearn.preprocessing import StandardScaler
 import apifootball
 from analyze_dataset_apifootball import add_derived_features
 from analyze_player_form import add_player_form_derived_features
+from calibration import apply_calibration, load_calibrators
 from analyze_shots_venue import (
     add_shots_venue_derived_features,
     load_with_player_form_and_shots_venue,
@@ -140,6 +141,9 @@ def main() -> int:
         live_df.loc[has_xg, "pred_p"] = xg_model.predict_proba(X_xg)[:, 1]
         live_df.loc[has_xg, "model_used"] = "xG"
     live_df["pred_p"] = live_df["pred_p"].astype(float)
+
+    calibrators = load_calibrators()
+    live_df["pred_p"] = apply_calibration(live_df["pred_p"], live_df["model_used"], calibrators)
 
     results = []
     for _, r in live_df.iterrows():

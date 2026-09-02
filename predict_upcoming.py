@@ -46,6 +46,7 @@ from sklearn.preprocessing import StandardScaler
 
 import apifootball
 from analyze_dataset_apifootball import ALL_CANDIDATES, add_derived_features
+from calibration import apply_calibration, load_calibrators
 from analyze_player_form import (
     PLAYER_FORM_DERIVED_FEATURES,
     PLAYER_FORM_RAW_FEATURES,
@@ -486,36 +487,47 @@ def main() -> int:
 
     has_xg = live_df[XG_RAW_FEATURES + XG_DERIVED_FEATURES].notna().all(axis=1)
 
-    live_df["pred_p_over_2_5"] = pd.NA
+    live_df["raw_pred_p"] = pd.NA
     live_df["model_used"] = ""
 
     core_rows = live_df.loc[~has_xg]
     if not core_rows.empty:
         X_core = scaler.transform(core_rows[CORE_CANDIDATES])
-        live_df.loc[~has_xg, "pred_p_over_2_5"] = model.predict_proba(X_core)[:, 1]
+        live_df.loc[~has_xg, "raw_pred_p"] = model.predict_proba(X_core)[:, 1]
         live_df.loc[~has_xg, "model_used"] = "core"
 
     xg_rows = live_df.loc[has_xg]
     if not xg_rows.empty:
         X_xg = xg_scaler.transform(xg_rows[XG_CANDIDATES])
-        live_df.loc[has_xg, "pred_p_over_2_5"] = xg_model.predict_proba(X_xg)[:, 1]
+        live_df.loc[has_xg, "raw_pred_p"] = xg_model.predict_proba(X_xg)[:, 1]
         live_df.loc[has_xg, "model_used"] = "xG"
 
-    live_df["pred_p_over_2_5"] = live_df["pred_p_over_2_5"].astype(float)
+    live_df["raw_pred_p"] = live_df["raw_pred_p"].astype(float)
+
+    try:
+        calibrators = load_calibrators()
+        live_df["pred_p_over_2_5"] = apply_calibration(live_df["raw_pred_p"], live_df["model_used"], calibrators)
+    except FileNotFoundError:
+        print("\nWARNING: no fitted calibrator found (run `python3 calibration.py` first) -- "
+              "falling back to RAW, known-overconfident probabilities.", file=sys.stderr)
+        live_df["pred_p_over_2_5"] = live_df["raw_pred_p"]
+
     live_df = live_df.sort_values("pred_p_over_2_5", ascending=False)
 
-    print(f"\nUpcoming fixtures ranked by predicted P(over 2.5 goals):")
+    print(f"\nUpcoming fixtures ranked by predicted P(over 2.5 goals) (calibrated):")
     print(f"  [xG]   = scored with the real-xG-augmented model (stronger, but only 3.5 years of track record)")
     print(f"  [core] = scored with the long-validated goals/shots model (fixture lacks real xG history — "
           f"e.g. a promoted team early in the season)")
-    print("-" * 80)
+    print(f"  Raw model output shown in parens -- the model is known to be overconfident above ~65% raw; "
+          f"the calibrated number is the honest one to act on.")
+    print("-" * 90)
     for _, r in live_df.iterrows():
         print(f"{r['date']}  [{r['competition']}] [{r['model_used']:<4s}]  {r['home_team']:<24s} vs {r['away_team']:<24s}  "
-              f"P(over 2.5) = {r['pred_p_over_2_5']*100:.1f}%")
+              f"P(over 2.5) = {r['pred_p_over_2_5']*100:.1f}%  (raw: {r['raw_pred_p']*100:.1f}%)")
 
     top = live_df.iloc[0]
     print(f"\nTop pick: {top['home_team']} vs {top['away_team']} ({top['date']}) — "
-          f"P(over 2.5) = {top['pred_p_over_2_5']*100:.1f}%  [{top['model_used']} model]")
+          f"P(over 2.5) = {top['pred_p_over_2_5']*100:.1f}%  (raw: {top['raw_pred_p']*100:.1f}%)  [{top['model_used']} model]")
     print("Model-derived estimate, not betting advice — see docs/apifootball-dataset-analysis.md "
           "and rolling_validation_xg.py for validation and caveats.")
 

@@ -27,6 +27,7 @@ from sklearn.preprocessing import StandardScaler
 import apifootball
 from analyze_dataset_apifootball import add_derived_features
 from analyze_player_form import add_player_form_derived_features
+from calibration import apply_calibration, load_calibrators
 from analyze_shots_venue import (
     add_shots_venue_derived_features,
     load_with_player_form_and_shots_venue,
@@ -155,13 +156,19 @@ def main() -> int:
 
     has_xg = live_df[XG_RAW_FEATURES + XG_DERIVED_FEATURES].notna().all(axis=1)
     live_df["pred_p"] = pd.NA
+    live_df["model_used"] = ""
     core_rows = live_df.loc[~has_xg]
     if not core_rows.empty:
         live_df.loc[~has_xg, "pred_p"] = model.predict_proba(scaler.transform(core_rows[CORE_CANDIDATES]))[:, 1]
+        live_df.loc[~has_xg, "model_used"] = "core"
     xg_rows = live_df.loc[has_xg]
     if not xg_rows.empty:
         live_df.loc[has_xg, "pred_p"] = xg_model.predict_proba(xg_scaler.transform(xg_rows[XG_CANDIDATES]))[:, 1]
+        live_df.loc[has_xg, "model_used"] = "xG"
     live_df["pred_p"] = live_df["pred_p"].astype(float)
+
+    calibrators = load_calibrators()
+    live_df["pred_p"] = apply_calibration(live_df["pred_p"], live_df["model_used"], calibrators)
 
     print("\nMatching Kalshi markets to model predictions by team name...")
     matched = []
@@ -187,17 +194,17 @@ def main() -> int:
 
     out = pd.DataFrame(matched).sort_values("edge_vs_ask", ascending=False)
     print("\n" + "-" * 100)
-    print(f"{'Date':<12}{'Fixture':<38}{'Model P':<10}{'Kalshi ask':<12}{'Kalshi bid':<12}{'Edge vs ask'}")
+    print(f"{'Date':<12}{'Fixture':<38}{'Model P (calibrated)':<22}{'Kalshi ask':<12}{'Kalshi bid':<12}{'Edge vs ask'}")
     print("-" * 100)
     for _, r in out.iterrows():
         fixture = f"{r['home']} vs {r['away']}"
-        print(f"{r['date']:<12}{fixture:<38}{r['model_p']*100:5.1f}%   "
+        print(f"{r['date']:<12}{fixture:<38}{r['model_p']*100:5.1f}%                "
               f"${r['yes_ask']:.2f}       ${r['yes_bid']:.2f}       {r['edge_vs_ask']*100:+.1f}pp")
 
     positive = out[out["edge_vs_ask"] > 0]
     print(f"\n{len(positive)}/{len(out)} matched fixtures show a positive edge buying YES at Kalshi's ask price.")
-    print("Remember the calibration finding: the model is well-behaved around 45-60% predicted "
-          "probability but overconfident above ~65% -- discount any high-confidence edge here accordingly. "
+    print("Model P here is Platt-calibrated (see calibration.py), not the raw model output -- the raw "
+          "number runs overconfident, especially above ~65%, so this edge is the honest one, not inflated. "
           "This reads real, current, actually-tradeable Kalshi prices; it does not place any order.")
 
     return 0
