@@ -64,6 +64,9 @@ LEAGUES = {
     "BUNDESLIGA": {"id": 78, "first_season": 2019},
     "SERIEA": {"id": 135, "first_season": 2019},
     "LIGUE1": {"id": 61, "first_season": 2019},
+    "MLS": {"id": 253, "first_season": 2019},
+    "EREDIVISIE": {"id": 88, "first_season": 2019},
+    "SUPERLIG": {"id": 203, "first_season": 2019},
 }
 
 
