@@ -97,7 +97,13 @@ warnings.filterwarnings("ignore")
 # See rolling_validation_player_form_v2.py / rolling_validation_shots_venue.py
 # for the re-test that reversed this.
 CORE_CANDIDATES = (
-    ALL_CANDIDATES
+    # h2h_avg_goals swapped for h2h_avg_goals_shrunk (shrinks toward the
+    # dataset-wide mean when a pairing has few prior meetings, instead of
+    # trusting a 2-game average as much as a 10-game one) -- a clean swap,
+    # not a combine: the two are nearly the same signal, and combining them
+    # tested worse on both hit rate and Brier than the shrunk version alone.
+    # See rolling_validation_h2h_shrinkage.py.
+    [f for f in ALL_CANDIDATES if f != "h2h_avg_goals"]
     + PLAYER_FORM_RAW_FEATURES + PLAYER_FORM_DERIVED_FEATURES
     + VENUE_SHOTS_RAW_FEATURES + VENUE_SHOTS_DERIVED_FEATURES
 )
