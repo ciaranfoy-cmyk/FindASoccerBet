@@ -100,6 +100,36 @@ def main() -> None:
     print(f"Predicted P range: {stream['pred_p'].min()*100:.1f}% to {stream['pred_p'].max()*100:.1f}% "
           f"(mean {stream['pred_p'].mean()*100:.1f}%)")
 
+    # Brier score: mean squared error of predicted probability vs actual
+    # outcome. Unlike AUC (ranking only) or hit-rate at a threshold
+    # (ignores calibration, threshold-dependent), Brier is a strictly
+    # proper scoring rule -- rewards accurate PROBABILITIES, which is
+    # what actually matters for computing real edge against a market
+    # price. Decomposed (Murphy 1973) into reliability (calibration
+    # error) and resolution (discrimination) so a change in Brier can be
+    # attributed to "got better calibrated" vs "got better at ranking".
+    y = stream["over_2_5"].to_numpy(dtype=float)
+    p = stream["pred_p"].to_numpy(dtype=float)
+    brier = float(np.mean((p - y) ** 2))
+    climatology_brier = float(np.mean((baseline - y) ** 2))
+    stream["decile"] = pd.qcut(stream["pred_p"], 10, labels=False, duplicates="drop")
+    reliability = 0.0
+    resolution = 0.0
+    for d in sorted(stream["decile"].unique()):
+        sub = stream[stream["decile"] == d]
+        n_k, p_bar, o_bar = len(sub), sub["pred_p"].mean(), sub["over_2_5"].mean()
+        reliability += n_k * (p_bar - o_bar) ** 2
+        resolution += n_k * (o_bar - baseline) ** 2
+    n_total = len(stream)
+    reliability /= n_total
+    resolution /= n_total
+    uncertainty = baseline * (1 - baseline)
+    print(f"\nBrier score (lower is better, 0=perfect, {climatology_brier:.4f}=always-guess-baseline): {brier:.4f}")
+    print(f"  Murphy decomposition: reliability(calibration error, want low)={reliability:.4f}  "
+          f"resolution(discrimination, want high)={resolution:.4f}  uncertainty(fixed)={uncertainty:.4f}")
+    print(f"  Sanity check: uncertainty - resolution + reliability = {uncertainty - resolution + reliability:.4f} "
+          f"(should equal Brier score above)")
+
     calibration_table(stream, "full hybrid model, all out-of-fold predictions")
     calibration_table(stream[stream["model_used"] == "xG"], "xG-model predictions only")
     calibration_table(stream[stream["model_used"] == "core"], "core-model predictions only")
