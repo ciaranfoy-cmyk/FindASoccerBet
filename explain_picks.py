@@ -1,22 +1,31 @@
 #!/usr/bin/env python3
-"""Why does the model like this fixture? Breaks a prediction down into
-its actual driving factors, not just the final percentage -- and, by
-default, does this specifically for the fixtures with a real Kalshi
-edge (model probability vs. Kalshi's actual ask price), since that's
-the disagreement that actually matters, not just raw confidence.
+"""What are the actual picks, and why? This is the single authoritative
+answer -- not a raw data dump you have to reconcile against another
+tool's output yourself.
 
-The model is L1-regularized logistic regression: predicted log-odds =
-sum(coefficient_i * standardized_feature_i) + intercept. Each term is a
-number you can compute and rank -- "this fixture's home_goal_diff is
-unusually high, and the model weights that heavily, so it's pushing
-the prediction up by this much." That's a real, honest breakdown of
-the model's own arithmetic, not a post-hoc guess at why it "feels"
-confident.
+A fixture only counts as a real pick if it clears BOTH bars:
+  1. The model is genuinely confident -- its calibrated probability
+     clears the rolling p95 bar (same live selection rule
+     forward_test_log.py uses, computed fresh from the model's own
+     trailing historical predictions, not picked after the fact).
+  2. There's a real Kalshi price, and the model disagrees with it in
+     the profitable direction (positive edge).
+
+A big "edge" on a fixture the model itself only rates a coin flip is
+NOT a real pick -- it just means Kalshi's price is even more extreme
+than a so-so model number, which is a much weaker signal. Only
+fixtures clearing the confidence bar are ever shown as picks; --no-bar
+shows everything for exploration, clearly separated from the real list.
+
+Each pick gets a feature-contribution breakdown: predicted log-odds =
+sum(coefficient_i * standardized_feature_i) + intercept, so every term
+is real arithmetic the model actually did, not a post-hoc guess.
 
 Usage:
-    APIFOOTBALL_KEY=xxxx python3 explain_picks.py                  # top 10 by Kalshi edge
+    APIFOOTBALL_KEY=xxxx python3 explain_picks.py                  # the real picks, ranked by edge
     APIFOOTBALL_KEY=xxxx python3 explain_picks.py --days 14 --top 5
-    APIFOOTBALL_KEY=xxxx python3 explain_picks.py --by-probability  # ignore Kalshi, rank by raw P instead
+    APIFOOTBALL_KEY=xxxx python3 explain_picks.py --no-bar          # explore everything, no confidence filter
+    APIFOOTBALL_KEY=xxxx python3 explain_picks.py --by-probability  # ignore Kalshi, rank confident picks by raw P
     APIFOOTBALL_KEY=xxxx python3 explain_picks.py --fixture-id 1557393
 """
 
@@ -36,7 +45,7 @@ from analyze_shots_venue import (
 )
 from analyze_xg_features import XG_RAW_FEATURES, XG_DERIVED_FEATURES, add_xg_derived_features
 from calibration import apply_calibration, load_calibrators
-from forward_test_log import KALSHI_SERIES_BY_COMPETITION, fetch_kalshi_over25_for_series
+from forward_test_log import KALSHI_SERIES_BY_COMPETITION, compute_rolling_p95_bar, fetch_kalshi_over25_for_series
 from live_kalshi_edge_test import _normalize
 from predict_upcoming import (
     CORE_CANDIDATES,
@@ -152,8 +161,14 @@ def main() -> int:
     parser.add_argument("--top", type=int, default=10, help="Explain the top N fixtures (by Kalshi edge, unless --by-probability)")
     parser.add_argument("--fixture-id", type=int, default=None, help="Explain one specific fixture instead")
     parser.add_argument("--by-probability", action="store_true",
-                         help="Rank by raw calibrated probability instead of Kalshi edge (ignores Kalshi entirely)")
+                         help="Rank confident picks by raw calibrated probability instead of Kalshi edge")
+    parser.add_argument("--no-bar", action="store_true",
+                         help="Skip the confidence-bar filter -- explore everything, not just real picks")
     args = parser.parse_args()
+
+    print("Computing the live confidence bar (rolling p95 of trailing historical predictions)...")
+    bar = compute_rolling_p95_bar()
+    print(f"  bar = {bar*100:.1f}% -- only fixtures at or above this are real picks\n")
 
     print("Training the core model...")
     historical = load_with_player_form_and_shots_venue()
@@ -212,36 +227,43 @@ def main() -> int:
 
     calibrators = load_calibrators()
     live_df["calibrated_p"] = apply_calibration(live_df["raw_p"], live_df["model_used"], calibrators)
+    live_df["is_pick"] = live_df["calibrated_p"] >= bar
+
+    print("\nFetching real Kalshi prices per league...")
+    kalshi_by_comp = {}
+    for comp, series in KALSHI_SERIES_BY_COMPETITION.items():
+        try:
+            kalshi_by_comp[comp] = fetch_kalshi_over25_for_series(series)
+        except Exception as exc:
+            print(f"  {comp} ({series}): could not reach Kalshi -- {exc}")
+            kalshi_by_comp[comp] = []
+
+    live_df["kalshi_yes_ask"] = pd.NA
+    live_df["edge_vs_ask"] = pd.NA
+    for idx, r in live_df.iterrows():
+        for k in kalshi_by_comp.get(r["competition"], []):
+            if _normalize(k["home"]) == _normalize(r["home_team"]) and _normalize(k["away"]) == _normalize(r["away_team"]):
+                live_df.at[idx, "kalshi_yes_ask"] = k["yes_ask"]
+                live_df.at[idx, "edge_vs_ask"] = r["calibrated_p"] - k["yes_ask"]
+                break
+
+    pool = live_df if (args.no_bar or args.fixture_id is not None) else live_df[live_df["is_pick"]]
+    if pool.empty:
+        print(f"\nNo fixtures clear the {bar*100:.1f}% confidence bar in this window. "
+              f"Pass --no-bar to explore everything anyway.")
+        return 0
 
     if args.by_probability:
-        live_df["edge_vs_ask"] = pd.NA
-        live_df["kalshi_yes_ask"] = pd.NA
-        ranked = live_df.sort_values("calibrated_p", ascending=False)
+        ranked = pool.sort_values("calibrated_p", ascending=False)
     else:
-        print("\nFetching real Kalshi prices per league...")
-        kalshi_by_comp = {}
-        for comp, series in KALSHI_SERIES_BY_COMPETITION.items():
-            try:
-                kalshi_by_comp[comp] = fetch_kalshi_over25_for_series(series)
-            except Exception as exc:
-                print(f"  {comp} ({series}): could not reach Kalshi -- {exc}")
-                kalshi_by_comp[comp] = []
-
-        live_df["kalshi_yes_ask"] = pd.NA
-        live_df["edge_vs_ask"] = pd.NA
-        for idx, r in live_df.iterrows():
-            for k in kalshi_by_comp.get(r["competition"], []):
-                if _normalize(k["home"]) == _normalize(r["home_team"]) and _normalize(k["away"]) == _normalize(r["away_team"]):
-                    live_df.at[idx, "kalshi_yes_ask"] = k["yes_ask"]
-                    live_df.at[idx, "edge_vs_ask"] = r["calibrated_p"] - k["yes_ask"]
-                    break
-
-        priced = live_df.dropna(subset=["edge_vs_ask"])
+        priced = pool.dropna(subset=["edge_vs_ask"])
         if priced.empty:
-            print("\nNo fixtures in this window have a real Kalshi price yet -- "
-                  "try again closer to kickoff, or pass --by-probability to ignore Kalshi.")
-            return 0
-        ranked = priced.sort_values("edge_vs_ask", ascending=False)
+            print(f"\n{len(pool)} fixture(s) clear the confidence bar, but NONE have a real Kalshi price yet "
+                  f"(too far from kickoff). Showing them ranked by probability instead; re-run closer to "
+                  f"kickoff for real edge numbers.")
+            ranked = pool.sort_values("calibrated_p", ascending=False)
+        else:
+            ranked = priced.sort_values("edge_vs_ask", ascending=False)
 
     if args.fixture_id is None:
         ranked = ranked.head(args.top)
@@ -253,10 +275,13 @@ def main() -> int:
         contributions = explain_row(r, features, m, s)
 
         print("\n" + "=" * 90)
-        print(f"{home} vs {away}  ({r['date']}, {r['competition']})")
+        tag = "PICK" if r["is_pick"] else f"below bar ({bar*100:.1f}%), reference only"
+        print(f"[{tag}]  {home} vs {away}  ({r['date']}, {r['competition']})")
         print(f"P(over 2.5) = {r['calibrated_p']*100:.1f}% calibrated  (raw {r['raw_p']*100:.1f}%, [{r['model_used']}] model)")
         if pd.notna(r["kalshi_yes_ask"]):
             print(f"Kalshi ask = ${r['kalshi_yes_ask']:.2f}  |  edge = {r['edge_vs_ask']*100:+.1f}pp")
+        else:
+            print("No Kalshi price posted yet for this fixture.")
         print("-" * 90)
         print("Top factors driving this prediction (ranked by how much they move the number):")
         for feat, contrib in contributions:
@@ -266,6 +291,19 @@ def main() -> int:
             print(f"  {direction:<12s} {desc}")
             print(f"    -> raw value: {raw_val:.2f}   |   contribution to log-odds: {contrib:+.3f}")
 
+    real_picks = ranked[ranked["is_pick"]]
+    priced_picks = real_picks.dropna(subset=["edge_vs_ask"])
+    positive_edge = priced_picks[priced_picks["edge_vs_ask"] > 0]
+    print("\n" + "=" * 90)
+    print("VERDICT")
+    print("=" * 90)
+    if positive_edge.empty:
+        print(f"None of the fixtures shown above are both confident (>= {bar*100:.1f}%) AND priced with a "
+              f"positive Kalshi edge right now. Nothing here is a real pick yet -- re-check closer to kickoff.")
+    else:
+        for _, r in positive_edge.iterrows():
+            print(f"  PICK: {r['home_team']} vs {r['away_team']} ({r['competition']}, {r['date']}) -- "
+                  f"model {r['calibrated_p']*100:.1f}% vs Kalshi ${r['kalshi_yes_ask']:.2f}, edge {r['edge_vs_ask']*100:+.1f}pp")
     return 0
 
 
