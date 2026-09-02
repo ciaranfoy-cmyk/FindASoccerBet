@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Why does the model like this fixture? Breaks a prediction down into
-its actual driving factors, not just the final percentage.
+its actual driving factors, not just the final percentage -- and, by
+default, does this specifically for the fixtures with a real Kalshi
+edge (model probability vs. Kalshi's actual ask price), since that's
+the disagreement that actually matters, not just raw confidence.
 
 The model is L1-regularized logistic regression: predicted log-odds =
 sum(coefficient_i * standardized_feature_i) + intercept. Each term is a
@@ -11,8 +14,9 @@ the model's own arithmetic, not a post-hoc guess at why it "feels"
 confident.
 
 Usage:
-    APIFOOTBALL_KEY=xxxx python3 explain_picks.py                  # top 10 upcoming picks
+    APIFOOTBALL_KEY=xxxx python3 explain_picks.py                  # top 10 by Kalshi edge
     APIFOOTBALL_KEY=xxxx python3 explain_picks.py --days 14 --top 5
+    APIFOOTBALL_KEY=xxxx python3 explain_picks.py --by-probability  # ignore Kalshi, rank by raw P instead
     APIFOOTBALL_KEY=xxxx python3 explain_picks.py --fixture-id 1557393
 """
 
@@ -32,6 +36,8 @@ from analyze_shots_venue import (
 )
 from analyze_xg_features import XG_RAW_FEATURES, XG_DERIVED_FEATURES, add_xg_derived_features
 from calibration import apply_calibration, load_calibrators
+from forward_test_log import KALSHI_SERIES_BY_COMPETITION, fetch_kalshi_over25_for_series
+from live_kalshi_edge_test import _normalize
 from predict_upcoming import (
     CORE_CANDIDATES,
     XG_CANDIDATES,
@@ -143,8 +149,10 @@ def explain_row(row: pd.Series, features: list[str], model, scaler: StandardScal
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--days", type=int, default=14)
-    parser.add_argument("--top", type=int, default=10, help="Explain the top N fixtures by calibrated probability")
+    parser.add_argument("--top", type=int, default=10, help="Explain the top N fixtures (by Kalshi edge, unless --by-probability)")
     parser.add_argument("--fixture-id", type=int, default=None, help="Explain one specific fixture instead")
+    parser.add_argument("--by-probability", action="store_true",
+                         help="Rank by raw calibrated probability instead of Kalshi edge (ignores Kalshi entirely)")
     args = parser.parse_args()
 
     print("Training the core model...")
@@ -204,12 +212,41 @@ def main() -> int:
 
     calibrators = load_calibrators()
     live_df["calibrated_p"] = apply_calibration(live_df["raw_p"], live_df["model_used"], calibrators)
-    live_df = live_df.sort_values("calibrated_p", ascending=False)
+
+    if args.by_probability:
+        live_df["edge_vs_ask"] = pd.NA
+        live_df["kalshi_yes_ask"] = pd.NA
+        ranked = live_df.sort_values("calibrated_p", ascending=False)
+    else:
+        print("\nFetching real Kalshi prices per league...")
+        kalshi_by_comp = {}
+        for comp, series in KALSHI_SERIES_BY_COMPETITION.items():
+            try:
+                kalshi_by_comp[comp] = fetch_kalshi_over25_for_series(series)
+            except Exception as exc:
+                print(f"  {comp} ({series}): could not reach Kalshi -- {exc}")
+                kalshi_by_comp[comp] = []
+
+        live_df["kalshi_yes_ask"] = pd.NA
+        live_df["edge_vs_ask"] = pd.NA
+        for idx, r in live_df.iterrows():
+            for k in kalshi_by_comp.get(r["competition"], []):
+                if _normalize(k["home"]) == _normalize(r["home_team"]) and _normalize(k["away"]) == _normalize(r["away_team"]):
+                    live_df.at[idx, "kalshi_yes_ask"] = k["yes_ask"]
+                    live_df.at[idx, "edge_vs_ask"] = r["calibrated_p"] - k["yes_ask"]
+                    break
+
+        priced = live_df.dropna(subset=["edge_vs_ask"])
+        if priced.empty:
+            print("\nNo fixtures in this window have a real Kalshi price yet -- "
+                  "try again closer to kickoff, or pass --by-probability to ignore Kalshi.")
+            return 0
+        ranked = priced.sort_values("edge_vs_ask", ascending=False)
 
     if args.fixture_id is None:
-        live_df = live_df.head(args.top)
+        ranked = ranked.head(args.top)
 
-    for _, r in live_df.iterrows():
+    for _, r in ranked.iterrows():
         home, away = r["home_team"], r["away_team"]
         features = XG_CANDIDATES if r["model_used"] == "xG" else CORE_CANDIDATES
         m, s = (xg_model, xg_scaler) if r["model_used"] == "xG" else (model, scaler)
@@ -218,6 +255,8 @@ def main() -> int:
         print("\n" + "=" * 90)
         print(f"{home} vs {away}  ({r['date']}, {r['competition']})")
         print(f"P(over 2.5) = {r['calibrated_p']*100:.1f}% calibrated  (raw {r['raw_p']*100:.1f}%, [{r['model_used']}] model)")
+        if pd.notna(r["kalshi_yes_ask"]):
+            print(f"Kalshi ask = ${r['kalshi_yes_ask']:.2f}  |  edge = {r['edge_vs_ask']*100:+.1f}pp")
         print("-" * 90)
         print("Top factors driving this prediction (ranked by how much they move the number):")
         for feat, contrib in contributions:
