@@ -51,6 +51,18 @@ LEAKAGE_SANITY_CHECK = [
     "away_total_shots", "away_shots_on_goal", "away_shots_inside_box", "away_shots_outside_box",
 ]
 
+# Dataset-wide mean total goals (data/matches_apifootball.csv, 23,777 matches) --
+# the prior a head-to-head average gets shrunk toward when little h2h history exists.
+GLOBAL_AVG_GOALS = 2.71
+
+# Shrinkage strength in "games": a pairing with this many prior meetings gets its
+# h2h average weighted equally with the prior; fewer meetings lean more on the
+# prior, more meetings lean more on the pairing's own history. 47.7% of rows have
+# fewer than 5 h2h games and 9.7% have zero -- a hard NaN-gate at that threshold
+# would drop roughly half the dataset via CORE_CANDIDATES.dropna(), so this uses
+# continuous shrinkage instead (never NaN, degrades gracefully to the prior).
+H2H_SHRINKAGE_K = 5
+
 
 def add_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     """Shared by the historical loader and the live scorer, so a live
@@ -73,6 +85,9 @@ def add_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     df["missing_players_gap"] = (df["home_missing_players"] - df["away_missing_players"]).abs()
     df["clean_sheet_pct_combined_last5"] = (df["home_clean_sheet_pct_last5"] + df["away_clean_sheet_pct_last5"]) / 2
     df["season_year"] = df["season"]
+    df["h2h_avg_goals_shrunk"] = (
+        df["h2h_games"] * df["h2h_avg_goals"].fillna(0) + H2H_SHRINKAGE_K * GLOBAL_AVG_GOALS
+    ) / (df["h2h_games"] + H2H_SHRINKAGE_K)
     return df
 
 
@@ -88,7 +103,7 @@ DERIVED_FEATURES = [
     "min_competition_experience", "position_gap", "goal_diff_gap",
     "combined_shots_last5", "combined_shots_inside_box_last5", "shots_gap_last5",
     "missing_players_total", "missing_players_gap", "clean_sheet_pct_combined_last5",
-    "season_year",
+    "season_year", "h2h_avg_goals_shrunk",
 ]
 
 ALL_CANDIDATES = PREDICTIVE_FEATURES + DERIVED_FEATURES
