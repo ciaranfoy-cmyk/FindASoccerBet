@@ -106,7 +106,7 @@ def main() -> int:
             print(f"  ...replayed {i}/{len(prior_history)}")
 
     print("Loading historical dataset for weekly model retraining "
-          "(player-form swapped for team-goals-form, venue-split swapped for blended shots)...")
+          "(player-form + venue-split shots added alongside team-goals-form/blended-shots)...")
     historical = load_with_player_form_and_shots_venue()
     xg_historical = load_with_xg_player_form_and_shots_venue()
 

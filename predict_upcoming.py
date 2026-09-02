@@ -21,13 +21,17 @@ long-proven, of the two); when they don't (e.g. very early in a newly
 promoted team's tracked history), falls back to the core model.
 
 Both models use player-form (rolling goals-per-start of today's actual
-starting attackers) in place of team-goals-form -- validated to beat it
-in every fold, with or without xG present (rolling_validation_player_form_v2.py,
-rolling_validation_xg_player_form_v2.py). Since this tool normally runs
-days ahead of kickoff, before the real lineup is confirmed, it falls
-back to a "usual XI" proxy (each team's most-frequent recent starters)
-and only uses the real confirmed lineup when it's already been posted
-(within ~1hr of kickoff).
+starting attackers) ALONGSIDE team-goals-form, and venue-split shots
+ALONGSIDE blended shots -- these used to be swaps (one replacing the
+other), validated that way on EPL/Championship alone, but re-testing
+after the La Liga pilot added enough rows to support more coefficients
+found that keeping both together now wins outright, on Brier score as
+well as hit rate (see rolling_validation_player_form_v2.py /
+rolling_validation_shots_venue.py). Since this tool normally runs days
+ahead of kickoff, before the real lineup is confirmed, player-form
+falls back to a "usual XI" proxy (each team's most-frequent recent
+starters) and only uses the real confirmed lineup when it's already
+been posted (within ~1hr of kickoff).
 
 Usage:
     APIFOOTBALL_KEY=xxxx python3 predict_upcoming.py
@@ -50,11 +54,9 @@ from calibration import apply_calibration, load_calibrators
 from analyze_player_form import (
     PLAYER_FORM_DERIVED_FEATURES,
     PLAYER_FORM_RAW_FEATURES,
-    TEAM_GOALS_FORM,
     add_player_form_derived_features,
 )
 from analyze_shots_venue import (
-    BLENDED_SHOTS,
     VENUE_SHOTS_DERIVED_FEATURES,
     VENUE_SHOTS_RAW_FEATURES,
     add_shots_venue_derived_features,
@@ -84,14 +86,18 @@ from build_xg_features import xg_stats_for
 
 warnings.filterwarnings("ignore")
 
-# team-goals-form (home_gf_last5 etc.) replaced by player-form, and blended
-# shots-last5 replaced by venue-split shots, everywhere -- validated in
-# rolling_validation_player_form_v2.py / rolling_validation_xg_player_form_v2.py
-# (player-form beats or ties team-goals-form in every fold, with or
-# without xG) and rolling_validation_shots_venue.py (venue-split shots
-# outright beats blended shots, 63.0% vs 61.2% combined).
+# Originally player-form/venue-shots REPLACED team-goals-form/blended-shots
+# (validated on EPL/Championship alone: swapping beat keeping both, since
+# L1 could only arbitrarily pick one of two correlated signals on that
+# smaller dataset). After the La Liga pilot added enough rows to support
+# more coefficients, re-testing found the opposite: KEEPING both pairs
+# together now beats the swap outright, on Brier score as well as hit
+# rate, not just a hit-rate illusion (top-5% picks, same folds: swap
+# Brier=0.2320/64.1% hit rate vs combined Brier=0.2179/68.5% hit rate).
+# See rolling_validation_player_form_v2.py / rolling_validation_shots_venue.py
+# for the re-test that reversed this.
 CORE_CANDIDATES = (
-    [f for f in ALL_CANDIDATES if f not in TEAM_GOALS_FORM and f not in BLENDED_SHOTS]
+    ALL_CANDIDATES
     + PLAYER_FORM_RAW_FEATURES + PLAYER_FORM_DERIVED_FEATURES
     + VENUE_SHOTS_RAW_FEATURES + VENUE_SHOTS_DERIVED_FEATURES
 )
@@ -412,7 +418,7 @@ def main() -> int:
     args = parser.parse_args()
 
     print("Training the core model on the full historical dataset "
-          "(team-goals-form swapped for player-form, blended shots swapped for venue-split)...")
+          "(player-form + venue-split shots added alongside team-goals-form/blended-shots)...")
     historical = load_with_player_form_and_shots_venue()
     model_df = historical[CORE_CANDIDATES + ["over_2_5"]].dropna()
     print(f"  {len(model_df)} complete-case matches used for training")
