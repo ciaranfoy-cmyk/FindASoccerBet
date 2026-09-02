@@ -16,6 +16,8 @@ Usage:
 
 import re
 import sys
+import time
+import urllib.error
 import urllib.request
 import warnings
 import json
@@ -61,13 +63,31 @@ def _normalize(name: str) -> str:
     return n.strip()
 
 
+_KALSHI_MAX_RETRIES = 5
+
+
 def kalshi_get(path: str, params: dict | None = None) -> dict:
+    """9 leagues now means up to ~9x sequential series/events/markets
+    calls per run, which trips Kalshi's rate limit far more often than
+    the original 6-league version ever did -- unlike apifootball.get(),
+    this had no retry at all, so a single 429 killed an entire league's
+    prices for the run. Retry with exponential backoff on 429s.
+    """
     query = "&".join(f"{k}={v}" for k, v in (params or {}).items())
     url = f"{KALSHI_BASE}{path}"
     if query:
         url += f"?{query}"
-    with urllib.request.urlopen(url, timeout=20) as resp:
-        return json.loads(resp.read())
+    last_exc: Exception | None = None
+    for attempt in range(_KALSHI_MAX_RETRIES):
+        try:
+            with urllib.request.urlopen(url, timeout=20) as resp:
+                return json.loads(resp.read())
+        except urllib.error.HTTPError as exc:
+            last_exc = exc
+            if exc.code != 429 or attempt == _KALSHI_MAX_RETRIES - 1:
+                raise
+            time.sleep(2**attempt)
+    raise last_exc
 
 
 def fetch_kxepltotal_over25() -> list[dict]:
