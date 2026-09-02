@@ -62,6 +62,7 @@ LEAGUES = {
     "ELC": {"id": 40, "first_season": 2011},
     "LALIGA": {"id": 140, "first_season": 2019},
     "BUNDESLIGA": {"id": 78, "first_season": 2019},
+    "SERIEA": {"id": 135, "first_season": 2019},
 }
 
 
