@@ -76,6 +76,7 @@ DESCRIPTIONS = {
     "away_points": "{away}'s season points",
     "is_PL": "this is a Premier League match (historically higher-scoring)",
     "h2h_avg_goals": "average goals in this exact head-to-head matchup",
+    "h2h_avg_goals_shrunk": "average goals in this head-to-head matchup, discounted toward the league norm when there's little history behind it",
     "h2h_games": "number of tracked head-to-head meetings",
     "home_missing_players": "{home}'s missing/injured player count",
     "away_missing_players": "{away}'s missing/injured player count",
