@@ -3,18 +3,21 @@
 answer -- not a raw data dump you have to reconcile against another
 tool's output yourself.
 
-A fixture only counts as a real pick if it clears BOTH bars:
+A fixture only counts as a real pick if it clears ALL THREE bars:
   1. The model is genuinely confident -- its calibrated probability
      clears the rolling p95 bar (same live selection rule
      forward_test_log.py uses, computed fresh from the model's own
      trailing historical predictions, not picked after the fact).
-  2. There's a real Kalshi price, and the model disagrees with it in
-     the profitable direction (positive edge).
+  2. There's a real, currently-live Kalshi price to compare against --
+     a confident fixture with no market to trade it on is not a
+     recommendation, just a number. Never shown as a pick.
+  3. The model disagrees with that price in the profitable direction
+     (positive edge).
 
 A big "edge" on a fixture the model itself only rates a coin flip is
 NOT a real pick -- it just means Kalshi's price is even more extreme
 than a so-so model number, which is a much weaker signal. Only
-fixtures clearing the confidence bar are ever shown as picks; --no-bar
+fixtures clearing all three bars are ever shown as picks; --no-bar
 shows everything for exploration, clearly separated from the real list.
 
 Each pick gets a feature-contribution breakdown: predicted log-odds =
@@ -227,7 +230,7 @@ def main() -> int:
 
     calibrators = load_calibrators()
     live_df["calibrated_p"] = apply_calibration(live_df["raw_p"], live_df["model_used"], calibrators)
-    live_df["is_pick"] = live_df["calibrated_p"] >= bar
+    live_df["clears_bar"] = live_df["calibrated_p"] >= bar
 
     print("\nFetching real Kalshi prices per league...")
     kalshi_by_comp = {}
@@ -247,7 +250,12 @@ def main() -> int:
                 live_df.at[idx, "edge_vs_ask"] = r["calibrated_p"] - k["yes_ask"]
                 break
 
-    pool = live_df if (args.no_bar or args.fixture_id is not None) else live_df[live_df["is_pick"]]
+    live_df["priced"] = live_df["kalshi_yes_ask"].notna()
+    # A real pick requires all three: confident, priced, and profitable edge.
+    # No Kalshi price to compare against means no recommendation -- ever.
+    live_df["is_pick"] = live_df["clears_bar"] & live_df["priced"] & (live_df["edge_vs_ask"] > 0)
+
+    pool = live_df if (args.no_bar or args.fixture_id is not None) else live_df[live_df["clears_bar"]]
     if pool.empty:
         print(f"\nNo fixtures clear the {bar*100:.1f}% confidence bar in this window. "
               f"Pass --no-bar to explore everything anyway.")
@@ -259,8 +267,8 @@ def main() -> int:
         priced = pool.dropna(subset=["edge_vs_ask"])
         if priced.empty:
             print(f"\n{len(pool)} fixture(s) clear the confidence bar, but NONE have a real Kalshi price yet "
-                  f"(too far from kickoff). Showing them ranked by probability instead; re-run closer to "
-                  f"kickoff for real edge numbers.")
+                  f"(too far from kickoff) -- nothing here is a recommendation without a real price to compare "
+                  f"against. Showing them ranked by probability for reference only; re-run closer to kickoff.")
             ranked = pool.sort_values("calibrated_p", ascending=False)
         else:
             ranked = priced.sort_values("edge_vs_ask", ascending=False)
@@ -275,7 +283,14 @@ def main() -> int:
         contributions = explain_row(r, features, m, s)
 
         print("\n" + "=" * 90)
-        tag = "PICK" if r["is_pick"] else f"below bar ({bar*100:.1f}%), reference only"
+        if r["is_pick"]:
+            tag = "PICK"
+        elif not r["clears_bar"]:
+            tag = f"below bar ({bar*100:.1f}%), reference only"
+        elif not r["priced"]:
+            tag = "confident, but no Kalshi price yet -- not a recommendation"
+        else:
+            tag = "confident, but negative Kalshi edge -- not a recommendation"
         print(f"[{tag}]  {home} vs {away}  ({r['date']}, {r['competition']})")
         print(f"P(over 2.5) = {r['calibrated_p']*100:.1f}% calibrated  (raw {r['raw_p']*100:.1f}%, [{r['model_used']}] model)")
         if pd.notna(r["kalshi_yes_ask"]):
@@ -292,16 +307,15 @@ def main() -> int:
             print(f"    -> raw value: {raw_val:.2f}   |   contribution to log-odds: {contrib:+.3f}")
 
     real_picks = ranked[ranked["is_pick"]]
-    priced_picks = real_picks.dropna(subset=["edge_vs_ask"])
-    positive_edge = priced_picks[priced_picks["edge_vs_ask"] > 0]
     print("\n" + "=" * 90)
     print("VERDICT")
     print("=" * 90)
-    if positive_edge.empty:
-        print(f"None of the fixtures shown above are both confident (>= {bar*100:.1f}%) AND priced with a "
-              f"positive Kalshi edge right now. Nothing here is a real pick yet -- re-check closer to kickoff.")
+    if real_picks.empty:
+        print(f"None of the fixtures shown above are confident (>= {bar*100:.1f}%), priced on Kalshi right now, "
+              f"AND priced with a positive edge -- all three are required. Nothing here is a real pick yet -- "
+              f"re-check closer to kickoff.")
     else:
-        for _, r in positive_edge.iterrows():
+        for _, r in real_picks.iterrows():
             print(f"  PICK: {r['home_team']} vs {r['away_team']} ({r['competition']}, {r['date']}) -- "
                   f"model {r['calibrated_p']*100:.1f}% vs Kalshi ${r['kalshi_yes_ask']:.2f}, edge {r['edge_vs_ask']*100:+.1f}pp")
     return 0
