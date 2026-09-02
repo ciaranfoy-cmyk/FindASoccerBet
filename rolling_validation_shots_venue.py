@@ -49,7 +49,12 @@ VENUE_SHOTS = [
     "home_venue_conversion_rate_last5", "away_venue_conversion_rate_last5",
 ]
 
-SHARED = [f for f in CORE_CANDIDATES if f not in BLENDED_SHOTS]
+# CORE_CANDIDATES (predict_upcoming.py) already had blended shots swapped
+# for venue-split shots by the time this was re-run against the La Liga
+# rebuild -- strip BOTH flavors out before adding either back, or VENUE_ONLY
+# ends up with venue-shots features listed twice (real bug hit on the
+# first re-run: sklearn's duplicate-column check rejected it outright).
+SHARED = [f for f in CORE_CANDIDATES if f not in BLENDED_SHOTS and f not in VENUE_SHOTS]
 BLENDED_ONLY = SHARED + BLENDED_SHOTS
 VENUE_ONLY = SHARED + VENUE_SHOTS
 BOTH = list(dict.fromkeys(BLENDED_ONLY + VENUE_ONLY))
