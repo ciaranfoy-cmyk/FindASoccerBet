@@ -37,7 +37,6 @@ warnings.filterwarnings("ignore")
 N_FOLDS_CORE = 5
 N_FOLDS_XG = 4
 STAKE = 100.0
-PROFIT_ON_WIN = 90.0
 
 
 def fit_and_predict(train: pd.DataFrame, test: pd.DataFrame, features: list[str]) -> pd.DataFrame:
@@ -82,7 +81,12 @@ def main() -> int:
     parser.add_argument("--window", type=int, default=500, help="Trailing window size (# of past predictions)")
     parser.add_argument("--percentile", type=float, default=95.0, help="Percentile of the trailing window used as the live bar")
     parser.add_argument("--warmup", type=int, default=200, help="Games needed in the trailing window before betting starts")
+    parser.add_argument("--profit-on-win", type=float, default=90.0,
+                         help="Profit per $100 stake on a win (default 90 = decimal odds 1.90). "
+                              "Real over-2.5 odds vary a lot by fixture -- a heavy favorite can price "
+                              "as low as ~$35-40. This is a flat assumption, not fixture-specific odds.")
     args = parser.parse_args()
+    profit_on_win = args.profit_on_win
 
     # Determine the season's actual date span from real fixtures.
     season_dates = []
@@ -123,7 +127,7 @@ def main() -> int:
                 season_games_scored += 1
                 if row["pred_p"] >= bar:
                     win = bool(row["over_2_5"])
-                    bankroll += PROFIT_ON_WIN if win else -STAKE
+                    bankroll += profit_on_win if win else -STAKE
                     bets.append({
                         "date": row["date"].date(), "competition": row["competition"],
                         "home": row["home_team"], "away": row["away_team"],
@@ -138,7 +142,7 @@ def main() -> int:
     print(f"Bets placed during season {args.season}-{args.season+1-2000} (hybrid xG/core):")
     print("=" * 100)
     for b in bets:
-        outcome = "WIN " + f"+${PROFIT_ON_WIN:.0f}" if b["win"] else "LOSS " + f"-${STAKE:.0f}"
+        outcome = "WIN " + f"+${profit_on_win:.0f}" if b["win"] else "LOSS " + f"-${STAKE:.0f}"
         print(f"{b['date']}  [{b['competition']}] [{b['model_used']:<4s}] {b['home']:<20s} vs {b['away']:<20s}  "
               f"pred={b['pred_p']*100:5.1f}%  bar={b['bar']*100:5.1f}%  {outcome:<12s}  bankroll={b['bankroll']:+.0f}")
 

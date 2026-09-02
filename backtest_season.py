@@ -53,7 +53,6 @@ MIN_XG_TRAIN_ROWS = 200  # don't bother fitting an xG model on too small a weekl
 warnings.filterwarnings("ignore")
 
 STAKE = 100.0
-PROFIT_ON_WIN = 90.0  # "$90 per $100 bet on a winner" => decimal odds 1.90
 
 
 def parse_dt(s: str) -> datetime.datetime:
@@ -65,7 +64,12 @@ def main() -> int:
     parser.add_argument("--season", type=int, default=2025, help="Season start-year, e.g. 2025 = 2025-26")
     parser.add_argument("--threshold", type=float, default=0.60, help="Only bet a pick if its predicted P >= this")
     parser.add_argument("--top-n", type=int, default=1, help="Bet the top N ranked fixtures each week (each still gated by --threshold)")
+    parser.add_argument("--profit-on-win", type=float, default=90.0,
+                         help="Profit per $100 stake on a win (default 90 = decimal odds 1.90). "
+                              "Real over-2.5 odds vary a lot by fixture -- a heavy favorite can price "
+                              "as low as ~$35-40. This is a flat assumption, not fixture-specific odds.")
     args = parser.parse_args()
+    profit_on_win = args.profit_on_win
 
     print(f"Fetching season {args.season} fixtures for {list(LEAGUES)}...")
     season_matches = []
@@ -200,9 +204,9 @@ def main() -> int:
                         bets += 1
                         if actual_over:
                             wins += 1
-                            bankroll += PROFIT_ON_WIN
+                            bankroll += profit_on_win
                             line["outcome"] = "WIN"
-                            line["pnl"] = f"+${PROFIT_ON_WIN:.0f}"
+                            line["pnl"] = f"+${profit_on_win:.0f}"
                         else:
                             bankroll -= STAKE
                             line["outcome"] = "LOSS"
@@ -249,7 +253,7 @@ def main() -> int:
         print(f"Total staked: ${total_staked:.0f}")
         print(f"Total P&L: ${bankroll:+.0f}")
         print(f"ROI: {bankroll/total_staked*100:+.1f}%")
-        breakeven = STAKE / (STAKE + PROFIT_ON_WIN)
+        breakeven = STAKE / (STAKE + profit_on_win)
         print(f"Breakeven hit rate at these odds: {breakeven*100:.1f}%")
     return 0
 
