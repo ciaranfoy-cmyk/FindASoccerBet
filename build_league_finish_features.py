@@ -8,15 +8,32 @@ step up in competition quality. Coventry hasn't played top-flight
 football in 25 years, but Elo just imported their recent Championship
 form unchanged.
 
-This feature is explicitly division-aware instead: for each of a
-team's trailing LOOKBACK_SEASONS seasons, look up their ACTUAL final
-rank in THIS SPECIFIC COMPETITION (not their rank in whatever division
-they were actually playing in that year). A season they weren't in
-this competition at all counts as NOT_IN_LEAGUE_RANK (30) -- a team
-that's spent the last 7 years in the Championship gets 7 straight
-seasons of "would-be 30th in the Prem" rather than their Championship
-finishes bleeding through. Real, official final standings (via
-/standings), not season-end table position reconstructed from results.
+This feature is explicitly division-aware instead: for every season
+from THIS COMPETITION's first tracked season up to (not including) the
+match's own season, look up the team's ACTUAL final rank in THIS
+SPECIFIC COMPETITION (not their rank in whatever division they were
+actually playing in that year). A season they weren't in this
+competition at all counts as NOT_IN_LEAGUE_RANK (30) -- a team that's
+spent the last several years in the Championship gets that many
+straight seasons of "would-be 30th in the Prem" rather than their
+Championship finishes bleeding through. Real, official final standings
+(via /standings), not season-end table position reconstructed from
+results.
+
+Originally a fixed 7-season trailing window, which turned out to be
+the reason this feature got zeroed out entirely when the live model
+trained on the FULL dataset (it tested as a real improvement in
+rolling_validation_league_finish.py's walk-forward folds first,
+before that was diagnosed): a fixed window means the number of
+seasons actually averaged silently varies row to row -- as few as 1
+season for an early match in a league's own tracked history, capped
+at exactly 7 for anything later -- so the same feature value carries a
+different amount of real evidence depending on how far into the
+dataset the match falls, diluting its signal across 11+ years of
+pooled training data. An expanding window anchored at the
+competition's own first season is honest about this instead: every
+row's average reflects exactly however much real history exists by
+that point, growing consistently rather than being arbitrarily capped.
 
 Same no-lookahead discipline as everything else: a match in season S
 only ever looks at seasons strictly before S.
@@ -34,7 +51,6 @@ import apifootball
 from build_dataset_apifootball import LEAGUES, fetch_all_fixtures
 
 OUTPUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "league_finish_features.csv")
-LOOKBACK_SEASONS = 7
 NOT_IN_LEAGUE_RANK = 30
 
 
@@ -73,8 +89,7 @@ def avg_finish(
     team: str, competition: str, season: int, standings_cache: dict[str, dict[int, dict[str, int]]]
 ) -> float | None:
     first_season = LEAGUES[competition]["first_season"]
-    window_start = max(first_season, season - LOOKBACK_SEASONS)
-    window_seasons = range(window_start, season)
+    window_seasons = range(first_season, season)
     if not window_seasons:
         return None
     ranks = [standings_cache.get(competition, {}).get(s, {}).get(team, NOT_IN_LEAGUE_RANK) for s in window_seasons]
