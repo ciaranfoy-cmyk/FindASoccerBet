@@ -70,6 +70,16 @@ _SUFFIXES = (" town", " united", " city", " fc")
 # "City" isn't a club-type suffix there) if left to fall through ungated;
 # the self-mapping entries below exist purely to short-circuit that.
 _TEAM_ALIASES = {
+    # Pre-existing bug, not introduced by the additions below: the generic
+    # suffix rule strips " city" from "Manchester City" and " united" from
+    # "Manchester United" down to the same "manchester" -- a genuine
+    # different-team collision, found while auditing the rest of this
+    # table. Self-map both before the generic rule can touch them.
+    "manchester city": "manchester city",
+    "manchester united": "manchester united",
+    "man city": "manchester city",
+    "man united": "manchester united",
+    "man utd": "manchester united",
     # MLS
     "atlanta united fc": "atlanta",
     "inter miami": "miami",
@@ -149,6 +159,29 @@ _TEAM_ALIASES = {
     "estac troyes": "troyes",
     "strasbourg alsace": "strasbourg",
     "stade rennais": "rennes",
+    # Below this line: NOT verified against a live Kalshi market -- these
+    # teams haven't had an open fixture yet. Added on the same demonstrated
+    # pattern (drop a generic club-type prefix/suffix) as everything
+    # above, but unconfirmed. See live_kalshi_edge_test.py's module
+    # docstring / the conversation that added these for the teams this
+    # pattern couldn't be applied to with any confidence (multiple "Real
+    # ___" clubs in La Liga, Hertha Berlin, AZ Alkmaar, spelling-only
+    # variants like Fürth/Düsseldorf) -- those are deliberately left
+    # unaliased rather than guessed.
+    "1. fc heidenheim": "heidenheim",
+    "fc heidenheim": "heidenheim",
+    "arminia bielefeld": "bielefeld",
+    "holstein kiel": "kiel",
+    "sv darmstadt 98": "darmstadt",
+    "vfl bochum": "bochum",
+    "vfl wolfsburg": "wolfsburg",
+    "hellas verona": "verona",
+    "clermont foot": "clermont",
+    "ado den haag": "den haag",
+    "fc volendam": "volendam",
+    "fortuna sittard": "sittard",
+    "nac breda": "breda",
+    "vvv venlo": "venlo",
 }
 
 
