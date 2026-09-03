@@ -149,6 +149,10 @@ _TEAM_ALIASES = {
     "mainz": "fsv mainz 05",
     "frankfurt": "eintracht frankfurt",
     "augsburg": "fc augsburg",
+    "fc st. pauli": "st. pauli",
+    "hertha berlin": "hertha",
+    "fortuna dusseldorf": "dusseldorf",
+    "spvgg greuther furth": "greuther furth",
     # Serie A
     "as roma": "roma",
     "parma calcio": "parma",
@@ -159,15 +163,13 @@ _TEAM_ALIASES = {
     "estac troyes": "troyes",
     "strasbourg alsace": "strasbourg",
     "stade rennais": "rennes",
-    # Below this line: NOT verified against a live Kalshi market -- these
-    # teams haven't had an open fixture yet. Added on the same demonstrated
-    # pattern (drop a generic club-type prefix/suffix) as everything
-    # above, but unconfirmed. See live_kalshi_edge_test.py's module
-    # docstring / the conversation that added these for the teams this
-    # pattern couldn't be applied to with any confidence (multiple "Real
-    # ___" clubs in La Liga, Hertha Berlin, AZ Alkmaar, spelling-only
-    # variants like Fürth/Düsseldorf) -- those are deliberately left
-    # unaliased rather than guessed.
+    # Below this line: not verified against a live Kalshi market at the
+    # time added (these teams hadn't had an open fixture yet) -- added on
+    # the same demonstrated pattern (drop a generic club-type prefix/
+    # suffix) as everything above, but unconfirmed until they trade.
+    # Real Madrid, Real Betis, Real Sociedad need no alias at all -- Kalshi
+    # uses the full name verbatim, same as API-Football, confirmed by the
+    # user directly (they trade all three "Real ___" clubs unabbreviated).
     "1. fc heidenheim": "heidenheim",
     "fc heidenheim": "heidenheim",
     "arminia bielefeld": "bielefeld",
@@ -182,6 +184,7 @@ _TEAM_ALIASES = {
     "fortuna sittard": "sittard",
     "nac breda": "breda",
     "vvv venlo": "venlo",
+    "az alkmaar": "alkmaar",
 }
 
 
