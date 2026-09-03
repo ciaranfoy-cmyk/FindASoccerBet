@@ -27,6 +27,7 @@ import pandas as pd
 
 from analyze_shots_venue import load_with_xg_player_form_and_shots_venue
 from backtest_season_rolling_percentile import N_FOLDS_CORE, N_FOLDS_XG, build_stream
+from build_xg_weighted_features import load_weighted_xg
 from predict_upcoming import CORE_CANDIDATES, XG_CANDIDATES
 
 warnings.filterwarnings("ignore")
@@ -82,6 +83,7 @@ def report_picks(name: str, picks: pd.DataFrame, baseline: float) -> None:
 
 def main() -> None:
     df = load_with_xg_player_form_and_shots_venue()
+    df = load_weighted_xg(df)
 
     core_stream = build_stream(df, CORE_CANDIDATES, N_FOLDS_CORE, "core")
     xg_stream = build_stream(df, XG_CANDIDATES, N_FOLDS_XG, "xG")

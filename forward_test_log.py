@@ -157,6 +157,7 @@ def compute_rolling_p95_bar() -> float:
     out-of-fold predictions in the model's own validated history --
     same construction as backtest_season_rolling_percentile.py."""
     df = load_with_xg_player_form_and_shots_venue()
+    df = load_weighted_xg(df)
     core_stream = build_stream(df, CORE_CANDIDATES, N_FOLDS_CORE, "core").rename(columns={"pred_p": "pred_p_core"})
     xg_stream = build_stream(df, XG_CANDIDATES, N_FOLDS_XG, "xG")[["fixture_id", "pred_p"]].rename(columns={"pred_p": "pred_p_xg"})
     merged = core_stream.merge(xg_stream, on="fixture_id", how="left")

@@ -51,6 +51,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import KFold
 
 from analyze_shots_venue import load_with_xg_player_form_and_shots_venue
+from build_xg_weighted_features import load_weighted_xg
 
 warnings.filterwarnings("ignore")
 
@@ -81,6 +82,7 @@ def build_hybrid_streams() -> tuple[pd.DataFrame, pd.DataFrame]:
     from predict_upcoming import CORE_CANDIDATES, XG_CANDIDATES
 
     df = load_with_xg_player_form_and_shots_venue()
+    df = load_weighted_xg(df)
     core_stream = build_stream(df, CORE_CANDIDATES, N_FOLDS_CORE, "core").sort_values("date").reset_index(drop=True)
     xg_stream = build_stream(df, XG_CANDIDATES, N_FOLDS_XG, "xG").sort_values("date").reset_index(drop=True)
     return core_stream, xg_stream
