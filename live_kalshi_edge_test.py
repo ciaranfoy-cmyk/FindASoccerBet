@@ -37,6 +37,7 @@ from analyze_shots_venue import (
 )
 from analyze_xg_features import XG_RAW_FEATURES, XG_DERIVED_FEATURES, add_xg_derived_features
 from build_dataset_apifootball import fetch_all_fixtures
+from build_league_finish_features import add_league_finish_features, build_standings_cache
 from predict_upcoming import (
     CORE_CANDIDATES,
     XG_CANDIDATES,
@@ -304,6 +305,8 @@ def main() -> int:
     live_df = add_xg_derived_features(live_df)
     live_df = add_player_form_derived_features(live_df)
     live_df = add_shots_venue_derived_features(live_df)
+    standings_cache = build_standings_cache()
+    live_df = add_league_finish_features(live_df, standings_cache)
     live_df = live_df.dropna(subset=CORE_CANDIDATES)
     if live_df.empty:
         print("All fixtures were missing a required feature.")

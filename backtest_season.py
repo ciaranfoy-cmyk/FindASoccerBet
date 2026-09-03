@@ -47,6 +47,7 @@ from analyze_shots_venue import (
     load_with_player_form_and_shots_venue,
     load_with_xg_player_form_and_shots_venue,
 )
+from build_league_finish_features import add_league_finish_features, build_standings_cache
 
 MIN_XG_TRAIN_ROWS = 200  # don't bother fitting an xG model on too small a weekly training set
 
@@ -109,6 +110,7 @@ def main() -> int:
           "(player-form + venue-split shots added alongside team-goals-form/blended-shots)...")
     historical = load_with_player_form_and_shots_venue()
     xg_historical = load_with_xg_player_form_and_shots_venue()
+    standings_cache = build_standings_cache()
 
     # Group this season's matches into calendar weeks, chronological.
     df = pd.DataFrame(season_matches)
@@ -166,6 +168,7 @@ def main() -> int:
             live_df = add_xg_derived_features(live_df)
             live_df = add_player_form_derived_features(live_df)
             live_df = add_shots_venue_derived_features(live_df)
+            live_df = add_league_finish_features(live_df, standings_cache)
             scoreable = live_df.dropna(subset=CORE_CANDIDATES).copy()
             if not scoreable.empty:
                 has_xg = pd.Series(False, index=scoreable.index)

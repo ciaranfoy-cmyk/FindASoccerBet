@@ -62,13 +62,20 @@ def _merge_venue_shots(df: pd.DataFrame) -> pd.DataFrame:
     return add_shots_venue_derived_features(df)
 
 
+def _merge_league_finish(df: pd.DataFrame) -> pd.DataFrame:
+    from build_league_finish_features import add_league_finish_features, build_standings_cache
+
+    standings_cache = build_standings_cache()
+    return add_league_finish_features(df, standings_cache)
+
+
 def load_with_player_form_and_shots_venue() -> pd.DataFrame:
     from analyze_player_form import load_with_player_form
 
-    return _merge_venue_shots(load_with_player_form())
+    return _merge_league_finish(_merge_venue_shots(load_with_player_form()))
 
 
 def load_with_xg_player_form_and_shots_venue() -> pd.DataFrame:
     from analyze_player_form import load_with_xg_and_player_form
 
-    return _merge_venue_shots(load_with_xg_and_player_form())
+    return _merge_league_finish(_merge_venue_shots(load_with_xg_and_player_form()))

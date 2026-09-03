@@ -55,6 +55,7 @@ from analyze_shots_venue import (
     load_with_xg_player_form_and_shots_venue,
 )
 from analyze_xg_features import XG_RAW_FEATURES, XG_DERIVED_FEATURES, add_xg_derived_features
+from build_league_finish_features import add_league_finish_features, build_standings_cache
 from calibration import apply_calibration, load_calibrators
 from forward_test_log import KALSHI_SERIES_BY_COMPETITION, compute_rolling_p95_bar, fetch_kalshi_over25_for_series
 from live_kalshi_edge_test import _normalize
@@ -226,6 +227,8 @@ def main() -> int:
     live_df = add_xg_derived_features(live_df)
     live_df = add_player_form_derived_features(live_df)
     live_df = add_shots_venue_derived_features(live_df)
+    standings_cache = build_standings_cache()
+    live_df = add_league_finish_features(live_df, standings_cache)
     live_df = live_df.dropna(subset=CORE_CANDIDATES)
     if live_df.empty:
         print("All fixtures were missing a required feature.")

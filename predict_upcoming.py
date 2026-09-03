@@ -64,6 +64,7 @@ from analyze_shots_venue import (
     load_with_xg_player_form_and_shots_venue,
 )
 from analyze_xg_features import XG_DERIVED_FEATURES, XG_RAW_FEATURES, add_xg_derived_features, load_with_xg
+from build_league_finish_features import add_league_finish_features, build_standings_cache
 from build_dataset_apifootball import (
     LEAGUES,
     clean_sheet_pct,
@@ -96,6 +97,8 @@ warnings.filterwarnings("ignore")
 # Brier=0.2320/64.1% hit rate vs combined Brier=0.2179/68.5% hit rate).
 # See rolling_validation_player_form_v2.py / rolling_validation_shots_venue.py
 # for the re-test that reversed this.
+LEAGUE_FINISH_FEATURES = ["home_avg_finish", "away_avg_finish", "avg_finish_gap", "avg_finish_combined"]
+
 CORE_CANDIDATES = (
     # h2h_avg_goals swapped for h2h_avg_goals_shrunk (shrinks toward the
     # dataset-wide mean when a pairing has few prior meetings, instead of
@@ -106,6 +109,18 @@ CORE_CANDIDATES = (
     [f for f in ALL_CANDIDATES if f != "h2h_avg_goals"]
     + PLAYER_FORM_RAW_FEATURES + PLAYER_FORM_DERIVED_FEATURES
     + VENUE_SHOTS_RAW_FEATURES + VENUE_SHOTS_DERIVED_FEATURES
+    # Average league finishing position, added alongside the existing
+    # features (combine, not swap -- nothing else captures this). A
+    # promoted team's seasons outside this competition count as a 30th-
+    # place finish, so a team with no top-flight pedigree (e.g. a
+    # Championship side promoted after 25 years away) doesn't inherit
+    # false credit from a rating system that pools across divisions --
+    # exactly what Elo (build_elo_features.py, tested and rejected) got
+    # wrong. Validated in rolling_validation_league_finish.py: combined
+    # beat baseline on both hit rate (71.3% vs 70.2%) and Brier (0.2069
+    # vs 0.2107), with real non-zero L1 weight, unlike Elo which got
+    # zeroed out entirely.
+    + LEAGUE_FINISH_FEATURES
 )
 XG_CANDIDATES = CORE_CANDIDATES + XG_RAW_FEATURES + XG_DERIVED_FEATURES
 
@@ -486,6 +501,8 @@ def main() -> int:
     live_df = add_xg_derived_features(live_df)
     live_df = add_player_form_derived_features(live_df)
     live_df = add_shots_venue_derived_features(live_df)
+    standings_cache = build_standings_cache()
+    live_df = add_league_finish_features(live_df, standings_cache)
     n_before_form = len(live_df)
     live_df = live_df.dropna(subset=CORE_CANDIDATES)
     if len(live_df) < n_before_form:
