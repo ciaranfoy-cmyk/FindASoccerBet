@@ -20,6 +20,14 @@ than a so-so model number, which is a much weaker signal. Only
 fixtures clearing all three bars are ever shown as picks; --no-bar
 shows everything for exploration, clearly separated from the real list.
 
+Separately, a WATCHLIST section always prints: any fixture where the
+model is genuinely confident (>= WATCHLIST_MIN_P, a plain probability
+floor, not the statistical p95 bar above) AND Kalshi is pricing it
+within WATCHLIST_MAX_ABS_EDGE of that number -- regardless of edge
+sign. This is NOT a pick list -- it's model/market agreement, worth
+seeing on its own terms (two independent sources landing in the same
+place is itself informative, even with zero exploitable edge).
+
 Each pick gets a feature-contribution breakdown: predicted log-odds =
 sum(coefficient_i * standardized_feature_i) + intercept, so every term
 is real arithmetic the model actually did, not a post-hoc guess.
@@ -60,6 +68,13 @@ from predict_upcoming import (
 from build_dataset_apifootball import fetch_all_fixtures
 
 warnings.filterwarnings("ignore")
+
+# Watchlist thresholds -- separate from the p95 confidence bar and the
+# is_pick gate. "North of 60% and Kalshi's within ~2pp of that" is worth
+# seeing even with no edge: two independent sources (the model and a
+# market priced by professional makers) landing in the same place.
+WATCHLIST_MIN_P = 0.60
+WATCHLIST_MAX_ABS_EDGE = 0.02
 
 # Plain-English descriptions for the features that actually tend to
 # survive L1 selection, keyed on the RAW feature name with {home}/{away}
@@ -332,6 +347,30 @@ def main() -> int:
             print(f"  PICK: {r['home_team']} vs {r['away_team']} ({r['competition']}, {r['date']}) -- "
                   f"model {r['calibrated_p']*100:.1f}% vs Kalshi ${r['kalshi_yes_ask']:.2f}, "
                   f"edge vs ask {r['edge_vs_ask']*100:+.1f}pp{fair_str}")
+
+    # WATCHLIST -- independent of the p95 bar and --top: every fixture in
+    # the whole fetch window where the model is confident (>= 60%) and
+    # Kalshi is pricing within ~2pp of it, edge sign included even when
+    # negative. Not a recommendation -- model/market agreement is the
+    # point, not an exploitable gap.
+    watch = live_df[
+        live_df["priced"]
+        & (live_df["calibrated_p"] >= WATCHLIST_MIN_P)
+        & (live_df["edge_vs_ask"].abs() <= WATCHLIST_MAX_ABS_EDGE)
+    ].sort_values("calibrated_p", ascending=False)
+    print("\n" + "=" * 90)
+    print(f"WATCHLIST -- model >= {WATCHLIST_MIN_P*100:.0f}% AND within {WATCHLIST_MAX_ABS_EDGE*100:.0f}pp of the "
+          f"Kalshi price, any edge sign (not a pick list -- model/market agreement, shown for its own sake)")
+    print("=" * 90)
+    if watch.empty:
+        print(f"  Nothing in this window has the model >= {WATCHLIST_MIN_P*100:.0f}% within "
+              f"{WATCHLIST_MAX_ABS_EDGE*100:.0f}pp of a real Kalshi price.")
+    else:
+        for _, r in watch.iterrows():
+            real_pick_tag = "  [also a real PICK above]" if r["is_pick"] else ""
+            print(f"  {r['home_team']} vs {r['away_team']} ({r['competition']}, {r['date']}) -- "
+                  f"model {r['calibrated_p']*100:.1f}% vs Kalshi ${r['kalshi_yes_ask']:.2f}, "
+                  f"edge vs ask {r['edge_vs_ask']*100:+.1f}pp{real_pick_tag}")
     return 0
 
 
