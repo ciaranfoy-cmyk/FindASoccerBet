@@ -244,11 +244,16 @@ def main() -> int:
 
     live_df["kalshi_yes_ask"] = pd.NA
     live_df["edge_vs_ask"] = pd.NA
+    live_df["kalshi_fair_p"] = pd.NA
+    live_df["edge_vs_fair"] = pd.NA
     for idx, r in live_df.iterrows():
         for k in kalshi_by_comp.get(r["competition"], []):
             if _normalize(k["home"]) == _normalize(r["home_team"]) and _normalize(k["away"]) == _normalize(r["away_team"]):
                 live_df.at[idx, "kalshi_yes_ask"] = k["yes_ask"]
                 live_df.at[idx, "edge_vs_ask"] = r["calibrated_p"] - k["yes_ask"]
+                if k.get("fair_p") is not None:
+                    live_df.at[idx, "kalshi_fair_p"] = k["fair_p"]
+                    live_df.at[idx, "edge_vs_fair"] = r["calibrated_p"] - k["fair_p"]
                 break
 
     live_df["priced"] = live_df["kalshi_yes_ask"].notna()
@@ -295,7 +300,10 @@ def main() -> int:
         print(f"[{tag}]  {home} vs {away}  ({r['date']}, {r['competition']})")
         print(f"P(over 2.5) = {r['calibrated_p']*100:.1f}% calibrated  (raw {r['raw_p']*100:.1f}%, [{r['model_used']}] model)")
         if pd.notna(r["kalshi_yes_ask"]):
-            print(f"Kalshi ask = ${r['kalshi_yes_ask']:.2f}  |  edge = {r['edge_vs_ask']*100:+.1f}pp")
+            print(f"Kalshi ask = ${r['kalshi_yes_ask']:.2f}  |  edge vs ask (tradeable) = {r['edge_vs_ask']*100:+.1f}pp")
+            if pd.notna(r["kalshi_fair_p"]):
+                print(f"Kalshi de-vigged fair value = {r['kalshi_fair_p']*100:.1f}%  |  "
+                      f"edge vs fair (true signal) = {r['edge_vs_fair']*100:+.1f}pp")
         else:
             print("No Kalshi price posted yet for this fixture.")
         print("-" * 90)
@@ -316,9 +324,14 @@ def main() -> int:
               f"AND priced with a positive edge -- all three are required. Nothing here is a real pick yet -- "
               f"re-check closer to kickoff.")
     else:
-        for _, r in real_picks.iterrows():
+        print("Every fixture below clears the bar, is priced, and has positive edge vs the ask -- shown in full, "
+              "including thin/marginal ones (a small edge close to the Kalshi price is still a real pick, just a "
+              "weaker one -- not filtered out here).")
+        for _, r in real_picks.sort_values("edge_vs_ask", ascending=False).iterrows():
+            fair_str = f", edge vs de-vigged fair {r['edge_vs_fair']*100:+.1f}pp" if pd.notna(r["edge_vs_fair"]) else ""
             print(f"  PICK: {r['home_team']} vs {r['away_team']} ({r['competition']}, {r['date']}) -- "
-                  f"model {r['calibrated_p']*100:.1f}% vs Kalshi ${r['kalshi_yes_ask']:.2f}, edge {r['edge_vs_ask']*100:+.1f}pp")
+                  f"model {r['calibrated_p']*100:.1f}% vs Kalshi ${r['kalshi_yes_ask']:.2f}, "
+                  f"edge vs ask {r['edge_vs_ask']*100:+.1f}pp{fair_str}")
     return 0
 
 

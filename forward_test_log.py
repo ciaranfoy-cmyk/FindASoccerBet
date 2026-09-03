@@ -72,7 +72,8 @@ LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "for
 FIELDS = [
     "logged_at", "fixture_id", "competition", "kickoff_date", "home_team", "away_team",
     "model_used", "raw_p", "calibrated_p", "rolling_p95_bar", "selected",
-    "kalshi_ticker", "kalshi_yes_ask", "kalshi_yes_bid", "kalshi_implied_p", "edge_vs_ask",
+    "kalshi_ticker", "kalshi_yes_ask", "kalshi_yes_bid", "kalshi_no_ask", "kalshi_no_bid",
+    "kalshi_implied_p", "kalshi_fair_p", "edge_vs_ask", "edge_vs_fair",
     "settled", "actual_home_goals", "actual_away_goals", "actual_over_2_5",
     "pnl_per_dollar_if_selected",
 ]
@@ -90,6 +91,15 @@ KALSHI_SERIES_BY_COMPETITION = {
 }
 
 
+# Above this width, the yes bid-ask spread is illiquid enough that its
+# midpoint isn't a meaningful fair-value estimate -- found empirically:
+# a market 6 days from kickoff had yes_bid=$0.02/yes_ask=$0.96 (a 94-cent
+# spread, essentially an untraded placeholder quote), whose midpoint
+# claimed "49% fair value" against a 96-cent ask -- nonsense. Every
+# genuinely liquid market checked this session had a 1-3 cent spread.
+MAX_LIQUID_SPREAD = 0.10
+
+
 def fetch_kalshi_over25_for_series(series_ticker: str) -> list[dict]:
     events = kalshi_get("/events", {"series_ticker": series_ticker, "status": "open", "limit": 100}).get("events", [])
     out = []
@@ -104,12 +114,34 @@ def fetch_kalshi_over25_for_series(series_ticker: str) -> list[dict]:
             if mk.get("floor_strike") != 2.5 or mk.get("strike_type") != "greater":
                 continue
             yes_ask, yes_bid = mk.get("yes_ask_dollars"), mk.get("yes_bid_dollars")
+            no_ask, no_bid = mk.get("no_ask_dollars"), mk.get("no_bid_dollars")
             if yes_ask is None or yes_bid is None:
                 continue
-            out.append({
+            yes_ask, yes_bid = float(yes_ask), float(yes_bid)
+            entry = {
                 "home": home, "away": away, "ticker": mk["ticker"],
-                "yes_ask": float(yes_ask), "yes_bid": float(yes_bid),
-            })
+                "yes_ask": yes_ask, "yes_bid": yes_bid,
+                "no_ask": None, "no_bid": None, "fair_p": None,
+            }
+            # De-vig: yes_ask + no_ask normally exceeds $1.00 by a small
+            # amount (the market maker's real margin, confirmed empirically
+            # at ~1-2pp on these contracts, far below a bookmaker's typical
+            # 5-8% overround) -- but the yes/no MIDPOINTS sum to almost
+            # exactly $1.00, meaning the vig lives in the bid-ask spread
+            # itself rather than extra hidden shading. So the midpoint of
+            # yes bid/ask is a good de-vigged fair-value estimate, used as
+            # the "does the model genuinely disagree with the market"
+            # check -- separate from edge_vs_ask, which is the "would
+            # actually buying this be profitable" check (uses the real
+            # price you'd pay, already conservative on its own).
+            if no_ask is not None and no_bid is not None:
+                no_ask, no_bid = float(no_ask), float(no_bid)
+                entry["no_ask"], entry["no_bid"] = no_ask, no_bid
+                if (yes_ask - yes_bid) <= MAX_LIQUID_SPREAD and (no_ask - no_bid) <= MAX_LIQUID_SPREAD:
+                    yes_mid, no_mid = (yes_ask + yes_bid) / 2, (no_ask + no_bid) / 2
+                    if yes_mid + no_mid > 0:
+                        entry["fair_p"] = yes_mid / (yes_mid + no_mid)
+            out.append(entry)
     return out
 
 
@@ -230,8 +262,15 @@ def cmd_snapshot(days: int) -> int:
             "kalshi_ticker": match["ticker"] if match else "",
             "kalshi_yes_ask": match["yes_ask"] if match else "",
             "kalshi_yes_bid": match["yes_bid"] if match else "",
+            "kalshi_no_ask": match["no_ask"] if match and match.get("no_ask") is not None else "",
+            "kalshi_no_bid": match["no_bid"] if match and match.get("no_bid") is not None else "",
             "kalshi_implied_p": round(match["yes_ask"], 4) if match else "",
+            "kalshi_fair_p": round(match["fair_p"], 4) if match and match.get("fair_p") is not None else "",
             "edge_vs_ask": round(float(r["calibrated_p"]) - match["yes_ask"], 4) if match else "",
+            "edge_vs_fair": (
+                round(float(r["calibrated_p"]) - match["fair_p"], 4)
+                if match and match.get("fair_p") is not None else ""
+            ),
             "settled": False, "actual_home_goals": "", "actual_away_goals": "",
             "actual_over_2_5": "", "pnl_per_dollar_if_selected": "",
         }
@@ -251,14 +290,15 @@ def cmd_snapshot(days: int) -> int:
 
     new_rows.sort(key=lambda r: r["calibrated_p"], reverse=True)
     print(f"\nLogged {len(new_rows)} new fixtures to {LOG_PATH}\n")
-    print(f"{'Kickoff':<12}{'Comp':<12}{'Fixture':<38}{'Model P':<10}{'Kalshi':<10}{'Edge':<8}{'Selected'}")
-    print("-" * 100)
+    print(f"{'Kickoff':<12}{'Comp':<12}{'Fixture':<38}{'Model P':<10}{'Kalshi':<10}{'EdgeAsk':<10}{'EdgeFair':<10}{'Selected'}")
+    print("-" * 110)
     for r in new_rows:
         fixture = f"{r['home_team']} vs {r['away_team']}"
         kalshi_str = f"${r['kalshi_yes_ask']:.2f}" if r["kalshi_yes_ask"] != "" else "n/a"
-        edge_str = f"{r['edge_vs_ask']*100:+.1f}pp" if r["edge_vs_ask"] != "" else ""
+        edge_ask_str = f"{r['edge_vs_ask']*100:+.1f}pp" if r["edge_vs_ask"] != "" else ""
+        edge_fair_str = f"{r['edge_vs_fair']*100:+.1f}pp" if r["edge_vs_fair"] != "" else ""
         print(f"{r['kickoff_date']:<12}{r['competition']:<12}{fixture:<38}{r['calibrated_p']*100:5.1f}%   "
-              f"{kalshi_str:<10}{edge_str:<8}{'YES' if r['selected'] else ''}")
+              f"{kalshi_str:<10}{edge_ask_str:<10}{edge_fair_str:<10}{'YES' if r['selected'] else ''}")
 
     n_selected = sum(1 for r in new_rows if r["selected"])
     n_priced = sum(1 for r in new_rows if r["kalshi_yes_ask"] != "")
