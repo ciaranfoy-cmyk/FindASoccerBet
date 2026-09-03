@@ -330,47 +330,38 @@ def main() -> int:
             print(f"  {direction:<12s} {desc}")
             print(f"    -> raw value: {raw_val:.2f}   |   contribution to log-odds: {contrib:+.3f}")
 
-    real_picks = ranked[ranked["is_pick"]]
-    print("\n" + "=" * 90)
-    print("VERDICT")
-    print("=" * 90)
-    if real_picks.empty:
-        print(f"None of the fixtures shown above are confident (>= {bar*100:.1f}%), priced on Kalshi right now, "
-              f"AND priced with a positive edge -- all three are required. Nothing here is a real pick yet -- "
-              f"re-check closer to kickoff.")
-    else:
-        print("Every fixture below clears the bar, is priced, and has positive edge vs the ask -- shown in full, "
-              "including thin/marginal ones (a small edge close to the Kalshi price is still a real pick, just a "
-              "weaker one -- not filtered out here).")
-        for _, r in real_picks.sort_values("edge_vs_ask", ascending=False).iterrows():
-            fair_str = f", edge vs de-vigged fair {r['edge_vs_fair']*100:+.1f}pp" if pd.notna(r["edge_vs_fair"]) else ""
-            print(f"  PICK: {r['home_team']} vs {r['away_team']} ({r['competition']}, {r['date']}) -- "
-                  f"model {r['calibrated_p']*100:.1f}% vs Kalshi ${r['kalshi_yes_ask']:.2f}, "
-                  f"edge vs ask {r['edge_vs_ask']*100:+.1f}pp{fair_str}")
-
-    # WATCHLIST -- independent of the p95 bar and --top: every fixture in
-    # the whole fetch window where the model is confident (>= 60%) and
-    # Kalshi is pricing within ~2pp of it, edge sign included even when
-    # negative. Not a recommendation -- model/market agreement is the
-    # point, not an exploitable gap.
+    # One combined list: real PICKs (clears the bar, priced, positive
+    # edge) union'd with the WATCHLIST (model >= 60%, within 2pp of the
+    # Kalshi price regardless of edge sign -- model/market agreement is
+    # worth seeing on its own, not just cases where they disagree).
+    # Scanned over the full fetch window, not just --top N or the ranked
+    # subset, so nothing in either category gets truncated away.
+    real_picks = live_df[live_df["is_pick"]]
     watch = live_df[
         live_df["priced"]
         & (live_df["calibrated_p"] >= WATCHLIST_MIN_P)
         & (live_df["edge_vs_ask"].abs() <= WATCHLIST_MAX_ABS_EDGE)
-    ].sort_values("calibrated_p", ascending=False)
+    ]
+    combined = pd.concat([real_picks, watch]).drop_duplicates(subset=["fixture_id"])
+    combined = combined.sort_values("edge_vs_ask", ascending=False)
+
     print("\n" + "=" * 90)
-    print(f"WATCHLIST -- model >= {WATCHLIST_MIN_P*100:.0f}% AND within {WATCHLIST_MAX_ABS_EDGE*100:.0f}pp of the "
-          f"Kalshi price, any edge sign (not a pick list -- model/market agreement, shown for its own sake)")
+    print("VERDICT")
     print("=" * 90)
-    if watch.empty:
-        print(f"  Nothing in this window has the model >= {WATCHLIST_MIN_P*100:.0f}% within "
-              f"{WATCHLIST_MAX_ABS_EDGE*100:.0f}pp of a real Kalshi price.")
+    if combined.empty:
+        print(f"Nothing this window is either a real pick (confident >= {bar*100:.1f}%, priced, positive edge) "
+              f"or close to the market (model >= {WATCHLIST_MIN_P*100:.0f}%, within "
+              f"{WATCHLIST_MAX_ABS_EDGE*100:.0f}pp of Kalshi). Re-check closer to kickoff.")
     else:
-        for _, r in watch.iterrows():
-            real_pick_tag = "  [also a real PICK above]" if r["is_pick"] else ""
-            print(f"  {r['home_team']} vs {r['away_team']} ({r['competition']}, {r['date']}) -- "
+        for _, r in combined.iterrows():
+            if r["is_pick"]:
+                label = "PICK"
+            else:
+                label = "WATCH (model/market agree, no edge)"
+            fair_str = f", edge vs de-vigged fair {r['edge_vs_fair']*100:+.1f}pp" if pd.notna(r["edge_vs_fair"]) else ""
+            print(f"  [{label}] {r['home_team']} vs {r['away_team']} ({r['competition']}, {r['date']}) -- "
                   f"model {r['calibrated_p']*100:.1f}% vs Kalshi ${r['kalshi_yes_ask']:.2f}, "
-                  f"edge vs ask {r['edge_vs_ask']*100:+.1f}pp{real_pick_tag}")
+                  f"edge vs ask {r['edge_vs_ask']*100:+.1f}pp{fair_str}")
     return 0
 
 
