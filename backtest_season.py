@@ -32,7 +32,7 @@ from sklearn.preprocessing import StandardScaler
 
 import apifootball
 from analyze_dataset_apifootball import add_derived_features
-from analyze_xg_features import add_xg_derived_features
+from build_xg_weighted_features import add_weighted_xg_derived_features, load_weighted_xg
 from build_dataset_apifootball import LEAGUES, fetch_all_fixtures
 from predict_upcoming import (
     CORE_CANDIDATES,
@@ -110,6 +110,7 @@ def main() -> int:
           "(player-form + venue-split shots added alongside team-goals-form/blended-shots)...")
     historical = load_with_player_form_and_shots_venue()
     xg_historical = load_with_xg_player_form_and_shots_venue()
+    xg_historical = load_weighted_xg(xg_historical)
     standings_cache = build_standings_cache()
 
     # Group this season's matches into calendar weeks, chronological.
@@ -165,7 +166,7 @@ def main() -> int:
         if rows:
             live_df = pd.DataFrame(rows)
             live_df = add_derived_features(live_df)
-            live_df = add_xg_derived_features(live_df)
+            live_df = add_weighted_xg_derived_features(live_df)
             live_df = add_player_form_derived_features(live_df)
             live_df = add_shots_venue_derived_features(live_df)
             live_df = add_league_finish_features(live_df, standings_cache)

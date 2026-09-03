@@ -63,8 +63,15 @@ from analyze_shots_venue import (
     load_with_player_form_and_shots_venue,
     load_with_xg_player_form_and_shots_venue,
 )
-from analyze_xg_features import XG_DERIVED_FEATURES, XG_RAW_FEATURES, add_xg_derived_features, load_with_xg
 from build_league_finish_features import add_league_finish_features, build_standings_cache
+from build_xg_weighted_features import HISTORY_MAXLEN as XG_WEIGHTED_HISTORY_MAXLEN
+from build_xg_weighted_features import (
+    WEIGHTED_XG_DERIVED_FEATURES,
+    WEIGHTED_XG_RAW_FEATURES,
+    add_weighted_xg_derived_features,
+    load_weighted_xg,
+    weighted_avg,
+)
 from build_dataset_apifootball import (
     LEAGUES,
     clean_sheet_pct,
@@ -122,7 +129,20 @@ CORE_CANDIDATES = (
     # zeroed out entirely.
     + LEAGUE_FINISH_FEATURES
 )
-XG_CANDIDATES = CORE_CANDIDATES + XG_RAW_FEATURES + XG_DERIVED_FEATURES
+# home_finishing_last5/away_finishing_last5 (actual goals minus xG, flat
+# last-5) stay as-is -- only the xG LEVEL features got the recency +
+# competition weighting treatment (build_xg_weighted_features.py), not the
+# finishing-luck residual.
+XG_FINISHING_FEATURES = ["home_finishing_last5", "away_finishing_last5"]
+# Recency- and competition-weighted xG (build_xg_weighted_features.py)
+# REPLACES the flat "last 5 games, any competition, equal weight" xG
+# features -- a clean swap, not a combine: the full-dataset fit showed
+# every flat xG feature gets zeroed out by L1 once the weighted versions
+# are offered alongside them (poisson_p_over_last5_weighted alone becomes
+# the single largest coefficient in the whole model, +0.179, well ahead
+# of h2h_avg_goals_shrunk's +0.068), so combining just carries dead
+# features. See check_xg_weighted_full_dataset.py.
+XG_CANDIDATES = CORE_CANDIDATES + XG_FINISHING_FEATURES + WEIGHTED_XG_RAW_FEATURES + WEIGHTED_XG_DERIVED_FEATURES
 
 
 def new_state() -> dict:
@@ -137,6 +157,12 @@ def new_state() -> dict:
         "xg_for_history": defaultdict(lambda: deque(maxlen=XG_ROLLING_N)),
         "xg_against_history": defaultdict(lambda: deque(maxlen=XG_ROLLING_N)),
         "xg_finishing_history": defaultdict(lambda: deque(maxlen=XG_ROLLING_N)),
+        # Same underlying per-match xG, kept separately with a longer
+        # history and (date, competition) attached so weighted_avg() can
+        # apply recency decay + a cross-competition discount instead of a
+        # flat last-5 average -- see build_xg_weighted_features.py.
+        "xg_for_history_weighted": defaultdict(lambda: deque(maxlen=XG_WEIGHTED_HISTORY_MAXLEN)),
+        "xg_against_history_weighted": defaultdict(lambda: deque(maxlen=XG_WEIGHTED_HISTORY_MAXLEN)),
         "team_lineup_history": defaultdict(lambda: deque(maxlen=USUAL_XI_WINDOW)),  # team_id -> [set(starter pids), ...]
         "player_goal_history": defaultdict(lambda: deque(maxlen=FORM_ROLLING_WINDOW)),  # player_id -> [goals per start, ...]
         "player_positions": {},  # player_id -> last known position
@@ -189,6 +215,10 @@ def apply_match(state: dict, m: dict) -> None:
         state["xg_against_history"][away].append(home_xg)
         state["xg_finishing_history"][home].append(home_goals - home_xg)
         state["xg_finishing_history"][away].append(away_goals - away_xg)
+        state["xg_for_history_weighted"][home].append({"date": date, "competition": competition, "value": home_xg})
+        state["xg_against_history_weighted"][home].append({"date": date, "competition": competition, "value": away_xg})
+        state["xg_for_history_weighted"][away].append({"date": date, "competition": competition, "value": away_xg})
+        state["xg_against_history_weighted"][away].append({"date": date, "competition": competition, "value": home_xg})
 
     try:
         lineups = lineup_for(m["fixture_id"])
@@ -422,6 +452,10 @@ def build_feature_row(m: dict, state: dict) -> dict | None:
         "away_xg_against_last5": rolling_avg_xg(state["xg_against_history"][away]),
         "home_finishing_last5": rolling_avg_xg(state["xg_finishing_history"][home]),
         "away_finishing_last5": rolling_avg_xg(state["xg_finishing_history"][away]),
+        "home_xg_last5_weighted": weighted_avg(state["xg_for_history_weighted"][home], match_date, competition),
+        "away_xg_last5_weighted": weighted_avg(state["xg_for_history_weighted"][away], match_date, competition),
+        "home_xg_against_last5_weighted": weighted_avg(state["xg_against_history_weighted"][home], match_date, competition),
+        "away_xg_against_last5_weighted": weighted_avg(state["xg_against_history_weighted"][away], match_date, competition),
         "home_attacking_form": home_attacking_form,
         "away_attacking_form": away_attacking_form,
         "home_venue_shots_last5": rolling_avg_venue_shots(home_venue_shot_hist, "total_shots"),
@@ -453,6 +487,7 @@ def main() -> int:
 
     print("Training the xG-augmented model on the real-xG-covered recent-era subset...")
     xg_historical = load_with_xg_player_form_and_shots_venue()
+    xg_historical = load_weighted_xg(xg_historical)
     xg_model_df = xg_historical[XG_CANDIDATES + ["over_2_5"]].dropna()
     print(f"  {len(xg_model_df)} complete-case matches used for training "
           f"(real xG only exists PL 2022-23+ / ELC 2023-24+ — validated on 3 rolling-origin "
@@ -498,7 +533,7 @@ def main() -> int:
 
     live_df = pd.DataFrame(rows)
     live_df = add_derived_features(live_df)
-    live_df = add_xg_derived_features(live_df)
+    live_df = add_weighted_xg_derived_features(live_df)
     live_df = add_player_form_derived_features(live_df)
     live_df = add_shots_venue_derived_features(live_df)
     standings_cache = build_standings_cache()
@@ -514,7 +549,7 @@ def main() -> int:
         print("All upcoming fixtures were missing at least one required feature (likely shot-stat or form gaps).")
         return 0
 
-    has_xg = live_df[XG_RAW_FEATURES + XG_DERIVED_FEATURES].notna().all(axis=1)
+    has_xg = live_df[XG_FINISHING_FEATURES + WEIGHTED_XG_RAW_FEATURES + WEIGHTED_XG_DERIVED_FEATURES].notna().all(axis=1)
 
     live_df["raw_pred_p"] = pd.NA
     live_df["model_used"] = ""

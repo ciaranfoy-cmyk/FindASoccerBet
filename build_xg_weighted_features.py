@@ -44,6 +44,9 @@ import os
 import sys
 from collections import defaultdict, deque
 
+import pandas as pd
+from scipy.stats import poisson
+
 import apifootball
 from build_dataset_apifootball import fetch_all_fixtures
 from build_xg_features import xg_stats_for
@@ -53,6 +56,45 @@ HALF_LIFE_DAYS = 60
 CROSS_COMPETITION_DISCOUNT = 0.4
 MIN_GAMES_FOR_ROLLING = 3
 HISTORY_MAXLEN = 40  # generous cap -- decay makes anything older than a couple of half-lives negligible anyway
+
+WEIGHTED_XG_RAW_FEATURES = [
+    "home_xg_last5_weighted", "away_xg_last5_weighted",
+    "home_xg_against_last5_weighted", "away_xg_against_last5_weighted",
+]
+WEIGHTED_XG_DERIVED_FEATURES = [
+    "combined_xg_last5_weighted", "xg_gap_last5_weighted",
+    "naive_expected_total_xg_last5_weighted", "poisson_p_over_last5_weighted",
+]
+
+
+def add_weighted_xg_derived_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Same derivations as analyze_xg_features.add_xg_derived_features,
+    computed from the weighted raw features instead of the flat ones --
+    shared by the historical loader (via load_weighted_xg below) and the
+    live scorer (predict_upcoming.py), so a live prediction derives these
+    identically to training.
+    """
+    df["combined_xg_last5_weighted"] = df["home_xg_last5_weighted"] + df["away_xg_last5_weighted"]
+    df["xg_gap_last5_weighted"] = (df["home_xg_last5_weighted"] - df["away_xg_last5_weighted"]).abs()
+    df["naive_expected_total_xg_last5_weighted"] = (
+        df["home_xg_last5_weighted"] + df["away_xg_against_last5_weighted"]
+        + df["away_xg_last5_weighted"] + df["home_xg_against_last5_weighted"]
+    )
+    expected_total_weighted = df["naive_expected_total_xg_last5_weighted"] / 2
+    df["poisson_p_over_last5_weighted"] = 1 - poisson.cdf(2, expected_total_weighted)
+    return df
+
+
+def load_weighted_xg(df: pd.DataFrame) -> pd.DataFrame:
+    """Merge the precomputed weighted-xG CSV onto df by fixture_id and add
+    the derived combo features -- for historical training data only; a
+    live prediction gets its weighted raw features directly from
+    predict_upcoming.py's state (new_state/apply_match/build_feature_row),
+    then just needs add_weighted_xg_derived_features called on top.
+    """
+    weighted_df = pd.read_csv(OUTPUT_PATH)[["fixture_id"] + WEIGHTED_XG_RAW_FEATURES]
+    df = df.merge(weighted_df, on="fixture_id", how="left")
+    return add_weighted_xg_derived_features(df)
 
 
 def weighted_avg(history: deque, match_date: datetime.datetime, competition: str) -> float | None:

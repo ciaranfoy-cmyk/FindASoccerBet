@@ -54,7 +54,12 @@ from analyze_shots_venue import (
     load_with_player_form_and_shots_venue,
     load_with_xg_player_form_and_shots_venue,
 )
-from analyze_xg_features import XG_RAW_FEATURES, XG_DERIVED_FEATURES, add_xg_derived_features
+from build_xg_weighted_features import (
+    WEIGHTED_XG_DERIVED_FEATURES,
+    WEIGHTED_XG_RAW_FEATURES,
+    add_weighted_xg_derived_features,
+    load_weighted_xg,
+)
 from build_league_finish_features import add_league_finish_features, build_standings_cache
 from calibration import apply_calibration, load_calibrators
 from forward_test_log import KALSHI_SERIES_BY_COMPETITION, compute_rolling_p95_bar, fetch_kalshi_over25_for_series
@@ -62,6 +67,7 @@ from live_kalshi_edge_test import _normalize
 from predict_upcoming import (
     CORE_CANDIDATES,
     XG_CANDIDATES,
+    XG_FINISHING_FEATURES,
     build_feature_row,
     fetch_upcoming_fixtures,
     replay_to_current_state,
@@ -154,6 +160,14 @@ DESCRIPTIONS = {
     "xg_gap_last5": "gap in real xG between the two teams",
     "naive_expected_total_xg_last5": "sum of both teams' attack + opponent leakiness in real xG terms -- the model's single most important number when available",
     "poisson_p_over_last5": "true Poisson probability of 3+ goals given the xG rate (not just the raw mean)",
+    "home_xg_last5_weighted": "{home}'s real xG, recency + competition weighted (recent games count more; games in a different competition count less)",
+    "away_xg_last5_weighted": "{away}'s real xG, recency + competition weighted",
+    "home_xg_against_last5_weighted": "xG {home} has conceded, recency + competition weighted",
+    "away_xg_against_last5_weighted": "xG {away} has conceded, recency + competition weighted",
+    "combined_xg_last5_weighted": "combined recency/competition-weighted xG, both teams",
+    "xg_gap_last5_weighted": "gap in recency/competition-weighted xG between the two teams",
+    "naive_expected_total_xg_last5_weighted": "sum of both teams' attack + opponent leakiness, recency/competition-weighted xG terms",
+    "poisson_p_over_last5_weighted": "true Poisson probability of 3+ goals given the recency/competition-weighted xG rate -- the model's single strongest predictor, replacing the flat (unweighted) version",
     "home_finishing_last5": "{home}'s actual goals minus xG, last 5 (over/under-performing their chances)",
     "away_finishing_last5": "{away}'s actual goals minus xG, last 5",
     "season_year": "the calendar year itself -- the model has learned recent seasons trend higher-scoring than older ones",
@@ -200,6 +214,7 @@ def main() -> int:
 
     print("Training the xG-augmented model...")
     xg_historical = load_with_xg_player_form_and_shots_venue()
+    xg_historical = load_weighted_xg(xg_historical)
     xg_model_df = xg_historical[XG_CANDIDATES + ["over_2_5"]].dropna()
     xg_scaler = StandardScaler()
     X_xg_train = xg_scaler.fit_transform(xg_model_df[XG_CANDIDATES])
@@ -224,7 +239,7 @@ def main() -> int:
 
     live_df = pd.DataFrame(rows)
     live_df = add_derived_features(live_df)
-    live_df = add_xg_derived_features(live_df)
+    live_df = add_weighted_xg_derived_features(live_df)
     live_df = add_player_form_derived_features(live_df)
     live_df = add_shots_venue_derived_features(live_df)
     standings_cache = build_standings_cache()
@@ -234,7 +249,7 @@ def main() -> int:
         print("All fixtures were missing a required feature.")
         return 0
 
-    has_xg = live_df[XG_RAW_FEATURES + XG_DERIVED_FEATURES].notna().all(axis=1)
+    has_xg = live_df[XG_FINISHING_FEATURES + WEIGHTED_XG_RAW_FEATURES + WEIGHTED_XG_DERIVED_FEATURES].notna().all(axis=1)
     live_df["raw_p"] = pd.NA
     live_df["model_used"] = ""
     core_rows = live_df.loc[~has_xg]
