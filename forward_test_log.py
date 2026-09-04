@@ -171,6 +171,33 @@ def compute_rolling_p95_bar() -> float:
     return float(pd.Series(trailing).quantile(0.95))
 
 
+def compute_rolling_p95_under_bar() -> float:
+    """Same construction as compute_rolling_p95_bar(), mirrored onto
+    Under confidence (1 - pred_p) -- the live Under-side selection bar.
+    Validated in diagnose_under_overconfidence.py: this exact rolling-p95
+    selection rule, walked forward over the whole dataset, gave a 56.4%
+    hit rate at a mean predicted confidence of 58.1% (n=598) -- a real,
+    statistically significant edge over the ~46% baseline under-rate, but
+    a smaller, less sharp edge than the Over side's bar produces, and
+    mildly overconfident (-1.7pp) in its own stated probability. Worth
+    surfacing, not worth treating as equally reliable as an Over PICK.
+    """
+    df = load_with_xg_player_form_and_shots_venue()
+    df = load_weighted_xg(df)
+    core_stream = build_stream(df, CORE_CANDIDATES, N_FOLDS_CORE, "core").rename(columns={"pred_p": "pred_p_core"})
+    xg_stream = build_stream(df, XG_CANDIDATES, N_FOLDS_XG, "xG")[["fixture_id", "pred_p"]].rename(columns={"pred_p": "pred_p_xg"})
+    merged = core_stream.merge(xg_stream, on="fixture_id", how="left")
+    merged["pred_p_raw"] = merged["pred_p_xg"].combine_first(merged["pred_p_core"])
+    merged["model_used"] = merged["pred_p_xg"].notna().map({True: "xG", False: "core"})
+    stream = merged.sort_values("date").reset_index(drop=True)
+
+    calibrators = load_calibrators()
+    stream["pred_p"] = apply_calibration(stream["pred_p_raw"], stream["model_used"], calibrators)
+    stream["under_p"] = 1 - stream["pred_p"]
+    trailing = deque(stream["under_p"].dropna().tail(500), maxlen=500)
+    return float(pd.Series(trailing).quantile(0.95))
+
+
 def cmd_snapshot(days: int) -> int:
     print("Training the core model...")
     historical = load_with_player_form_and_shots_venue()

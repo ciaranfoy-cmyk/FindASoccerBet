@@ -62,7 +62,12 @@ from build_xg_weighted_features import (
 )
 from build_league_finish_features import add_league_finish_features, build_standings_cache
 from calibration import apply_calibration, load_calibrators
-from forward_test_log import KALSHI_SERIES_BY_COMPETITION, compute_rolling_p95_bar, fetch_kalshi_over25_for_series
+from forward_test_log import (
+    KALSHI_SERIES_BY_COMPETITION,
+    compute_rolling_p95_bar,
+    compute_rolling_p95_under_bar,
+    fetch_kalshi_over25_for_series,
+)
 from live_kalshi_edge_test import _normalize
 from predict_upcoming import (
     CORE_CANDIDATES,
@@ -202,7 +207,10 @@ def main() -> int:
 
     print("Computing the live confidence bar (rolling p95 of trailing historical predictions)...")
     bar = compute_rolling_p95_bar()
-    print(f"  bar = {bar*100:.1f}% -- only fixtures at or above this are real picks\n")
+    under_bar = compute_rolling_p95_under_bar()
+    print(f"  bar (Over)  = {bar*100:.1f}% -- only fixtures at or above this are real Over picks")
+    print(f"  bar (Under) = {under_bar*100:.1f}% -- only fixtures at or above this are real Under picks "
+          f"(weaker track record than Over -- see compute_rolling_p95_under_bar docstring)\n")
 
     print("Training the core model...")
     historical = load_with_player_form_and_shots_venue()
@@ -265,6 +273,8 @@ def main() -> int:
     calibrators = load_calibrators()
     live_df["calibrated_p"] = apply_calibration(live_df["raw_p"], live_df["model_used"], calibrators)
     live_df["clears_bar"] = live_df["calibrated_p"] >= bar
+    live_df["under_p"] = 1 - live_df["calibrated_p"]
+    live_df["clears_under_bar"] = live_df["under_p"] >= under_bar
 
     print("\nFetching real Kalshi prices per league...")
     kalshi_by_comp = {}
@@ -277,6 +287,8 @@ def main() -> int:
 
     live_df["kalshi_yes_ask"] = pd.NA
     live_df["edge_vs_ask"] = pd.NA
+    live_df["kalshi_no_ask"] = pd.NA
+    live_df["edge_no"] = pd.NA
     live_df["kalshi_fair_p"] = pd.NA
     live_df["edge_vs_fair"] = pd.NA
     for idx, r in live_df.iterrows():
@@ -284,6 +296,9 @@ def main() -> int:
             if _normalize(k["home"]) == _normalize(r["home_team"]) and _normalize(k["away"]) == _normalize(r["away_team"]):
                 live_df.at[idx, "kalshi_yes_ask"] = k["yes_ask"]
                 live_df.at[idx, "edge_vs_ask"] = r["calibrated_p"] - k["yes_ask"]
+                if k.get("no_ask") is not None:
+                    live_df.at[idx, "kalshi_no_ask"] = k["no_ask"]
+                    live_df.at[idx, "edge_no"] = r["under_p"] - k["no_ask"]
                 if k.get("fair_p") is not None:
                     live_df.at[idx, "kalshi_fair_p"] = k["fair_p"]
                     live_df.at[idx, "edge_vs_fair"] = r["calibrated_p"] - k["fair_p"]
@@ -293,24 +308,28 @@ def main() -> int:
     # A real pick requires all three: confident, priced, and profitable edge.
     # No Kalshi price to compare against means no recommendation -- ever.
     live_df["is_pick"] = live_df["clears_bar"] & live_df["priced"] & (live_df["edge_vs_ask"] > 0)
+    # Mirror for Under, using its own (weaker) validated bar -- see
+    # compute_rolling_p95_under_bar(). Same three-part gate, opposite side.
+    live_df["is_under_pick"] = live_df["clears_under_bar"] & live_df["priced"] & (live_df["edge_no"] > 0)
+    live_df["best_edge"] = live_df[["edge_vs_ask", "edge_no"]].apply(pd.to_numeric, errors="coerce").max(axis=1, skipna=True)
 
-    pool = live_df if (args.no_bar or args.fixture_id is not None) else live_df[live_df["clears_bar"]]
+    pool = live_df if (args.no_bar or args.fixture_id is not None) else live_df[live_df["clears_bar"] | live_df["clears_under_bar"]]
     if pool.empty:
-        print(f"\nNo fixtures clear the {bar*100:.1f}% confidence bar in this window. "
+        print(f"\nNo fixtures clear the Over bar ({bar*100:.1f}%) or the Under bar ({under_bar*100:.1f}%) in this window. "
               f"Pass --no-bar to explore everything anyway.")
         return 0
 
     if args.by_probability:
         ranked = pool.sort_values("calibrated_p", ascending=False)
     else:
-        priced = pool.dropna(subset=["edge_vs_ask"])
+        priced = pool.dropna(subset=["best_edge"])
         if priced.empty:
-            print(f"\n{len(pool)} fixture(s) clear the confidence bar, but NONE have a real Kalshi price yet "
+            print(f"\n{len(pool)} fixture(s) clear a confidence bar, but NONE have a real Kalshi price yet "
                   f"(too far from kickoff) -- nothing here is a recommendation without a real price to compare "
                   f"against. Showing them ranked by probability for reference only; re-run closer to kickoff.")
             ranked = pool.sort_values("calibrated_p", ascending=False)
         else:
-            ranked = priced.sort_values("edge_vs_ask", ascending=False)
+            ranked = priced.sort_values("best_edge", ascending=False)
 
     if args.fixture_id is None:
         ranked = ranked.head(args.top)
@@ -323,17 +342,22 @@ def main() -> int:
 
         print("\n" + "=" * 90)
         if r["is_pick"]:
-            tag = "PICK"
-        elif not r["clears_bar"]:
-            tag = f"below bar ({bar*100:.1f}%), reference only"
+            tag = "PICK (Over)"
+        elif r["is_under_pick"]:
+            tag = "PICK (Under, weaker track record -- see docs)"
+        elif not r["clears_bar"] and not r["clears_under_bar"]:
+            tag = f"below both bars (Over {bar*100:.1f}% / Under {under_bar*100:.1f}%), reference only"
         elif not r["priced"]:
             tag = "confident, but no Kalshi price yet -- not a recommendation"
         else:
-            tag = "confident, but negative Kalshi edge -- not a recommendation"
+            tag = "confident, but negative Kalshi edge on both sides -- not a recommendation"
         print(f"[{tag}]  {home} vs {away}  ({r['date']}, {r['competition']})")
-        print(f"P(over 2.5) = {r['calibrated_p']*100:.1f}% calibrated  (raw {r['raw_p']*100:.1f}%, [{r['model_used']}] model)")
+        print(f"P(over 2.5) = {r['calibrated_p']*100:.1f}% calibrated  (raw {r['raw_p']*100:.1f}%, [{r['model_used']}] model)"
+              f"   |   P(under 2.5) = {r['under_p']*100:.1f}%")
         if pd.notna(r["kalshi_yes_ask"]):
-            print(f"Kalshi ask = ${r['kalshi_yes_ask']:.2f}  |  edge vs ask (tradeable) = {r['edge_vs_ask']*100:+.1f}pp")
+            print(f"Kalshi yes ask = ${r['kalshi_yes_ask']:.2f}  |  edge vs ask (Over, tradeable) = {r['edge_vs_ask']*100:+.1f}pp")
+            if pd.notna(r["kalshi_no_ask"]):
+                print(f"Kalshi no ask  = ${r['kalshi_no_ask']:.2f}  |  edge vs ask (Under, tradeable) = {r['edge_no']*100:+.1f}pp")
             if pd.notna(r["kalshi_fair_p"]):
                 print(f"Kalshi de-vigged fair value = {r['kalshi_fair_p']*100:.1f}%  |  "
                       f"edge vs fair (true signal) = {r['edge_vs_fair']*100:+.1f}pp")
@@ -355,31 +379,37 @@ def main() -> int:
     # Scanned over the full fetch window, not just --top N or the ranked
     # subset, so nothing in either category gets truncated away.
     real_picks = live_df[live_df["is_pick"]]
+    under_picks = live_df[live_df["is_under_pick"]]
     watch = live_df[
         live_df["priced"]
         & (live_df["calibrated_p"] >= WATCHLIST_MIN_P)
         & (live_df["edge_vs_ask"].abs() <= WATCHLIST_MAX_ABS_EDGE)
     ]
-    combined = pd.concat([real_picks, watch]).drop_duplicates(subset=["fixture_id"])
-    combined = combined.sort_values("edge_vs_ask", ascending=False)
+    combined = pd.concat([real_picks, under_picks, watch]).drop_duplicates(subset=["fixture_id"])
+    combined = combined.sort_values("best_edge", ascending=False)
 
     print("\n" + "=" * 90)
     print("VERDICT")
     print("=" * 90)
     if combined.empty:
-        print(f"Nothing this window is either a real pick (confident >= {bar*100:.1f}%, priced, positive edge) "
-              f"or close to the market (model >= {WATCHLIST_MIN_P*100:.0f}%, within "
+        print(f"Nothing this window is either a real pick (Over >= {bar*100:.1f}% or Under >= {under_bar*100:.1f}%, "
+              f"priced, positive edge) or close to the market (model >= {WATCHLIST_MIN_P*100:.0f}%, within "
               f"{WATCHLIST_MAX_ABS_EDGE*100:.0f}pp of Kalshi). Re-check closer to kickoff.")
     else:
         for _, r in combined.iterrows():
             if r["is_pick"]:
-                label = "PICK"
+                label = "PICK (Over)"
+                price, edge = r["kalshi_yes_ask"], r["edge_vs_ask"]
+            elif r["is_under_pick"]:
+                label = "PICK (Under, weaker track record)"
+                price, edge = r["kalshi_no_ask"], r["edge_no"]
             else:
                 label = "WATCH (model/market agree, no edge)"
+                price, edge = r["kalshi_yes_ask"], r["edge_vs_ask"]
             fair_str = f", edge vs de-vigged fair {r['edge_vs_fair']*100:+.1f}pp" if pd.notna(r["edge_vs_fair"]) else ""
             print(f"  [{label}] {r['home_team']} vs {r['away_team']} ({r['competition']}, {r['date']}) -- "
-                  f"model {r['calibrated_p']*100:.1f}% vs Kalshi ${r['kalshi_yes_ask']:.2f}, "
-                  f"edge vs ask {r['edge_vs_ask']*100:+.1f}pp{fair_str}")
+                  f"model {r['calibrated_p']*100:.1f}% over / {r['under_p']*100:.1f}% under vs Kalshi ${price:.2f}, "
+                  f"edge {edge*100:+.1f}pp{fair_str}")
     return 0
 
 
