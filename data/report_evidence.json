@@ -1,0 +1,4503 @@
+[
+  {
+    "competition": "LIGUE1",
+    "fixture_id": 1552749,
+    "date": "2026-09-05T15:15:00+00:00",
+    "home": "Lens",
+    "home_id": 116,
+    "away": "Lorient",
+    "away_id": 97,
+    "home_venue_games": [
+      {
+        "date": "2026-03-20",
+        "home": "Lens",
+        "away": "Angers",
+        "home_goals": 5,
+        "away_goals": 1,
+        "shots": 26,
+        "on_target": 9,
+        "inside_box": 16,
+        "xg": 3.39
+      },
+      {
+        "date": "2026-04-17",
+        "home": "Lens",
+        "away": "Toulouse",
+        "home_goals": 3,
+        "away_goals": 2,
+        "shots": 41,
+        "on_target": 13,
+        "inside_box": 27,
+        "xg": 3.76
+      },
+      {
+        "date": "2026-05-08",
+        "home": "Lens",
+        "away": "Nantes",
+        "home_goals": 1,
+        "away_goals": 0,
+        "shots": 14,
+        "on_target": 5,
+        "inside_box": 9,
+        "xg": 0.82
+      },
+      {
+        "date": "2026-05-13",
+        "home": "Lens",
+        "away": "Paris Saint Germain",
+        "home_goals": 0,
+        "away_goals": 2,
+        "shots": 25,
+        "on_target": 10,
+        "inside_box": 19,
+        "xg": 2.87
+      },
+      {
+        "date": "2026-08-22",
+        "home": "Lens",
+        "away": "Auxerre",
+        "home_goals": 5,
+        "away_goals": 2,
+        "shots": 12,
+        "on_target": 9,
+        "inside_box": 10,
+        "xg": 4.41
+      }
+    ],
+    "away_venue_games": [
+      {
+        "date": "2026-03-21",
+        "home": "Toulouse",
+        "away": "Lorient",
+        "home_goals": 1,
+        "away_goals": 0,
+        "shots": 7,
+        "on_target": 2,
+        "inside_box": 3,
+        "xg": 0.4
+      },
+      {
+        "date": "2026-04-12",
+        "home": "Lyon",
+        "away": "Lorient",
+        "home_goals": 2,
+        "away_goals": 0,
+        "shots": 12,
+        "on_target": 6,
+        "inside_box": 8,
+        "xg": 1.87
+      },
+      {
+        "date": "2026-05-02",
+        "home": "Paris Saint Germain",
+        "away": "Lorient",
+        "home_goals": 2,
+        "away_goals": 2,
+        "shots": 5,
+        "on_target": 3,
+        "inside_box": 4,
+        "xg": 0.96
+      },
+      {
+        "date": "2026-05-10",
+        "home": "Metz",
+        "away": "Lorient",
+        "home_goals": 0,
+        "away_goals": 4,
+        "shots": 14,
+        "on_target": 7,
+        "inside_box": 7,
+        "xg": 2.0
+      },
+      {
+        "date": "2026-08-22",
+        "home": "Nice",
+        "away": "Lorient",
+        "home_goals": 0,
+        "away_goals": 0,
+        "shots": 10,
+        "on_target": 2,
+        "inside_box": 8,
+        "xg": 1.28
+      }
+    ],
+    "home_season_games": [
+      {
+        "date": "2026-08-22",
+        "venue": "home",
+        "gf": 5,
+        "ga": 2,
+        "opp": "Auxerre"
+      },
+      {
+        "date": "2026-08-29",
+        "venue": "away",
+        "gf": 1,
+        "ga": 2,
+        "opp": "Strasbourg"
+      }
+    ],
+    "away_season_games": [
+      {
+        "date": "2026-08-22",
+        "venue": "away",
+        "gf": 0,
+        "ga": 0,
+        "opp": "Nice"
+      },
+      {
+        "date": "2026-08-29",
+        "venue": "home",
+        "gf": 1,
+        "ga": 2,
+        "opp": "Estac Troyes"
+      }
+    ],
+    "h2h": [
+      {
+        "date": "2021-08-29",
+        "home": "Lens",
+        "away": "Lorient",
+        "home_goals": 2,
+        "away_goals": 2
+      },
+      {
+        "date": "2022-02-06",
+        "home": "Lorient",
+        "away": "Lens",
+        "home_goals": 2,
+        "away_goals": 0
+      },
+      {
+        "date": "2022-08-31",
+        "home": "Lens",
+        "away": "Lorient",
+        "home_goals": 5,
+        "away_goals": 2
+      },
+      {
+        "date": "2023-05-21",
+        "home": "Lorient",
+        "away": "Lens",
+        "home_goals": 1,
+        "away_goals": 3
+      },
+      {
+        "date": "2023-11-04",
+        "home": "Lorient",
+        "away": "Lens",
+        "home_goals": 0,
+        "away_goals": 0
+      },
+      {
+        "date": "2024-05-03",
+        "home": "Lens",
+        "away": "Lorient",
+        "home_goals": 2,
+        "away_goals": 0
+      },
+      {
+        "date": "2025-11-02",
+        "home": "Lens",
+        "away": "Lorient",
+        "home_goals": 3,
+        "away_goals": 0
+      },
+      {
+        "date": "2026-03-14",
+        "home": "Lorient",
+        "away": "Lens",
+        "home_goals": 2,
+        "away_goals": 1
+      }
+    ],
+    "home_attackers": [
+      {
+        "player_id": 20525,
+        "name": "M. Udol",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 1,
+        "goals_per_start": 0.1
+      },
+      {
+        "player_id": 1922,
+        "name": "F. Thauvin",
+        "starts_in_window": 11,
+        "starts_tracked": 10,
+        "goals_in_tracked": 7,
+        "goals_per_start": 0.7
+      },
+      {
+        "player_id": 44594,
+        "name": "Saud Abdulhamid",
+        "starts_in_window": 11,
+        "starts_tracked": 10,
+        "goals_in_tracked": 3,
+        "goals_per_start": 0.3
+      }
+    ],
+    "away_attackers": [
+      {
+        "player_id": 23363,
+        "name": "N. Cadiou",
+        "starts_in_window": 15,
+        "starts_tracked": 10,
+        "goals_in_tracked": 2,
+        "goals_per_start": 0.2
+      },
+      {
+        "player_id": 22171,
+        "name": "J. Makengo",
+        "starts_in_window": 13,
+        "starts_tracked": 10,
+        "goals_in_tracked": 2,
+        "goals_per_start": 0.2
+      },
+      {
+        "player_id": 402386,
+        "name": "K. Kouassi",
+        "starts_in_window": 13,
+        "starts_tracked": 10,
+        "goals_in_tracked": 0,
+        "goals_per_start": 0.0
+      }
+    ]
+  },
+  {
+    "competition": "MLS",
+    "fixture_id": 1490438,
+    "date": "2026-09-05T23:30:00+00:00",
+    "home": "Philadelphia Union",
+    "home_id": 1599,
+    "away": "CF Montreal",
+    "away_id": 1614,
+    "home_venue_games": [
+      {
+        "date": "2026-05-16",
+        "home": "Philadelphia Union",
+        "away": "Columbus Crew",
+        "home_goals": 1,
+        "away_goals": 1,
+        "shots": 12,
+        "on_target": 5,
+        "inside_box": 4,
+        "xg": 1.09
+      },
+      {
+        "date": "2026-07-22",
+        "home": "Philadelphia Union",
+        "away": "New York Red Bulls",
+        "home_goals": 3,
+        "away_goals": 1,
+        "shots": 24,
+        "on_target": 10,
+        "inside_box": 16,
+        "xg": 3.1
+      },
+      {
+        "date": "2026-07-25",
+        "home": "Philadelphia Union",
+        "away": "Seattle Sounders",
+        "home_goals": 1,
+        "away_goals": 0,
+        "shots": 15,
+        "on_target": 5,
+        "inside_box": 9,
+        "xg": 1.21
+      },
+      {
+        "date": "2026-08-01",
+        "home": "Philadelphia Union",
+        "away": "Atlanta United FC",
+        "home_goals": 3,
+        "away_goals": 2,
+        "shots": 30,
+        "on_target": 6,
+        "inside_box": 25,
+        "xg": 2.64
+      },
+      {
+        "date": "2026-08-19",
+        "home": "Philadelphia Union",
+        "away": "Inter Miami",
+        "home_goals": 2,
+        "away_goals": 2,
+        "shots": 17,
+        "on_target": 6,
+        "inside_box": 14,
+        "xg": 2.59
+      }
+    ],
+    "away_venue_games": [
+      {
+        "date": "2026-05-02",
+        "home": "Atlanta United FC",
+        "away": "CF Montreal",
+        "home_goals": 3,
+        "away_goals": 1,
+        "shots": 11,
+        "on_target": 5,
+        "inside_box": 5,
+        "xg": 0.92
+      },
+      {
+        "date": "2026-05-23",
+        "home": "DC United",
+        "away": "CF Montreal",
+        "home_goals": 4,
+        "away_goals": 4,
+        "shots": 22,
+        "on_target": 8,
+        "inside_box": 16,
+        "xg": 3.13
+      },
+      {
+        "date": "2026-07-23",
+        "home": "Nashville SC",
+        "away": "CF Montreal",
+        "home_goals": 1,
+        "away_goals": 0,
+        "shots": 7,
+        "on_target": 2,
+        "inside_box": 6,
+        "xg": 0.71
+      },
+      {
+        "date": "2026-08-19",
+        "home": "Columbus Crew",
+        "away": "CF Montreal",
+        "home_goals": 1,
+        "away_goals": 2,
+        "shots": 14,
+        "on_target": 7,
+        "inside_box": 8,
+        "xg": 1.16
+      },
+      {
+        "date": "2026-08-29",
+        "home": "Inter Miami",
+        "away": "CF Montreal",
+        "home_goals": 7,
+        "away_goals": 1,
+        "shots": 10,
+        "on_target": 5,
+        "inside_box": 8,
+        "xg": 0.92
+      }
+    ],
+    "home_season_games": [
+      {
+        "date": "2026-02-22",
+        "venue": "away",
+        "gf": 0,
+        "ga": 1,
+        "opp": "DC United"
+      },
+      {
+        "date": "2026-03-01",
+        "venue": "home",
+        "gf": 1,
+        "ga": 2,
+        "opp": "New York City FC"
+      },
+      {
+        "date": "2026-03-08",
+        "venue": "home",
+        "gf": 0,
+        "ga": 1,
+        "opp": "San Jose Earthquakes"
+      },
+      {
+        "date": "2026-03-14",
+        "venue": "away",
+        "gf": 1,
+        "ga": 3,
+        "opp": "Atlanta United FC"
+      },
+      {
+        "date": "2026-03-21",
+        "venue": "home",
+        "gf": 1,
+        "ga": 2,
+        "opp": "Chicago Fire"
+      },
+      {
+        "date": "2026-04-04",
+        "venue": "away",
+        "gf": 1,
+        "ga": 2,
+        "opp": "Charlotte"
+      },
+      {
+        "date": "2026-04-11",
+        "venue": "away",
+        "gf": 2,
+        "ga": 1,
+        "opp": "CF Montreal"
+      },
+      {
+        "date": "2026-04-18",
+        "venue": "home",
+        "gf": 0,
+        "ga": 0,
+        "opp": "DC United"
+      },
+      {
+        "date": "2026-04-22",
+        "venue": "away",
+        "gf": 3,
+        "ga": 3,
+        "opp": "Toronto FC"
+      },
+      {
+        "date": "2026-04-25",
+        "venue": "away",
+        "gf": 0,
+        "ga": 2,
+        "opp": "Columbus Crew"
+      },
+      {
+        "date": "2026-05-02",
+        "venue": "home",
+        "gf": 0,
+        "ga": 0,
+        "opp": "Nashville SC"
+      },
+      {
+        "date": "2026-05-09",
+        "venue": "away",
+        "gf": 1,
+        "ga": 2,
+        "opp": "New England Revolution"
+      },
+      {
+        "date": "2026-05-13",
+        "venue": "away",
+        "gf": 3,
+        "ga": 4,
+        "opp": "Orlando City SC"
+      },
+      {
+        "date": "2026-05-16",
+        "venue": "home",
+        "gf": 1,
+        "ga": 1,
+        "opp": "Columbus Crew"
+      },
+      {
+        "date": "2026-05-24",
+        "venue": "away",
+        "gf": 4,
+        "ga": 6,
+        "opp": "Inter Miami"
+      },
+      {
+        "date": "2026-07-22",
+        "venue": "home",
+        "gf": 3,
+        "ga": 1,
+        "opp": "New York Red Bulls"
+      },
+      {
+        "date": "2026-07-25",
+        "venue": "home",
+        "gf": 1,
+        "ga": 0,
+        "opp": "Seattle Sounders"
+      },
+      {
+        "date": "2026-08-01",
+        "venue": "home",
+        "gf": 3,
+        "ga": 2,
+        "opp": "Atlanta United FC"
+      },
+      {
+        "date": "2026-08-16",
+        "venue": "away",
+        "gf": 3,
+        "ga": 2,
+        "opp": "New York City FC"
+      },
+      {
+        "date": "2026-08-19",
+        "venue": "home",
+        "gf": 2,
+        "ga": 2,
+        "opp": "Inter Miami"
+      },
+      {
+        "date": "2026-08-23",
+        "venue": "away",
+        "gf": 1,
+        "ga": 1,
+        "opp": "Austin"
+      },
+      {
+        "date": "2026-08-29",
+        "venue": "away",
+        "gf": 3,
+        "ga": 1,
+        "opp": "New York Red Bulls"
+      }
+    ],
+    "away_season_games": [
+      {
+        "date": "2026-02-22",
+        "venue": "away",
+        "gf": 0,
+        "ga": 5,
+        "opp": "San Diego"
+      },
+      {
+        "date": "2026-02-28",
+        "venue": "away",
+        "gf": 0,
+        "ga": 3,
+        "opp": "Chicago Fire"
+      },
+      {
+        "date": "2026-03-08",
+        "venue": "away",
+        "gf": 3,
+        "ga": 0,
+        "opp": "New York Red Bulls"
+      },
+      {
+        "date": "2026-03-14",
+        "venue": "away",
+        "gf": 1,
+        "ga": 2,
+        "opp": "Orlando City SC"
+      },
+      {
+        "date": "2026-03-22",
+        "venue": "away",
+        "gf": 3,
+        "ga": 4,
+        "opp": "FC Cincinnati"
+      },
+      {
+        "date": "2026-04-04",
+        "venue": "away",
+        "gf": 0,
+        "ga": 3,
+        "opp": "New England Revolution"
+      },
+      {
+        "date": "2026-04-11",
+        "venue": "home",
+        "gf": 1,
+        "ga": 2,
+        "opp": "Philadelphia Union"
+      },
+      {
+        "date": "2026-04-18",
+        "venue": "home",
+        "gf": 4,
+        "ga": 1,
+        "opp": "New York Red Bulls"
+      },
+      {
+        "date": "2026-04-25",
+        "venue": "home",
+        "gf": 1,
+        "ga": 0,
+        "opp": "New York City FC"
+      },
+      {
+        "date": "2026-05-02",
+        "venue": "away",
+        "gf": 1,
+        "ga": 3,
+        "opp": "Atlanta United FC"
+      },
+      {
+        "date": "2026-05-09",
+        "venue": "home",
+        "gf": 2,
+        "ga": 0,
+        "opp": "Orlando City SC"
+      },
+      {
+        "date": "2026-05-13",
+        "venue": "home",
+        "gf": 2,
+        "ga": 2,
+        "opp": "Portland Timbers"
+      },
+      {
+        "date": "2026-05-16",
+        "venue": "home",
+        "gf": 0,
+        "ga": 2,
+        "opp": "Chicago Fire"
+      },
+      {
+        "date": "2026-05-23",
+        "venue": "away",
+        "gf": 4,
+        "ga": 4,
+        "opp": "DC United"
+      },
+      {
+        "date": "2026-07-16",
+        "venue": "home",
+        "gf": 0,
+        "ga": 0,
+        "opp": "Toronto FC"
+      },
+      {
+        "date": "2026-07-23",
+        "venue": "away",
+        "gf": 0,
+        "ga": 1,
+        "opp": "Nashville SC"
+      },
+      {
+        "date": "2026-07-25",
+        "venue": "home",
+        "gf": 0,
+        "ga": 1,
+        "opp": "Inter Miami"
+      },
+      {
+        "date": "2026-08-01",
+        "venue": "home",
+        "gf": 2,
+        "ga": 2,
+        "opp": "New England Revolution"
+      },
+      {
+        "date": "2026-08-15",
+        "venue": "home",
+        "gf": 1,
+        "ga": 1,
+        "opp": "DC United"
+      },
+      {
+        "date": "2026-08-19",
+        "venue": "away",
+        "gf": 2,
+        "ga": 1,
+        "opp": "Columbus Crew"
+      },
+      {
+        "date": "2026-08-22",
+        "venue": "home",
+        "gf": 2,
+        "ga": 2,
+        "opp": "Los Angeles Galaxy"
+      },
+      {
+        "date": "2026-08-29",
+        "venue": "away",
+        "gf": 1,
+        "ga": 7,
+        "opp": "Inter Miami"
+      }
+    ],
+    "h2h": [
+      {
+        "date": "2022-04-23",
+        "home": "Philadelphia Union",
+        "away": "CF Montreal",
+        "home_goals": 1,
+        "away_goals": 1
+      },
+      {
+        "date": "2023-03-18",
+        "home": "CF Montreal",
+        "away": "Philadelphia Union",
+        "home_goals": 3,
+        "away_goals": 2
+      },
+      {
+        "date": "2023-06-03",
+        "home": "Philadelphia Union",
+        "away": "CF Montreal",
+        "home_goals": 3,
+        "away_goals": 0
+      },
+      {
+        "date": "2024-06-01",
+        "home": "Philadelphia Union",
+        "away": "CF Montreal",
+        "home_goals": 2,
+        "away_goals": 2
+      },
+      {
+        "date": "2024-06-29",
+        "home": "CF Montreal",
+        "away": "Philadelphia Union",
+        "home_goals": 4,
+        "away_goals": 2
+      },
+      {
+        "date": "2025-05-03",
+        "home": "CF Montreal",
+        "away": "Philadelphia Union",
+        "home_goals": 1,
+        "away_goals": 2
+      },
+      {
+        "date": "2025-07-16",
+        "home": "Philadelphia Union",
+        "away": "CF Montreal",
+        "home_goals": 2,
+        "away_goals": 1
+      },
+      {
+        "date": "2026-04-11",
+        "home": "CF Montreal",
+        "away": "Philadelphia Union",
+        "home_goals": 1,
+        "away_goals": 2
+      }
+    ],
+    "home_attackers": [
+      {
+        "player_id": 199406,
+        "name": "M. Iloski",
+        "starts_in_window": 15,
+        "starts_tracked": 10,
+        "goals_in_tracked": 9,
+        "goals_per_start": 0.9
+      },
+      {
+        "player_id": 338367,
+        "name": "D. Jean-Jacques",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 1,
+        "goals_per_start": 0.1
+      },
+      {
+        "player_id": 321839,
+        "name": "B. Damiani",
+        "starts_in_window": 13,
+        "starts_tracked": 10,
+        "goals_in_tracked": 3,
+        "goals_per_start": 0.3
+      }
+    ],
+    "away_attackers": [
+      {
+        "player_id": 130419,
+        "name": "M. Longstaff",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 0,
+        "goals_per_start": 0.0
+      },
+      {
+        "player_id": 26140,
+        "name": "P. Owusu",
+        "starts_in_window": 13,
+        "starts_tracked": 10,
+        "goals_in_tracked": 7,
+        "goals_per_start": 0.7
+      },
+      {
+        "player_id": 78589,
+        "name": "V. Loturi",
+        "starts_in_window": 12,
+        "starts_tracked": 10,
+        "goals_in_tracked": 0,
+        "goals_per_start": 0.0
+      }
+    ]
+  },
+  {
+    "competition": "BUNDESLIGA",
+    "fixture_id": 1575151,
+    "date": "2026-09-05T13:30:00+00:00",
+    "home": "Bayer Leverkusen",
+    "home_id": 168,
+    "away": "Union Berlin",
+    "away_id": 182,
+    "home_venue_games": [
+      {
+        "date": "2026-03-14",
+        "home": "Bayer Leverkusen",
+        "away": "Bayern M\u00fcnchen",
+        "home_goals": 1,
+        "away_goals": 1,
+        "shots": 21,
+        "on_target": 7,
+        "inside_box": 14,
+        "xg": 3.23
+      },
+      {
+        "date": "2026-04-04",
+        "home": "Bayer Leverkusen",
+        "away": "VfL Wolfsburg",
+        "home_goals": 6,
+        "away_goals": 3,
+        "shots": 25,
+        "on_target": 11,
+        "inside_box": 17,
+        "xg": 4.52
+      },
+      {
+        "date": "2026-04-18",
+        "home": "Bayer Leverkusen",
+        "away": "FC Augsburg",
+        "home_goals": 1,
+        "away_goals": 2,
+        "shots": 36,
+        "on_target": 10,
+        "inside_box": 27,
+        "xg": 3.8
+      },
+      {
+        "date": "2026-05-02",
+        "home": "Bayer Leverkusen",
+        "away": "RB Leipzig",
+        "home_goals": 4,
+        "away_goals": 1,
+        "shots": 23,
+        "on_target": 8,
+        "inside_box": 21,
+        "xg": 4.42
+      },
+      {
+        "date": "2026-05-16",
+        "home": "Bayer Leverkusen",
+        "away": "Hamburger SV",
+        "home_goals": 1,
+        "away_goals": 1,
+        "shots": 26,
+        "on_target": 9,
+        "inside_box": 19,
+        "xg": 3.27
+      }
+    ],
+    "away_venue_games": [
+      {
+        "date": "2026-03-15",
+        "home": "SC Freiburg",
+        "away": "Union Berlin",
+        "home_goals": 0,
+        "away_goals": 1,
+        "shots": 9,
+        "on_target": 4,
+        "inside_box": 7,
+        "xg": 0.54
+      },
+      {
+        "date": "2026-03-21",
+        "home": "Bayern M\u00fcnchen",
+        "away": "Union Berlin",
+        "home_goals": 4,
+        "away_goals": 0,
+        "shots": 5,
+        "on_target": 1,
+        "inside_box": 1,
+        "xg": 0.21
+      },
+      {
+        "date": "2026-04-11",
+        "home": "1. FC Heidenheim",
+        "away": "Union Berlin",
+        "home_goals": 3,
+        "away_goals": 1,
+        "shots": 10,
+        "on_target": 3,
+        "inside_box": 10,
+        "xg": 0.99
+      },
+      {
+        "date": "2026-04-24",
+        "home": "RB Leipzig",
+        "away": "Union Berlin",
+        "home_goals": 3,
+        "away_goals": 1,
+        "shots": 5,
+        "on_target": 1,
+        "inside_box": 3,
+        "xg": 0.19
+      },
+      {
+        "date": "2026-05-10",
+        "home": "FSV Mainz 05",
+        "away": "Union Berlin",
+        "home_goals": 1,
+        "away_goals": 3,
+        "shots": 16,
+        "on_target": 9,
+        "inside_box": 12,
+        "xg": 2.68
+      }
+    ],
+    "home_season_games": [
+      {
+        "date": "2026-08-29",
+        "venue": "away",
+        "gf": 2,
+        "ga": 3,
+        "opp": "SV Elversberg"
+      }
+    ],
+    "away_season_games": [
+      {
+        "date": "2026-08-29",
+        "venue": "home",
+        "gf": 3,
+        "ga": 3,
+        "opp": "Eintracht Frankfurt"
+      }
+    ],
+    "h2h": [
+      {
+        "date": "2022-11-06",
+        "home": "Bayer Leverkusen",
+        "away": "Union Berlin",
+        "home_goals": 5,
+        "away_goals": 0
+      },
+      {
+        "date": "2023-04-29",
+        "home": "Union Berlin",
+        "away": "Bayer Leverkusen",
+        "home_goals": 0,
+        "away_goals": 0
+      },
+      {
+        "date": "2023-11-12",
+        "home": "Bayer Leverkusen",
+        "away": "Union Berlin",
+        "home_goals": 4,
+        "away_goals": 0
+      },
+      {
+        "date": "2024-04-06",
+        "home": "Union Berlin",
+        "away": "Bayer Leverkusen",
+        "home_goals": 0,
+        "away_goals": 1
+      },
+      {
+        "date": "2024-11-30",
+        "home": "Union Berlin",
+        "away": "Bayer Leverkusen",
+        "home_goals": 1,
+        "away_goals": 2
+      },
+      {
+        "date": "2025-04-12",
+        "home": "Bayer Leverkusen",
+        "away": "Union Berlin",
+        "home_goals": 0,
+        "away_goals": 0
+      },
+      {
+        "date": "2025-10-04",
+        "home": "Bayer Leverkusen",
+        "away": "Union Berlin",
+        "home_goals": 2,
+        "away_goals": 0
+      },
+      {
+        "date": "2026-02-21",
+        "home": "Union Berlin",
+        "away": "Bayer Leverkusen",
+        "home_goals": 1,
+        "away_goals": 0
+      }
+    ],
+    "home_attackers": [
+      {
+        "player_id": 47516,
+        "name": "Aleix Garc\u00eda",
+        "starts_in_window": 13,
+        "starts_tracked": 10,
+        "goals_in_tracked": 2,
+        "goals_per_start": 0.2
+      },
+      {
+        "player_id": 380587,
+        "name": "I. Maza",
+        "starts_in_window": 13,
+        "starts_tracked": 10,
+        "goals_in_tracked": 1,
+        "goals_per_start": 0.1
+      },
+      {
+        "player_id": 6002,
+        "name": "E. Palacios",
+        "starts_in_window": 11,
+        "starts_tracked": 10,
+        "goals_in_tracked": 0,
+        "goals_per_start": 0.0
+      }
+    ],
+    "away_attackers": [
+      {
+        "player_id": 25300,
+        "name": "R. Khedira",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 0,
+        "goals_per_start": 0.0
+      },
+      {
+        "player_id": 327831,
+        "name": "A. Kemlein",
+        "starts_in_window": 11,
+        "starts_tracked": 10,
+        "goals_in_tracked": 0,
+        "goals_per_start": 0.0
+      },
+      {
+        "player_id": 45892,
+        "name": "A. Ili\u0107",
+        "starts_in_window": 10,
+        "starts_tracked": 10,
+        "goals_in_tracked": 5,
+        "goals_per_start": 0.5
+      }
+    ]
+  },
+  {
+    "competition": "EREDIVISIE",
+    "fixture_id": 1552155,
+    "date": "2026-09-05T16:45:00+00:00",
+    "home": "Utrecht",
+    "home_id": 207,
+    "away": "GO Ahead Eagles",
+    "away_id": 410,
+    "home_venue_games": [
+      {
+        "date": "2026-05-02",
+        "home": "Utrecht",
+        "away": "NAC Breda",
+        "home_goals": 2,
+        "away_goals": 0,
+        "shots": 28,
+        "on_target": 11,
+        "inside_box": 19,
+        "xg": 2.9
+      },
+      {
+        "date": "2026-05-17",
+        "home": "Utrecht",
+        "away": "Fortuna Sittard",
+        "home_goals": 2,
+        "away_goals": 0,
+        "shots": 18,
+        "on_target": 5,
+        "inside_box": 13,
+        "xg": 2.09
+      },
+      {
+        "date": "2026-05-21",
+        "home": "Utrecht",
+        "away": "Heerenveen",
+        "home_goals": 3,
+        "away_goals": 2,
+        "shots": 23,
+        "on_target": 8,
+        "inside_box": 16,
+        "xg": 2.08
+      },
+      {
+        "date": "2026-08-15",
+        "home": "Utrecht",
+        "away": "AZ Alkmaar",
+        "home_goals": 1,
+        "away_goals": 4,
+        "shots": 8,
+        "on_target": 2,
+        "inside_box": 6,
+        "xg": 0.91
+      },
+      {
+        "date": "2026-08-30",
+        "home": "Utrecht",
+        "away": "PSV Eindhoven",
+        "home_goals": 1,
+        "away_goals": 6,
+        "shots": 1,
+        "on_target": 1,
+        "inside_box": 1,
+        "xg": 0.3
+      }
+    ],
+    "away_venue_games": [
+      {
+        "date": "2026-04-11",
+        "home": "Groningen",
+        "away": "GO Ahead Eagles",
+        "home_goals": 0,
+        "away_goals": 0,
+        "shots": 10,
+        "on_target": 2,
+        "inside_box": 6,
+        "xg": 0.82
+      },
+      {
+        "date": "2026-05-03",
+        "home": "Sparta Rotterdam",
+        "away": "GO Ahead Eagles",
+        "home_goals": 2,
+        "away_goals": 2,
+        "shots": 16,
+        "on_target": 5,
+        "inside_box": 12,
+        "xg": 2.08
+      },
+      {
+        "date": "2026-05-17",
+        "home": "NEC Nijmegen",
+        "away": "GO Ahead Eagles",
+        "home_goals": 2,
+        "away_goals": 1,
+        "shots": 3,
+        "on_target": 1,
+        "inside_box": 3,
+        "xg": 0.32
+      },
+      {
+        "date": "2026-08-16",
+        "home": "Feyenoord",
+        "away": "GO Ahead Eagles",
+        "home_goals": 2,
+        "away_goals": 2,
+        "shots": 14,
+        "on_target": 6,
+        "inside_box": 8,
+        "xg": 1.51
+      },
+      {
+        "date": "2026-08-29",
+        "home": "AZ Alkmaar",
+        "away": "GO Ahead Eagles",
+        "home_goals": 5,
+        "away_goals": 2,
+        "shots": 10,
+        "on_target": 4,
+        "inside_box": 7,
+        "xg": 1.66
+      }
+    ],
+    "home_season_games": [
+      {
+        "date": "2026-08-09",
+        "venue": "away",
+        "gf": 1,
+        "ga": 2,
+        "opp": "Groningen"
+      },
+      {
+        "date": "2026-08-15",
+        "venue": "home",
+        "gf": 1,
+        "ga": 4,
+        "opp": "AZ Alkmaar"
+      },
+      {
+        "date": "2026-08-22",
+        "venue": "away",
+        "gf": 3,
+        "ga": 3,
+        "opp": "Sparta Rotterdam"
+      },
+      {
+        "date": "2026-08-30",
+        "venue": "home",
+        "gf": 1,
+        "ga": 6,
+        "opp": "PSV Eindhoven"
+      }
+    ],
+    "away_season_games": [
+      {
+        "date": "2026-08-08",
+        "venue": "home",
+        "gf": 4,
+        "ga": 1,
+        "opp": "Willem II"
+      },
+      {
+        "date": "2026-08-16",
+        "venue": "away",
+        "gf": 2,
+        "ga": 2,
+        "opp": "Feyenoord"
+      },
+      {
+        "date": "2026-08-23",
+        "venue": "home",
+        "gf": 3,
+        "ga": 1,
+        "opp": "ADO Den Haag"
+      },
+      {
+        "date": "2026-08-29",
+        "venue": "away",
+        "gf": 2,
+        "ga": 5,
+        "opp": "AZ Alkmaar"
+      }
+    ],
+    "h2h": [
+      {
+        "date": "2023-01-15",
+        "home": "GO Ahead Eagles",
+        "away": "Utrecht",
+        "home_goals": 2,
+        "away_goals": 2
+      },
+      {
+        "date": "2023-03-18",
+        "home": "Utrecht",
+        "away": "GO Ahead Eagles",
+        "home_goals": 1,
+        "away_goals": 2
+      },
+      {
+        "date": "2023-12-10",
+        "home": "GO Ahead Eagles",
+        "away": "Utrecht",
+        "home_goals": 0,
+        "away_goals": 2
+      },
+      {
+        "date": "2024-04-14",
+        "home": "Utrecht",
+        "away": "GO Ahead Eagles",
+        "home_goals": 2,
+        "away_goals": 1
+      },
+      {
+        "date": "2024-12-15",
+        "home": "Utrecht",
+        "away": "GO Ahead Eagles",
+        "home_goals": 3,
+        "away_goals": 3
+      },
+      {
+        "date": "2025-04-06",
+        "home": "GO Ahead Eagles",
+        "away": "Utrecht",
+        "home_goals": 2,
+        "away_goals": 2
+      },
+      {
+        "date": "2025-11-30",
+        "home": "GO Ahead Eagles",
+        "away": "Utrecht",
+        "home_goals": 2,
+        "away_goals": 2
+      },
+      {
+        "date": "2026-03-22",
+        "home": "Utrecht",
+        "away": "GO Ahead Eagles",
+        "home_goals": 2,
+        "away_goals": 0
+      }
+    ],
+    "home_attackers": [
+      {
+        "player_id": 266814,
+        "name": "Y. Cathline",
+        "starts_in_window": 15,
+        "starts_tracked": 10,
+        "goals_in_tracked": 0,
+        "goals_per_start": 0.0
+      },
+      {
+        "player_id": 539,
+        "name": "D. de Wit",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 3,
+        "goals_per_start": 0.3
+      },
+      {
+        "player_id": 47814,
+        "name": "N. Vesterlund",
+        "starts_in_window": 13,
+        "starts_tracked": 4,
+        "goals_in_tracked": 0,
+        "goals_per_start": 0.0
+      }
+    ],
+    "away_attackers": [
+      {
+        "player_id": 137837,
+        "name": "V. Edvardsen",
+        "starts_in_window": 15,
+        "starts_tracked": 10,
+        "goals_in_tracked": 4,
+        "goals_per_start": 0.4
+      },
+      {
+        "player_id": 162762,
+        "name": "M. Suray",
+        "starts_in_window": 15,
+        "starts_tracked": 10,
+        "goals_in_tracked": 3,
+        "goals_per_start": 0.3
+      },
+      {
+        "player_id": 36865,
+        "name": "M. Meulensteen",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 1,
+        "goals_per_start": 0.1
+      }
+    ]
+  },
+  {
+    "competition": "BUNDESLIGA",
+    "fixture_id": 1575152,
+    "date": "2026-09-06T15:30:00+00:00",
+    "home": "Eintracht Frankfurt",
+    "home_id": 169,
+    "away": "FC Augsburg",
+    "away_id": 170,
+    "home_venue_games": [
+      {
+        "date": "2026-03-14",
+        "home": "Eintracht Frankfurt",
+        "away": "1. FC Heidenheim",
+        "home_goals": 1,
+        "away_goals": 0,
+        "shots": 12,
+        "on_target": 4,
+        "inside_box": 9,
+        "xg": 0.91
+      },
+      {
+        "date": "2026-04-05",
+        "home": "Eintracht Frankfurt",
+        "away": "1. FC K\u00f6ln",
+        "home_goals": 2,
+        "away_goals": 2,
+        "shots": 20,
+        "on_target": 7,
+        "inside_box": 13,
+        "xg": 2.58
+      },
+      {
+        "date": "2026-04-18",
+        "home": "Eintracht Frankfurt",
+        "away": "RB Leipzig",
+        "home_goals": 1,
+        "away_goals": 3,
+        "shots": 16,
+        "on_target": 5,
+        "inside_box": 11,
+        "xg": 1.45
+      },
+      {
+        "date": "2026-05-02",
+        "home": "Eintracht Frankfurt",
+        "away": "Hamburger SV",
+        "home_goals": 1,
+        "away_goals": 2,
+        "shots": 8,
+        "on_target": 5,
+        "inside_box": 5,
+        "xg": 0.65
+      },
+      {
+        "date": "2026-05-16",
+        "home": "Eintracht Frankfurt",
+        "away": "VfB Stuttgart",
+        "home_goals": 2,
+        "away_goals": 2,
+        "shots": 16,
+        "on_target": 7,
+        "inside_box": 8,
+        "xg": 2.56
+      }
+    ],
+    "away_venue_games": [
+      {
+        "date": "2026-03-14",
+        "home": "Borussia Dortmund",
+        "away": "FC Augsburg",
+        "home_goals": 2,
+        "away_goals": 0,
+        "shots": 7,
+        "on_target": 3,
+        "inside_box": 4,
+        "xg": 0.77
+      },
+      {
+        "date": "2026-04-04",
+        "home": "Hamburger SV",
+        "away": "FC Augsburg",
+        "home_goals": 1,
+        "away_goals": 1,
+        "shots": 18,
+        "on_target": 3,
+        "inside_box": 15,
+        "xg": 2.47
+      },
+      {
+        "date": "2026-04-18",
+        "home": "Bayer Leverkusen",
+        "away": "FC Augsburg",
+        "home_goals": 1,
+        "away_goals": 2,
+        "shots": 11,
+        "on_target": 5,
+        "inside_box": 7,
+        "xg": 1.33
+      },
+      {
+        "date": "2026-05-02",
+        "home": "Werder Bremen",
+        "away": "FC Augsburg",
+        "home_goals": 1,
+        "away_goals": 3,
+        "shots": 14,
+        "on_target": 7,
+        "inside_box": 11,
+        "xg": 2.57
+      },
+      {
+        "date": "2026-05-16",
+        "home": "Union Berlin",
+        "away": "FC Augsburg",
+        "home_goals": 4,
+        "away_goals": 0,
+        "shots": 11,
+        "on_target": 1,
+        "inside_box": 6,
+        "xg": 0.61
+      }
+    ],
+    "home_season_games": [
+      {
+        "date": "2026-08-29",
+        "venue": "away",
+        "gf": 3,
+        "ga": 3,
+        "opp": "Union Berlin"
+      }
+    ],
+    "away_season_games": [
+      {
+        "date": "2026-08-30",
+        "venue": "home",
+        "gf": 3,
+        "ga": 0,
+        "opp": "FC Schalke 04"
+      }
+    ],
+    "h2h": [
+      {
+        "date": "2022-11-05",
+        "home": "FC Augsburg",
+        "away": "Eintracht Frankfurt",
+        "home_goals": 1,
+        "away_goals": 2
+      },
+      {
+        "date": "2023-04-29",
+        "home": "Eintracht Frankfurt",
+        "away": "FC Augsburg",
+        "home_goals": 1,
+        "away_goals": 1
+      },
+      {
+        "date": "2023-12-03",
+        "home": "FC Augsburg",
+        "away": "Eintracht Frankfurt",
+        "home_goals": 2,
+        "away_goals": 1
+      },
+      {
+        "date": "2024-04-19",
+        "home": "Eintracht Frankfurt",
+        "away": "FC Augsburg",
+        "home_goals": 3,
+        "away_goals": 1
+      },
+      {
+        "date": "2024-12-07",
+        "home": "Eintracht Frankfurt",
+        "away": "FC Augsburg",
+        "home_goals": 2,
+        "away_goals": 2
+      },
+      {
+        "date": "2025-04-20",
+        "home": "FC Augsburg",
+        "away": "Eintracht Frankfurt",
+        "home_goals": 0,
+        "away_goals": 0
+      },
+      {
+        "date": "2025-12-13",
+        "home": "Eintracht Frankfurt",
+        "away": "FC Augsburg",
+        "home_goals": 1,
+        "away_goals": 0
+      },
+      {
+        "date": "2026-04-25",
+        "home": "FC Augsburg",
+        "away": "Eintracht Frankfurt",
+        "home_goals": 1,
+        "away_goals": 1
+      }
+    ],
+    "home_attackers": [
+      {
+        "player_id": 280074,
+        "name": "N. Brown",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 2,
+        "goals_per_start": 0.2
+      },
+      {
+        "player_id": 147831,
+        "name": "A. Kalimuendo",
+        "starts_in_window": 13,
+        "starts_tracked": 10,
+        "goals_in_tracked": 3,
+        "goals_per_start": 0.3
+      },
+      {
+        "player_id": 335094,
+        "name": "H. Larsson",
+        "starts_in_window": 12,
+        "starts_tracked": 10,
+        "goals_in_tracked": 1,
+        "goals_per_start": 0.1
+      }
+    ],
+    "away_attackers": [
+      {
+        "player_id": 143831,
+        "name": "R. Fellhauer",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 1,
+        "goals_per_start": 0.1
+      },
+      {
+        "player_id": 163032,
+        "name": "F. Rieder",
+        "starts_in_window": 12,
+        "starts_tracked": 10,
+        "goals_in_tracked": 3,
+        "goals_per_start": 0.3
+      },
+      {
+        "player_id": 20634,
+        "name": "A. Claude-Maurice",
+        "starts_in_window": 11,
+        "starts_tracked": 10,
+        "goals_in_tracked": 3,
+        "goals_per_start": 0.3
+      }
+    ]
+  },
+  {
+    "competition": "PL",
+    "fixture_id": 1557395,
+    "date": "2026-09-05T11:30:00+00:00",
+    "home": "Newcastle",
+    "home_id": 34,
+    "away": "Bournemouth",
+    "away_id": 35,
+    "home_venue_games": [
+      {
+        "date": "2026-03-22",
+        "home": "Newcastle",
+        "away": "Sunderland",
+        "home_goals": 1,
+        "away_goals": 2,
+        "shots": 16,
+        "on_target": 4,
+        "inside_box": 8,
+        "xg": 1.29
+      },
+      {
+        "date": "2026-04-18",
+        "home": "Newcastle",
+        "away": "Bournemouth",
+        "home_goals": 1,
+        "away_goals": 2,
+        "shots": 12,
+        "on_target": 3,
+        "inside_box": 11,
+        "xg": 1.59
+      },
+      {
+        "date": "2026-05-02",
+        "home": "Newcastle",
+        "away": "Brighton",
+        "home_goals": 3,
+        "away_goals": 1,
+        "shots": 13,
+        "on_target": 6,
+        "inside_box": 12,
+        "xg": 3.16
+      },
+      {
+        "date": "2026-05-17",
+        "home": "Newcastle",
+        "away": "West Ham",
+        "home_goals": 3,
+        "away_goals": 1,
+        "shots": 15,
+        "on_target": 7,
+        "inside_box": 9,
+        "xg": 1.73
+      },
+      {
+        "date": "2026-08-23",
+        "home": "Newcastle",
+        "away": "Liverpool",
+        "home_goals": 2,
+        "away_goals": 2,
+        "shots": 13,
+        "on_target": 4,
+        "inside_box": 6,
+        "xg": 1.58
+      }
+    ],
+    "away_venue_games": [
+      {
+        "date": "2026-04-11",
+        "home": "Arsenal",
+        "away": "Bournemouth",
+        "home_goals": 1,
+        "away_goals": 2,
+        "shots": 8,
+        "on_target": 3,
+        "inside_box": 5,
+        "xg": 1.19
+      },
+      {
+        "date": "2026-04-18",
+        "home": "Newcastle",
+        "away": "Bournemouth",
+        "home_goals": 1,
+        "away_goals": 2,
+        "shots": 12,
+        "on_target": 3,
+        "inside_box": 7,
+        "xg": 2.99
+      },
+      {
+        "date": "2026-05-09",
+        "home": "Fulham",
+        "away": "Bournemouth",
+        "home_goals": 0,
+        "away_goals": 1,
+        "shots": 10,
+        "on_target": 5,
+        "inside_box": 5,
+        "xg": 0.82
+      },
+      {
+        "date": "2026-05-24",
+        "home": "Nottingham Forest",
+        "away": "Bournemouth",
+        "home_goals": 1,
+        "away_goals": 1,
+        "shots": 17,
+        "on_target": 4,
+        "inside_box": 6,
+        "xg": 0.95
+      },
+      {
+        "date": "2026-08-23",
+        "home": "Manchester City",
+        "away": "Bournemouth",
+        "home_goals": 2,
+        "away_goals": 1,
+        "shots": 5,
+        "on_target": 4,
+        "inside_box": 4,
+        "xg": 0.65
+      }
+    ],
+    "home_season_games": [
+      {
+        "date": "2026-08-23",
+        "venue": "home",
+        "gf": 2,
+        "ga": 2,
+        "opp": "Liverpool"
+      },
+      {
+        "date": "2026-08-29",
+        "venue": "away",
+        "gf": 2,
+        "ga": 0,
+        "opp": "Tottenham"
+      }
+    ],
+    "away_season_games": [
+      {
+        "date": "2026-08-23",
+        "venue": "away",
+        "gf": 1,
+        "ga": 2,
+        "opp": "Manchester City"
+      },
+      {
+        "date": "2026-08-29",
+        "venue": "home",
+        "gf": 1,
+        "ga": 1,
+        "opp": "Everton"
+      }
+    ],
+    "h2h": [
+      {
+        "date": "2022-09-17",
+        "home": "Newcastle",
+        "away": "Bournemouth",
+        "home_goals": 1,
+        "away_goals": 1
+      },
+      {
+        "date": "2023-02-11",
+        "home": "Bournemouth",
+        "away": "Newcastle",
+        "home_goals": 1,
+        "away_goals": 1
+      },
+      {
+        "date": "2023-11-11",
+        "home": "Bournemouth",
+        "away": "Newcastle",
+        "home_goals": 2,
+        "away_goals": 0
+      },
+      {
+        "date": "2024-02-17",
+        "home": "Newcastle",
+        "away": "Bournemouth",
+        "home_goals": 2,
+        "away_goals": 2
+      },
+      {
+        "date": "2024-08-25",
+        "home": "Bournemouth",
+        "away": "Newcastle",
+        "home_goals": 1,
+        "away_goals": 1
+      },
+      {
+        "date": "2025-01-18",
+        "home": "Newcastle",
+        "away": "Bournemouth",
+        "home_goals": 1,
+        "away_goals": 4
+      },
+      {
+        "date": "2025-09-21",
+        "home": "Bournemouth",
+        "away": "Newcastle",
+        "home_goals": 0,
+        "away_goals": 0
+      },
+      {
+        "date": "2026-04-18",
+        "home": "Newcastle",
+        "away": "Bournemouth",
+        "home_goals": 1,
+        "away_goals": 2
+      }
+    ],
+    "home_attackers": [
+      {
+        "player_id": 19192,
+        "name": "J. Ramsey",
+        "starts_in_window": 10,
+        "starts_tracked": 10,
+        "goals_in_tracked": 2,
+        "goals_per_start": 0.2
+      },
+      {
+        "player_id": 31146,
+        "name": "S. Tonali",
+        "starts_in_window": 9,
+        "starts_tracked": 10,
+        "goals_in_tracked": 0,
+        "goals_per_start": 0.0
+      },
+      {
+        "player_id": 315237,
+        "name": "W. Osula",
+        "starts_in_window": 8,
+        "starts_tracked": 10,
+        "goals_in_tracked": 5,
+        "goals_per_start": 0.5
+      }
+    ],
+    "away_attackers": [
+      {
+        "player_id": 304853,
+        "name": "A. Scott",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 2,
+        "goals_per_start": 0.2
+      },
+      {
+        "player_id": 407806,
+        "name": "Rayan",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 2,
+        "goals_per_start": 0.2
+      },
+      {
+        "player_id": 152856,
+        "name": "Evanilson",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 0,
+        "goals_per_start": 0.0
+      }
+    ]
+  },
+  {
+    "competition": "LIGUE1",
+    "fixture_id": 1552750,
+    "date": "2026-09-04T17:00:00+00:00",
+    "home": "Lyon",
+    "home_id": 80,
+    "away": "Auxerre",
+    "away_id": 108,
+    "home_venue_games": [
+      {
+        "date": "2026-04-12",
+        "home": "Lyon",
+        "away": "Lorient",
+        "home_goals": 2,
+        "away_goals": 0,
+        "shots": 11,
+        "on_target": 5,
+        "inside_box": 8,
+        "xg": 1.16
+      },
+      {
+        "date": "2026-04-25",
+        "home": "Lyon",
+        "away": "Auxerre",
+        "home_goals": 3,
+        "away_goals": 2,
+        "shots": 12,
+        "on_target": 6,
+        "inside_box": 10,
+        "xg": 2.12
+      },
+      {
+        "date": "2026-05-03",
+        "home": "Lyon",
+        "away": "Rennes",
+        "home_goals": 4,
+        "away_goals": 2,
+        "shots": 16,
+        "on_target": 9,
+        "inside_box": 9,
+        "xg": 3.17
+      },
+      {
+        "date": "2026-05-17",
+        "home": "Lyon",
+        "away": "Lens",
+        "home_goals": 0,
+        "away_goals": 4,
+        "shots": 16,
+        "on_target": 4,
+        "inside_box": 11,
+        "xg": 1.91
+      },
+      {
+        "date": "2026-08-29",
+        "home": "Lyon",
+        "away": "Le Havre",
+        "home_goals": 1,
+        "away_goals": 1,
+        "shots": 15,
+        "on_target": 5,
+        "inside_box": 12,
+        "xg": 1.75
+      }
+    ],
+    "away_venue_games": [
+      {
+        "date": "2026-04-05",
+        "home": "Le Havre",
+        "away": "Auxerre",
+        "home_goals": 1,
+        "away_goals": 1,
+        "shots": 12,
+        "on_target": 2,
+        "inside_box": 10,
+        "xg": 1.8
+      },
+      {
+        "date": "2026-04-19",
+        "home": "Monaco",
+        "away": "Auxerre",
+        "home_goals": 2,
+        "away_goals": 2,
+        "shots": 12,
+        "on_target": 7,
+        "inside_box": 8,
+        "xg": 0.65
+      },
+      {
+        "date": "2026-04-25",
+        "home": "Lyon",
+        "away": "Auxerre",
+        "home_goals": 3,
+        "away_goals": 2,
+        "shots": 9,
+        "on_target": 2,
+        "inside_box": 2,
+        "xg": 0.52
+      },
+      {
+        "date": "2026-05-17",
+        "home": "Lille",
+        "away": "Auxerre",
+        "home_goals": 0,
+        "away_goals": 2,
+        "shots": 7,
+        "on_target": 4,
+        "inside_box": 7,
+        "xg": 0.54
+      },
+      {
+        "date": "2026-08-22",
+        "home": "Lens",
+        "away": "Auxerre",
+        "home_goals": 5,
+        "away_goals": 2,
+        "shots": 10,
+        "on_target": 4,
+        "inside_box": 5,
+        "xg": 1.84
+      }
+    ],
+    "home_season_games": [
+      {
+        "date": "2026-08-22",
+        "venue": "away",
+        "gf": 2,
+        "ga": 0,
+        "opp": "Toulouse"
+      },
+      {
+        "date": "2026-08-29",
+        "venue": "home",
+        "gf": 1,
+        "ga": 1,
+        "opp": "Le Havre"
+      }
+    ],
+    "away_season_games": [
+      {
+        "date": "2026-08-22",
+        "venue": "away",
+        "gf": 2,
+        "ga": 5,
+        "opp": "Lens"
+      },
+      {
+        "date": "2026-08-29",
+        "venue": "home",
+        "gf": 1,
+        "ga": 3,
+        "opp": "Angers"
+      }
+    ],
+    "h2h": [
+      {
+        "date": "2022-08-31",
+        "home": "Lyon",
+        "away": "Auxerre",
+        "home_goals": 2,
+        "away_goals": 1
+      },
+      {
+        "date": "2023-02-17",
+        "home": "Auxerre",
+        "away": "Lyon",
+        "home_goals": 2,
+        "away_goals": 1
+      },
+      {
+        "date": "2024-10-27",
+        "home": "Lyon",
+        "away": "Auxerre",
+        "home_goals": 2,
+        "away_goals": 2
+      },
+      {
+        "date": "2025-04-13",
+        "home": "Auxerre",
+        "away": "Lyon",
+        "home_goals": 1,
+        "away_goals": 3
+      },
+      {
+        "date": "2025-11-23",
+        "home": "Auxerre",
+        "away": "Lyon",
+        "home_goals": 0,
+        "away_goals": 0
+      },
+      {
+        "date": "2026-04-25",
+        "home": "Lyon",
+        "away": "Auxerre",
+        "home_goals": 3,
+        "away_goals": 2
+      }
+    ],
+    "home_attackers": [
+      {
+        "player_id": 162590,
+        "name": "T. Morton",
+        "starts_in_window": 12,
+        "starts_tracked": 10,
+        "goals_in_tracked": 0,
+        "goals_per_start": 0.0
+      },
+      {
+        "player_id": 9700,
+        "name": "Abner",
+        "starts_in_window": 11,
+        "starts_tracked": 10,
+        "goals_in_tracked": 2,
+        "goals_per_start": 0.2
+      },
+      {
+        "player_id": 519,
+        "name": "C. Tolisso",
+        "starts_in_window": 10,
+        "starts_tracked": 10,
+        "goals_in_tracked": 5,
+        "goals_per_start": 0.5
+      }
+    ],
+    "away_attackers": [
+      {
+        "player_id": 323625,
+        "name": "K. Danois",
+        "starts_in_window": 15,
+        "starts_tracked": 10,
+        "goals_in_tracked": 1,
+        "goals_per_start": 0.1
+      },
+      {
+        "player_id": 19625,
+        "name": "D. Namaso",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 2,
+        "goals_per_start": 0.2
+      },
+      {
+        "player_id": 21010,
+        "name": "E. Owusu",
+        "starts_in_window": 13,
+        "starts_tracked": 10,
+        "goals_in_tracked": 0,
+        "goals_per_start": 0.0
+      }
+    ]
+  },
+  {
+    "competition": "MLS",
+    "fixture_id": 1490450,
+    "date": "2026-09-06T02:30:00+00:00",
+    "home": "Portland Timbers",
+    "home_id": 1617,
+    "away": "Minnesota United FC",
+    "away_id": 1612,
+    "home_venue_games": [
+      {
+        "date": "2026-07-23",
+        "home": "Portland Timbers",
+        "away": "FC Dallas",
+        "home_goals": 2,
+        "away_goals": 2,
+        "shots": 16,
+        "on_target": 4,
+        "inside_box": 10,
+        "xg": 2.4
+      },
+      {
+        "date": "2026-07-26",
+        "home": "Portland Timbers",
+        "away": "Real Salt Lake",
+        "home_goals": 2,
+        "away_goals": 1,
+        "shots": 22,
+        "on_target": 6,
+        "inside_box": 17,
+        "xg": 2.21
+      },
+      {
+        "date": "2026-08-02",
+        "home": "Portland Timbers",
+        "away": "Seattle Sounders",
+        "home_goals": 2,
+        "away_goals": 1,
+        "shots": 14,
+        "on_target": 5,
+        "inside_box": 8,
+        "xg": 1.71
+      },
+      {
+        "date": "2026-08-20",
+        "home": "Portland Timbers",
+        "away": "San Diego",
+        "home_goals": 3,
+        "away_goals": 1,
+        "shots": 11,
+        "on_target": 5,
+        "inside_box": 6,
+        "xg": 1.5
+      },
+      {
+        "date": "2026-08-30",
+        "home": "Portland Timbers",
+        "away": "Austin",
+        "home_goals": 1,
+        "away_goals": 2,
+        "shots": 13,
+        "on_target": 5,
+        "inside_box": 7,
+        "xg": 2.03
+      }
+    ],
+    "away_venue_games": [
+      {
+        "date": "2026-05-02",
+        "home": "Columbus Crew",
+        "away": "Minnesota United FC",
+        "home_goals": 2,
+        "away_goals": 3,
+        "shots": 12,
+        "on_target": 7,
+        "inside_box": 10,
+        "xg": 1.22
+      },
+      {
+        "date": "2026-05-16",
+        "home": "New England Revolution",
+        "away": "Minnesota United FC",
+        "home_goals": 2,
+        "away_goals": 1,
+        "shots": 12,
+        "on_target": 6,
+        "inside_box": 9,
+        "xg": 1.81
+      },
+      {
+        "date": "2026-07-23",
+        "home": "Sporting Kansas City",
+        "away": "Minnesota United FC",
+        "home_goals": 2,
+        "away_goals": 1,
+        "shots": 16,
+        "on_target": 10,
+        "inside_box": 12,
+        "xg": 1.84
+      },
+      {
+        "date": "2026-08-16",
+        "home": "Real Salt Lake",
+        "away": "Minnesota United FC",
+        "home_goals": 1,
+        "away_goals": 1,
+        "shots": 15,
+        "on_target": 3,
+        "inside_box": 11,
+        "xg": 2.05
+      },
+      {
+        "date": "2026-08-23",
+        "home": "San Jose Earthquakes",
+        "away": "Minnesota United FC",
+        "home_goals": 1,
+        "away_goals": 5,
+        "shots": 11,
+        "on_target": 7,
+        "inside_box": 10,
+        "xg": 2.0
+      }
+    ],
+    "home_season_games": [
+      {
+        "date": "2026-02-22",
+        "venue": "home",
+        "gf": 3,
+        "ga": 2,
+        "opp": "Columbus Crew"
+      },
+      {
+        "date": "2026-02-28",
+        "venue": "away",
+        "gf": 0,
+        "ga": 2,
+        "opp": "Colorado Rapids"
+      },
+      {
+        "date": "2026-03-08",
+        "venue": "home",
+        "gf": 1,
+        "ga": 4,
+        "opp": "Vancouver Whitecaps"
+      },
+      {
+        "date": "2026-03-15",
+        "venue": "away",
+        "gf": 2,
+        "ga": 3,
+        "opp": "Houston Dynamo"
+      },
+      {
+        "date": "2026-03-22",
+        "venue": "home",
+        "gf": 1,
+        "ga": 1,
+        "opp": "Los Angeles Galaxy"
+      },
+      {
+        "date": "2026-04-05",
+        "venue": "away",
+        "gf": 2,
+        "ga": 3,
+        "opp": "Vancouver Whitecaps"
+      },
+      {
+        "date": "2026-04-11",
+        "venue": "home",
+        "gf": 2,
+        "ga": 1,
+        "opp": "Los Angeles FC"
+      },
+      {
+        "date": "2026-04-19",
+        "venue": "away",
+        "gf": 0,
+        "ga": 2,
+        "opp": "Minnesota United FC"
+      },
+      {
+        "date": "2026-04-26",
+        "venue": "away",
+        "gf": 2,
+        "ga": 1,
+        "opp": "San Diego"
+      },
+      {
+        "date": "2026-05-02",
+        "venue": "away",
+        "gf": 0,
+        "ga": 2,
+        "opp": "Real Salt Lake"
+      },
+      {
+        "date": "2026-05-10",
+        "venue": "home",
+        "gf": 6,
+        "ga": 0,
+        "opp": "Sporting Kansas City"
+      },
+      {
+        "date": "2026-05-13",
+        "venue": "away",
+        "gf": 2,
+        "ga": 2,
+        "opp": "CF Montreal"
+      },
+      {
+        "date": "2026-05-17",
+        "venue": "away",
+        "gf": 0,
+        "ga": 2,
+        "opp": "Inter Miami"
+      },
+      {
+        "date": "2026-05-24",
+        "venue": "home",
+        "gf": 1,
+        "ga": 3,
+        "opp": "San Jose Earthquakes"
+      },
+      {
+        "date": "2026-07-17",
+        "venue": "away",
+        "gf": 5,
+        "ga": 1,
+        "opp": "Seattle Sounders"
+      },
+      {
+        "date": "2026-07-23",
+        "venue": "home",
+        "gf": 2,
+        "ga": 2,
+        "opp": "FC Dallas"
+      },
+      {
+        "date": "2026-07-26",
+        "venue": "home",
+        "gf": 2,
+        "ga": 1,
+        "opp": "Real Salt Lake"
+      },
+      {
+        "date": "2026-08-02",
+        "venue": "home",
+        "gf": 2,
+        "ga": 1,
+        "opp": "Seattle Sounders"
+      },
+      {
+        "date": "2026-08-16",
+        "venue": "away",
+        "gf": 1,
+        "ga": 2,
+        "opp": "Chicago Fire"
+      },
+      {
+        "date": "2026-08-20",
+        "venue": "home",
+        "gf": 3,
+        "ga": 1,
+        "opp": "San Diego"
+      },
+      {
+        "date": "2026-08-23",
+        "venue": "away",
+        "gf": 1,
+        "ga": 1,
+        "opp": "Los Angeles FC"
+      },
+      {
+        "date": "2026-08-30",
+        "venue": "home",
+        "gf": 1,
+        "ga": 2,
+        "opp": "Austin"
+      }
+    ],
+    "away_season_games": [
+      {
+        "date": "2026-02-22",
+        "venue": "away",
+        "gf": 2,
+        "ga": 2,
+        "opp": "Austin"
+      },
+      {
+        "date": "2026-02-28",
+        "venue": "home",
+        "gf": 1,
+        "ga": 0,
+        "opp": "FC Cincinnati"
+      },
+      {
+        "date": "2026-03-08",
+        "venue": "away",
+        "gf": 1,
+        "ga": 3,
+        "opp": "Nashville SC"
+      },
+      {
+        "date": "2026-03-15",
+        "venue": "away",
+        "gf": 0,
+        "ga": 6,
+        "opp": "Vancouver Whitecaps"
+      },
+      {
+        "date": "2026-03-22",
+        "venue": "home",
+        "gf": 0,
+        "ga": 0,
+        "opp": "Seattle Sounders"
+      },
+      {
+        "date": "2026-04-05",
+        "venue": "away",
+        "gf": 2,
+        "ga": 1,
+        "opp": "Los Angeles Galaxy"
+      },
+      {
+        "date": "2026-04-12",
+        "venue": "away",
+        "gf": 2,
+        "ga": 1,
+        "opp": "San Diego"
+      },
+      {
+        "date": "2026-04-19",
+        "venue": "home",
+        "gf": 2,
+        "ga": 0,
+        "opp": "Portland Timbers"
+      },
+      {
+        "date": "2026-04-23",
+        "venue": "away",
+        "gf": 1,
+        "ga": 0,
+        "opp": "FC Dallas"
+      },
+      {
+        "date": "2026-04-25",
+        "venue": "home",
+        "gf": 0,
+        "ga": 1,
+        "opp": "Los Angeles FC"
+      },
+      {
+        "date": "2026-05-02",
+        "venue": "away",
+        "gf": 3,
+        "ga": 2,
+        "opp": "Columbus Crew"
+      },
+      {
+        "date": "2026-05-10",
+        "venue": "home",
+        "gf": 2,
+        "ga": 2,
+        "opp": "Austin"
+      },
+      {
+        "date": "2026-05-14",
+        "venue": "home",
+        "gf": 0,
+        "ga": 1,
+        "opp": "Colorado Rapids"
+      },
+      {
+        "date": "2026-05-16",
+        "venue": "away",
+        "gf": 1,
+        "ga": 2,
+        "opp": "New England Revolution"
+      },
+      {
+        "date": "2026-05-23",
+        "venue": "home",
+        "gf": 1,
+        "ga": 1,
+        "opp": "Real Salt Lake"
+      },
+      {
+        "date": "2026-07-23",
+        "venue": "away",
+        "gf": 1,
+        "ga": 2,
+        "opp": "Sporting Kansas City"
+      },
+      {
+        "date": "2026-07-26",
+        "venue": "home",
+        "gf": 0,
+        "ga": 0,
+        "opp": "Vancouver Whitecaps"
+      },
+      {
+        "date": "2026-08-02",
+        "venue": "home",
+        "gf": 1,
+        "ga": 1,
+        "opp": "San Diego"
+      },
+      {
+        "date": "2026-08-16",
+        "venue": "away",
+        "gf": 1,
+        "ga": 1,
+        "opp": "Real Salt Lake"
+      },
+      {
+        "date": "2026-08-20",
+        "venue": "home",
+        "gf": 1,
+        "ga": 2,
+        "opp": "Atlanta United FC"
+      },
+      {
+        "date": "2026-08-23",
+        "venue": "away",
+        "gf": 5,
+        "ga": 1,
+        "opp": "San Jose Earthquakes"
+      },
+      {
+        "date": "2026-08-30",
+        "venue": "home",
+        "gf": 3,
+        "ga": 3,
+        "opp": "Orlando City SC"
+      }
+    ],
+    "h2h": [
+      {
+        "date": "2022-09-11",
+        "home": "Portland Timbers",
+        "away": "Minnesota United FC",
+        "home_goals": 1,
+        "away_goals": 0
+      },
+      {
+        "date": "2023-05-21",
+        "home": "Portland Timbers",
+        "away": "Minnesota United FC",
+        "home_goals": 0,
+        "away_goals": 1
+      },
+      {
+        "date": "2023-07-02",
+        "home": "Minnesota United FC",
+        "away": "Portland Timbers",
+        "home_goals": 4,
+        "away_goals": 1
+      },
+      {
+        "date": "2024-05-19",
+        "home": "Minnesota United FC",
+        "away": "Portland Timbers",
+        "home_goals": 2,
+        "away_goals": 1
+      },
+      {
+        "date": "2024-06-30",
+        "home": "Portland Timbers",
+        "away": "Minnesota United FC",
+        "home_goals": 3,
+        "away_goals": 2
+      },
+      {
+        "date": "2025-07-20",
+        "home": "Portland Timbers",
+        "away": "Minnesota United FC",
+        "home_goals": 1,
+        "away_goals": 1
+      },
+      {
+        "date": "2025-08-31",
+        "home": "Minnesota United FC",
+        "away": "Portland Timbers",
+        "home_goals": 1,
+        "away_goals": 1
+      },
+      {
+        "date": "2026-04-19",
+        "home": "Minnesota United FC",
+        "away": "Portland Timbers",
+        "home_goals": 2,
+        "away_goals": 0
+      }
+    ],
+    "home_attackers": [
+      {
+        "player_id": 174607,
+        "name": "David Pereira da Costa",
+        "starts_in_window": 15,
+        "starts_tracked": 10,
+        "goals_in_tracked": 2,
+        "goals_per_start": 0.2
+      },
+      {
+        "player_id": 51312,
+        "name": "C. Bassett",
+        "starts_in_window": 15,
+        "starts_tracked": 10,
+        "goals_in_tracked": 1,
+        "goals_per_start": 0.1
+      },
+      {
+        "player_id": 39244,
+        "name": "K. Velde",
+        "starts_in_window": 13,
+        "starts_tracked": 10,
+        "goals_in_tracked": 2,
+        "goals_per_start": 0.2
+      }
+    ],
+    "away_attackers": [
+      {
+        "player_id": 351496,
+        "name": "A. Markanich",
+        "starts_in_window": 15,
+        "starts_tracked": 10,
+        "goals_in_tracked": 4,
+        "goals_per_start": 0.4
+      },
+      {
+        "player_id": 6517,
+        "name": "J. Pereyra",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 2,
+        "goals_per_start": 0.2
+      },
+      {
+        "player_id": 289630,
+        "name": "O. Gene",
+        "starts_in_window": 13,
+        "starts_tracked": 10,
+        "goals_in_tracked": 0,
+        "goals_per_start": 0.0
+      }
+    ]
+  },
+  {
+    "competition": "BUNDESLIGA",
+    "fixture_id": 1575156,
+    "date": "2026-09-05T16:30:00+00:00",
+    "home": "FC Schalke 04",
+    "home_id": 174,
+    "away": "Bayern M\u00fcnchen",
+    "away_id": 157,
+    "home_venue_games": [
+      {
+        "date": "2023-03-11",
+        "home": "FC Schalke 04",
+        "away": "Borussia Dortmund",
+        "home_goals": 2,
+        "away_goals": 2,
+        "shots": 10,
+        "on_target": 4,
+        "inside_box": 5,
+        "xg": 1.51
+      },
+      {
+        "date": "2023-04-01",
+        "home": "FC Schalke 04",
+        "away": "Bayer Leverkusen",
+        "home_goals": 0,
+        "away_goals": 3,
+        "shots": 12,
+        "on_target": 3,
+        "inside_box": 6,
+        "xg": 1.12
+      },
+      {
+        "date": "2023-04-14",
+        "home": "FC Schalke 04",
+        "away": "Hertha Berlin",
+        "home_goals": 5,
+        "away_goals": 2,
+        "shots": 14,
+        "on_target": 7,
+        "inside_box": 6,
+        "xg": 2.19
+      },
+      {
+        "date": "2023-04-29",
+        "home": "FC Schalke 04",
+        "away": "Werder Bremen",
+        "home_goals": 2,
+        "away_goals": 1,
+        "shots": 19,
+        "on_target": 10,
+        "inside_box": 14,
+        "xg": 1.56
+      },
+      {
+        "date": "2023-05-20",
+        "home": "FC Schalke 04",
+        "away": "Eintracht Frankfurt",
+        "home_goals": 2,
+        "away_goals": 2,
+        "shots": 11,
+        "on_target": 4,
+        "inside_box": 7,
+        "xg": 1.0
+      }
+    ],
+    "away_venue_games": [
+      {
+        "date": "2026-03-14",
+        "home": "Bayer Leverkusen",
+        "away": "Bayern M\u00fcnchen",
+        "home_goals": 1,
+        "away_goals": 1,
+        "shots": 11,
+        "on_target": 5,
+        "inside_box": 10,
+        "xg": 1.26
+      },
+      {
+        "date": "2026-04-04",
+        "home": "SC Freiburg",
+        "away": "Bayern M\u00fcnchen",
+        "home_goals": 2,
+        "away_goals": 3,
+        "shots": 21,
+        "on_target": 9,
+        "inside_box": 11,
+        "xg": 3.0
+      },
+      {
+        "date": "2026-04-11",
+        "home": "FC St. Pauli",
+        "away": "Bayern M\u00fcnchen",
+        "home_goals": 0,
+        "away_goals": 5,
+        "shots": 20,
+        "on_target": 8,
+        "inside_box": 16,
+        "xg": 3.84
+      },
+      {
+        "date": "2026-04-25",
+        "home": "FSV Mainz 05",
+        "away": "Bayern M\u00fcnchen",
+        "home_goals": 3,
+        "away_goals": 4,
+        "shots": 11,
+        "on_target": 6,
+        "inside_box": 10,
+        "xg": 2.21
+      },
+      {
+        "date": "2026-05-09",
+        "home": "VfL Wolfsburg",
+        "away": "Bayern M\u00fcnchen",
+        "home_goals": 0,
+        "away_goals": 1,
+        "shots": 16,
+        "on_target": 9,
+        "inside_box": 9,
+        "xg": 1.85
+      }
+    ],
+    "home_season_games": [
+      {
+        "date": "2026-08-30",
+        "venue": "away",
+        "gf": 0,
+        "ga": 3,
+        "opp": "FC Augsburg"
+      }
+    ],
+    "away_season_games": [
+      {
+        "date": "2026-08-28",
+        "venue": "home",
+        "gf": 5,
+        "ga": 1,
+        "opp": "VfB Stuttgart"
+      }
+    ],
+    "h2h": [],
+    "home_attackers": [
+      {
+        "player_id": 1234,
+        "name": "A. Kr\u00e1l",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 0,
+        "goals_per_start": 0.0
+      },
+      {
+        "player_id": 25242,
+        "name": "M. B\u00fclter",
+        "starts_in_window": 13,
+        "starts_tracked": 10,
+        "goals_in_tracked": 2,
+        "goals_per_start": 0.2
+      },
+      {
+        "player_id": 1156,
+        "name": "T. Krau\u00df",
+        "starts_in_window": 11,
+        "starts_tracked": 10,
+        "goals_in_tracked": 0,
+        "goals_per_start": 0.0
+      }
+    ],
+    "away_attackers": [
+      {
+        "player_id": 502,
+        "name": "J. Kimmich",
+        "starts_in_window": 13,
+        "starts_tracked": 10,
+        "goals_in_tracked": 1,
+        "goals_per_start": 0.1
+      },
+      {
+        "player_id": 2489,
+        "name": "L. D\u00edaz",
+        "starts_in_window": 11,
+        "starts_tracked": 10,
+        "goals_in_tracked": 3,
+        "goals_per_start": 0.3
+      },
+      {
+        "player_id": 511,
+        "name": "L. Goretzka",
+        "starts_in_window": 10,
+        "starts_tracked": 10,
+        "goals_in_tracked": 4,
+        "goals_per_start": 0.4
+      }
+    ]
+  },
+  {
+    "competition": "MLS",
+    "fixture_id": 1490437,
+    "date": "2026-09-05T23:30:00+00:00",
+    "home": "Inter Miami",
+    "home_id": 9568,
+    "away": "Atlanta United FC",
+    "away_id": 1608,
+    "home_venue_games": [
+      {
+        "date": "2026-05-24",
+        "home": "Inter Miami",
+        "away": "Philadelphia Union",
+        "home_goals": 6,
+        "away_goals": 4,
+        "shots": 17,
+        "on_target": 10,
+        "inside_box": 16,
+        "xg": 5.1
+      },
+      {
+        "date": "2026-07-22",
+        "home": "Inter Miami",
+        "away": "Chicago Fire",
+        "home_goals": 3,
+        "away_goals": 2,
+        "shots": 14,
+        "on_target": 7,
+        "inside_box": 7,
+        "xg": 2.11
+      },
+      {
+        "date": "2026-08-01",
+        "home": "Inter Miami",
+        "away": "Columbus Crew",
+        "home_goals": 2,
+        "away_goals": 2,
+        "shots": null,
+        "on_target": null,
+        "inside_box": null,
+        "xg": null
+      },
+      {
+        "date": "2026-08-22",
+        "home": "Inter Miami",
+        "away": "Toronto FC",
+        "home_goals": 1,
+        "away_goals": 2,
+        "shots": 10,
+        "on_target": 3,
+        "inside_box": 7,
+        "xg": 1.83
+      },
+      {
+        "date": "2026-08-29",
+        "home": "Inter Miami",
+        "away": "CF Montreal",
+        "home_goals": 7,
+        "away_goals": 1,
+        "shots": 20,
+        "on_target": 11,
+        "inside_box": 13,
+        "xg": 3.04
+      }
+    ],
+    "away_venue_games": [
+      {
+        "date": "2026-07-18",
+        "home": "Nashville SC",
+        "away": "Atlanta United FC",
+        "home_goals": 1,
+        "away_goals": 0,
+        "shots": 12,
+        "on_target": 5,
+        "inside_box": 9,
+        "xg": 1.77
+      },
+      {
+        "date": "2026-07-23",
+        "home": "Charlotte",
+        "away": "Atlanta United FC",
+        "home_goals": 2,
+        "away_goals": 2,
+        "shots": 12,
+        "on_target": 6,
+        "inside_box": 10,
+        "xg": 1.63
+      },
+      {
+        "date": "2026-07-25",
+        "home": "New England Revolution",
+        "away": "Atlanta United FC",
+        "home_goals": 4,
+        "away_goals": 1,
+        "shots": 17,
+        "on_target": 6,
+        "inside_box": 10,
+        "xg": 1.44
+      },
+      {
+        "date": "2026-08-01",
+        "home": "Philadelphia Union",
+        "away": "Atlanta United FC",
+        "home_goals": 3,
+        "away_goals": 2,
+        "shots": 4,
+        "on_target": 2,
+        "inside_box": 3,
+        "xg": 0.53
+      },
+      {
+        "date": "2026-08-20",
+        "home": "Minnesota United FC",
+        "away": "Atlanta United FC",
+        "home_goals": 1,
+        "away_goals": 2,
+        "shots": 10,
+        "on_target": 3,
+        "inside_box": 6,
+        "xg": 0.95
+      }
+    ],
+    "home_season_games": [
+      {
+        "date": "2026-02-22",
+        "venue": "away",
+        "gf": 0,
+        "ga": 3,
+        "opp": "Los Angeles FC"
+      },
+      {
+        "date": "2026-03-02",
+        "venue": "away",
+        "gf": 4,
+        "ga": 2,
+        "opp": "Orlando City SC"
+      },
+      {
+        "date": "2026-03-07",
+        "venue": "away",
+        "gf": 2,
+        "ga": 1,
+        "opp": "DC United"
+      },
+      {
+        "date": "2026-03-14",
+        "venue": "away",
+        "gf": 0,
+        "ga": 0,
+        "opp": "Charlotte"
+      },
+      {
+        "date": "2026-03-22",
+        "venue": "away",
+        "gf": 3,
+        "ga": 2,
+        "opp": "New York City FC"
+      },
+      {
+        "date": "2026-04-04",
+        "venue": "home",
+        "gf": 2,
+        "ga": 2,
+        "opp": "Austin"
+      },
+      {
+        "date": "2026-04-11",
+        "venue": "home",
+        "gf": 2,
+        "ga": 2,
+        "opp": "New York Red Bulls"
+      },
+      {
+        "date": "2026-04-18",
+        "venue": "away",
+        "gf": 3,
+        "ga": 2,
+        "opp": "Colorado Rapids"
+      },
+      {
+        "date": "2026-04-23",
+        "venue": "away",
+        "gf": 2,
+        "ga": 0,
+        "opp": "Real Salt Lake"
+      },
+      {
+        "date": "2026-04-25",
+        "venue": "home",
+        "gf": 1,
+        "ga": 1,
+        "opp": "New England Revolution"
+      },
+      {
+        "date": "2026-05-02",
+        "venue": "home",
+        "gf": 3,
+        "ga": 4,
+        "opp": "Orlando City SC"
+      },
+      {
+        "date": "2026-05-09",
+        "venue": "away",
+        "gf": 4,
+        "ga": 2,
+        "opp": "Toronto FC"
+      },
+      {
+        "date": "2026-05-13",
+        "venue": "away",
+        "gf": 5,
+        "ga": 3,
+        "opp": "FC Cincinnati"
+      },
+      {
+        "date": "2026-05-17",
+        "venue": "home",
+        "gf": 2,
+        "ga": 0,
+        "opp": "Portland Timbers"
+      },
+      {
+        "date": "2026-05-24",
+        "venue": "home",
+        "gf": 6,
+        "ga": 4,
+        "opp": "Philadelphia Union"
+      },
+      {
+        "date": "2026-07-22",
+        "venue": "home",
+        "gf": 3,
+        "ga": 2,
+        "opp": "Chicago Fire"
+      },
+      {
+        "date": "2026-07-25",
+        "venue": "away",
+        "gf": 1,
+        "ga": 0,
+        "opp": "CF Montreal"
+      },
+      {
+        "date": "2026-08-01",
+        "venue": "home",
+        "gf": 2,
+        "ga": 2,
+        "opp": "Columbus Crew"
+      },
+      {
+        "date": "2026-08-16",
+        "venue": "away",
+        "gf": 1,
+        "ga": 4,
+        "opp": "Nashville SC"
+      },
+      {
+        "date": "2026-08-19",
+        "venue": "away",
+        "gf": 2,
+        "ga": 2,
+        "opp": "Philadelphia Union"
+      },
+      {
+        "date": "2026-08-22",
+        "venue": "home",
+        "gf": 1,
+        "ga": 2,
+        "opp": "Toronto FC"
+      },
+      {
+        "date": "2026-08-29",
+        "venue": "home",
+        "gf": 7,
+        "ga": 1,
+        "opp": "CF Montreal"
+      }
+    ],
+    "away_season_games": [
+      {
+        "date": "2026-02-21",
+        "venue": "away",
+        "gf": 0,
+        "ga": 2,
+        "opp": "FC Cincinnati"
+      },
+      {
+        "date": "2026-03-01",
+        "venue": "away",
+        "gf": 0,
+        "ga": 2,
+        "opp": "San Jose Earthquakes"
+      },
+      {
+        "date": "2026-03-08",
+        "venue": "home",
+        "gf": 2,
+        "ga": 3,
+        "opp": "Real Salt Lake"
+      },
+      {
+        "date": "2026-03-14",
+        "venue": "home",
+        "gf": 3,
+        "ga": 1,
+        "opp": "Philadelphia Union"
+      },
+      {
+        "date": "2026-03-21",
+        "venue": "home",
+        "gf": 0,
+        "ga": 0,
+        "opp": "DC United"
+      },
+      {
+        "date": "2026-04-04",
+        "venue": "home",
+        "gf": 1,
+        "ga": 3,
+        "opp": "Columbus Crew"
+      },
+      {
+        "date": "2026-04-12",
+        "venue": "away",
+        "gf": 0,
+        "ga": 1,
+        "opp": "Chicago Fire"
+      },
+      {
+        "date": "2026-04-18",
+        "venue": "home",
+        "gf": 0,
+        "ga": 2,
+        "opp": "Nashville SC"
+      },
+      {
+        "date": "2026-04-22",
+        "venue": "home",
+        "gf": 1,
+        "ga": 2,
+        "opp": "New England Revolution"
+      },
+      {
+        "date": "2026-04-25",
+        "venue": "away",
+        "gf": 2,
+        "ga": 1,
+        "opp": "Toronto FC"
+      },
+      {
+        "date": "2026-05-02",
+        "venue": "home",
+        "gf": 3,
+        "ga": 1,
+        "opp": "CF Montreal"
+      },
+      {
+        "date": "2026-05-09",
+        "venue": "home",
+        "gf": 1,
+        "ga": 2,
+        "opp": "Los Angeles Galaxy"
+      },
+      {
+        "date": "2026-05-16",
+        "venue": "away",
+        "gf": 1,
+        "ga": 1,
+        "opp": "Orlando City SC"
+      },
+      {
+        "date": "2026-05-24",
+        "venue": "away",
+        "gf": 0,
+        "ga": 2,
+        "opp": "Columbus Crew"
+      },
+      {
+        "date": "2026-07-18",
+        "venue": "away",
+        "gf": 0,
+        "ga": 1,
+        "opp": "Nashville SC"
+      },
+      {
+        "date": "2026-07-23",
+        "venue": "away",
+        "gf": 2,
+        "ga": 2,
+        "opp": "Charlotte"
+      },
+      {
+        "date": "2026-07-25",
+        "venue": "away",
+        "gf": 1,
+        "ga": 4,
+        "opp": "New England Revolution"
+      },
+      {
+        "date": "2026-08-01",
+        "venue": "away",
+        "gf": 2,
+        "ga": 3,
+        "opp": "Philadelphia Union"
+      },
+      {
+        "date": "2026-08-15",
+        "venue": "home",
+        "gf": 2,
+        "ga": 1,
+        "opp": "New York Red Bulls"
+      },
+      {
+        "date": "2026-08-20",
+        "venue": "away",
+        "gf": 2,
+        "ga": 1,
+        "opp": "Minnesota United FC"
+      },
+      {
+        "date": "2026-08-23",
+        "venue": "home",
+        "gf": 2,
+        "ga": 1,
+        "opp": "Sporting Kansas City"
+      },
+      {
+        "date": "2026-08-29",
+        "venue": "home",
+        "gf": 0,
+        "ga": 2,
+        "opp": "Charlotte"
+      }
+    ],
+    "h2h": [
+      {
+        "date": "2023-09-16",
+        "home": "Atlanta United FC",
+        "away": "Inter Miami",
+        "home_goals": 5,
+        "away_goals": 2
+      },
+      {
+        "date": "2024-05-29",
+        "home": "Inter Miami",
+        "away": "Atlanta United FC",
+        "home_goals": 1,
+        "away_goals": 3
+      },
+      {
+        "date": "2024-09-18",
+        "home": "Atlanta United FC",
+        "away": "Inter Miami",
+        "home_goals": 2,
+        "away_goals": 2
+      },
+      {
+        "date": "2024-10-26",
+        "home": "Inter Miami",
+        "away": "Atlanta United FC",
+        "home_goals": 2,
+        "away_goals": 1
+      },
+      {
+        "date": "2024-11-02",
+        "home": "Atlanta United FC",
+        "away": "Inter Miami",
+        "home_goals": 2,
+        "away_goals": 1
+      },
+      {
+        "date": "2024-11-10",
+        "home": "Inter Miami",
+        "away": "Atlanta United FC",
+        "home_goals": 2,
+        "away_goals": 3
+      },
+      {
+        "date": "2025-03-16",
+        "home": "Atlanta United FC",
+        "away": "Inter Miami",
+        "home_goals": 1,
+        "away_goals": 2
+      },
+      {
+        "date": "2025-10-11",
+        "home": "Inter Miami",
+        "away": "Atlanta United FC",
+        "home_goals": 4,
+        "away_goals": 0
+      }
+    ],
+    "home_attackers": [
+      {
+        "player_id": 157,
+        "name": "L. Su\u00e1rez",
+        "starts_in_window": 13,
+        "starts_tracked": 10,
+        "goals_in_tracked": 8,
+        "goals_per_start": 0.8
+      },
+      {
+        "player_id": 144303,
+        "name": "T. Segovia",
+        "starts_in_window": 13,
+        "starts_tracked": 10,
+        "goals_in_tracked": 1,
+        "goals_per_start": 0.1
+      },
+      {
+        "player_id": 154,
+        "name": "L. Messi",
+        "starts_in_window": 12,
+        "starts_tracked": 10,
+        "goals_in_tracked": 10,
+        "goals_per_start": 1.0
+      }
+    ],
+    "away_attackers": [
+      {
+        "player_id": 484,
+        "name": "A. Miranchuk",
+        "starts_in_window": 15,
+        "starts_tracked": 10,
+        "goals_in_tracked": 0,
+        "goals_per_start": 0.0
+      },
+      {
+        "player_id": 87301,
+        "name": "T. Muyumba",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 3,
+        "goals_per_start": 0.3
+      },
+      {
+        "player_id": 414128,
+        "name": "C. Sanchez",
+        "starts_in_window": 13,
+        "starts_tracked": 10,
+        "goals_in_tracked": 0,
+        "goals_per_start": 0.0
+      }
+    ]
+  },
+  {
+    "competition": "EREDIVISIE",
+    "fixture_id": 1552154,
+    "date": "2026-09-05T14:30:00+00:00",
+    "home": "NEC Nijmegen",
+    "home_id": 413,
+    "away": "Feyenoord",
+    "away_id": 209,
+    "home_venue_games": [
+      {
+        "date": "2026-03-22",
+        "home": "NEC Nijmegen",
+        "away": "Heerenveen",
+        "home_goals": 2,
+        "away_goals": 2,
+        "shots": 22,
+        "on_target": 10,
+        "inside_box": 14,
+        "xg": 2.22
+      },
+      {
+        "date": "2026-04-12",
+        "home": "NEC Nijmegen",
+        "away": "Feyenoord",
+        "home_goals": 1,
+        "away_goals": 1,
+        "shots": 15,
+        "on_target": 4,
+        "inside_box": 12,
+        "xg": 2.04
+      },
+      {
+        "date": "2026-05-02",
+        "home": "NEC Nijmegen",
+        "away": "Telstar",
+        "home_goals": 1,
+        "away_goals": 1,
+        "shots": 21,
+        "on_target": 7,
+        "inside_box": 17,
+        "xg": 2.11
+      },
+      {
+        "date": "2026-05-17",
+        "home": "NEC Nijmegen",
+        "away": "GO Ahead Eagles",
+        "home_goals": 2,
+        "away_goals": 1,
+        "shots": 37,
+        "on_target": 12,
+        "inside_box": 26,
+        "xg": 4.44
+      },
+      {
+        "date": "2026-08-08",
+        "home": "NEC Nijmegen",
+        "away": "Telstar",
+        "home_goals": 1,
+        "away_goals": 2,
+        "shots": 27,
+        "on_target": 4,
+        "inside_box": 17,
+        "xg": 2.15
+      }
+    ],
+    "away_venue_games": [
+      {
+        "date": "2026-04-12",
+        "home": "NEC Nijmegen",
+        "away": "Feyenoord",
+        "home_goals": 1,
+        "away_goals": 1,
+        "shots": 13,
+        "on_target": 5,
+        "inside_box": 8,
+        "xg": 1.68
+      },
+      {
+        "date": "2026-05-03",
+        "home": "Fortuna Sittard",
+        "away": "Feyenoord",
+        "home_goals": 1,
+        "away_goals": 2,
+        "shots": 19,
+        "on_target": 7,
+        "inside_box": 13,
+        "xg": 2.5
+      },
+      {
+        "date": "2026-05-17",
+        "home": "PEC Zwolle",
+        "away": "Feyenoord",
+        "home_goals": 0,
+        "away_goals": 2,
+        "shots": 22,
+        "on_target": 8,
+        "inside_box": 14,
+        "xg": 3.21
+      },
+      {
+        "date": "2026-08-09",
+        "home": "Sparta Rotterdam",
+        "away": "Feyenoord",
+        "home_goals": 0,
+        "away_goals": 1,
+        "shots": 22,
+        "on_target": 6,
+        "inside_box": 17,
+        "xg": 3.53
+      },
+      {
+        "date": "2026-08-23",
+        "home": "Cambuur",
+        "away": "Feyenoord",
+        "home_goals": 2,
+        "away_goals": 5,
+        "shots": 14,
+        "on_target": 7,
+        "inside_box": 9,
+        "xg": 2.62
+      }
+    ],
+    "home_season_games": [
+      {
+        "date": "2026-08-08",
+        "venue": "home",
+        "gf": 1,
+        "ga": 2,
+        "opp": "Telstar"
+      },
+      {
+        "date": "2026-08-15",
+        "venue": "away",
+        "gf": 4,
+        "ga": 1,
+        "opp": "Willem II"
+      },
+      {
+        "date": "2026-08-29",
+        "venue": "away",
+        "gf": 3,
+        "ga": 1,
+        "opp": "PEC Zwolle"
+      }
+    ],
+    "away_season_games": [
+      {
+        "date": "2026-08-09",
+        "venue": "away",
+        "gf": 1,
+        "ga": 0,
+        "opp": "Sparta Rotterdam"
+      },
+      {
+        "date": "2026-08-16",
+        "venue": "home",
+        "gf": 2,
+        "ga": 2,
+        "opp": "GO Ahead Eagles"
+      },
+      {
+        "date": "2026-08-23",
+        "venue": "away",
+        "gf": 5,
+        "ga": 2,
+        "opp": "Cambuur"
+      },
+      {
+        "date": "2026-08-30",
+        "venue": "home",
+        "gf": 2,
+        "ga": 2,
+        "opp": "ADO Den Haag"
+      }
+    ],
+    "h2h": [
+      {
+        "date": "2022-10-02",
+        "home": "NEC Nijmegen",
+        "away": "Feyenoord",
+        "home_goals": 1,
+        "away_goals": 1
+      },
+      {
+        "date": "2023-01-25",
+        "home": "Feyenoord",
+        "away": "NEC Nijmegen",
+        "home_goals": 2,
+        "away_goals": 0
+      },
+      {
+        "date": "2024-01-14",
+        "home": "Feyenoord",
+        "away": "NEC Nijmegen",
+        "home_goals": 2,
+        "away_goals": 2
+      },
+      {
+        "date": "2024-05-12",
+        "home": "NEC Nijmegen",
+        "away": "Feyenoord",
+        "home_goals": 2,
+        "away_goals": 3
+      },
+      {
+        "date": "2024-09-28",
+        "home": "NEC Nijmegen",
+        "away": "Feyenoord",
+        "home_goals": 1,
+        "away_goals": 1
+      },
+      {
+        "date": "2025-03-01",
+        "home": "Feyenoord",
+        "away": "NEC Nijmegen",
+        "home_goals": 0,
+        "away_goals": 0
+      },
+      {
+        "date": "2025-11-23",
+        "home": "Feyenoord",
+        "away": "NEC Nijmegen",
+        "home_goals": 2,
+        "away_goals": 4
+      },
+      {
+        "date": "2026-04-12",
+        "home": "NEC Nijmegen",
+        "away": "Feyenoord",
+        "home_goals": 1,
+        "away_goals": 1
+      }
+    ],
+    "home_attackers": [
+      {
+        "player_id": 50120,
+        "name": "T. Chery",
+        "starts_in_window": 15,
+        "starts_tracked": 10,
+        "goals_in_tracked": 6,
+        "goals_per_start": 0.6
+      },
+      {
+        "player_id": 14343,
+        "name": "D. Neja\u0161mi\u0107",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 1,
+        "goals_per_start": 0.1
+      },
+      {
+        "player_id": 37134,
+        "name": "B. Linssen",
+        "starts_in_window": 13,
+        "starts_tracked": 10,
+        "goals_in_tracked": 5,
+        "goals_per_start": 0.5
+      }
+    ],
+    "away_attackers": [
+      {
+        "player_id": 314266,
+        "name": "L. Valente",
+        "starts_in_window": 15,
+        "starts_tracked": 10,
+        "goals_in_tracked": 2,
+        "goals_per_start": 0.2
+      },
+      {
+        "player_id": 72155,
+        "name": "A. Ueda",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 6,
+        "goals_per_start": 0.6
+      },
+      {
+        "player_id": 326067,
+        "name": "A. Hadj-Moussa",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 4,
+        "goals_per_start": 0.4
+      }
+    ]
+  },
+  {
+    "competition": "EREDIVISIE",
+    "fixture_id": 1552136,
+    "date": "2026-09-08T16:45:00+00:00",
+    "home": "NEC Nijmegen",
+    "home_id": 413,
+    "away": "Excelsior",
+    "away_id": 196,
+    "home_venue_games": [
+      {
+        "date": "2026-03-22",
+        "home": "NEC Nijmegen",
+        "away": "Heerenveen",
+        "home_goals": 2,
+        "away_goals": 2,
+        "shots": 22,
+        "on_target": 10,
+        "inside_box": 14,
+        "xg": 2.22
+      },
+      {
+        "date": "2026-04-12",
+        "home": "NEC Nijmegen",
+        "away": "Feyenoord",
+        "home_goals": 1,
+        "away_goals": 1,
+        "shots": 15,
+        "on_target": 4,
+        "inside_box": 12,
+        "xg": 2.04
+      },
+      {
+        "date": "2026-05-02",
+        "home": "NEC Nijmegen",
+        "away": "Telstar",
+        "home_goals": 1,
+        "away_goals": 1,
+        "shots": 21,
+        "on_target": 7,
+        "inside_box": 17,
+        "xg": 2.11
+      },
+      {
+        "date": "2026-05-17",
+        "home": "NEC Nijmegen",
+        "away": "GO Ahead Eagles",
+        "home_goals": 2,
+        "away_goals": 1,
+        "shots": 37,
+        "on_target": 12,
+        "inside_box": 26,
+        "xg": 4.44
+      },
+      {
+        "date": "2026-08-08",
+        "home": "NEC Nijmegen",
+        "away": "Telstar",
+        "home_goals": 1,
+        "away_goals": 2,
+        "shots": 27,
+        "on_target": 4,
+        "inside_box": 17,
+        "xg": 2.15
+      }
+    ],
+    "away_venue_games": [
+      {
+        "date": "2026-03-20",
+        "home": "Heracles",
+        "away": "Excelsior",
+        "home_goals": 1,
+        "away_goals": 1,
+        "shots": 15,
+        "on_target": 4,
+        "inside_box": 8,
+        "xg": 1.06
+      },
+      {
+        "date": "2026-04-12",
+        "home": "PEC Zwolle",
+        "away": "Excelsior",
+        "home_goals": 2,
+        "away_goals": 2,
+        "shots": 16,
+        "on_target": 3,
+        "inside_box": 9,
+        "xg": 1.5
+      },
+      {
+        "date": "2026-05-02",
+        "home": "Groningen",
+        "away": "Excelsior",
+        "home_goals": 2,
+        "away_goals": 3,
+        "shots": 18,
+        "on_target": 9,
+        "inside_box": 13,
+        "xg": 2.38
+      },
+      {
+        "date": "2026-05-17",
+        "home": "Sparta Rotterdam",
+        "away": "Excelsior",
+        "home_goals": 2,
+        "away_goals": 3,
+        "shots": 16,
+        "on_target": 4,
+        "inside_box": 6,
+        "xg": 0.95
+      },
+      {
+        "date": "2026-08-07",
+        "home": "Cambuur",
+        "away": "Excelsior",
+        "home_goals": 0,
+        "away_goals": 4,
+        "shots": 18,
+        "on_target": 9,
+        "inside_box": 14,
+        "xg": 3.35
+      }
+    ],
+    "home_season_games": [
+      {
+        "date": "2026-08-08",
+        "venue": "home",
+        "gf": 1,
+        "ga": 2,
+        "opp": "Telstar"
+      },
+      {
+        "date": "2026-08-15",
+        "venue": "away",
+        "gf": 4,
+        "ga": 1,
+        "opp": "Willem II"
+      },
+      {
+        "date": "2026-08-29",
+        "venue": "away",
+        "gf": 3,
+        "ga": 1,
+        "opp": "PEC Zwolle"
+      }
+    ],
+    "away_season_games": [
+      {
+        "date": "2026-08-07",
+        "venue": "away",
+        "gf": 4,
+        "ga": 0,
+        "opp": "Cambuur"
+      },
+      {
+        "date": "2026-08-15",
+        "venue": "home",
+        "gf": 1,
+        "ga": 2,
+        "opp": "PSV Eindhoven"
+      },
+      {
+        "date": "2026-08-29",
+        "venue": "home",
+        "gf": 2,
+        "ga": 1,
+        "opp": "Sparta Rotterdam"
+      }
+    ],
+    "h2h": [
+      {
+        "date": "2022-10-08",
+        "home": "NEC Nijmegen",
+        "away": "Excelsior",
+        "home_goals": 1,
+        "away_goals": 1
+      },
+      {
+        "date": "2023-02-19",
+        "home": "Excelsior",
+        "away": "NEC Nijmegen",
+        "home_goals": 0,
+        "away_goals": 3
+      },
+      {
+        "date": "2023-08-13",
+        "home": "NEC Nijmegen",
+        "away": "Excelsior",
+        "home_goals": 3,
+        "away_goals": 4
+      },
+      {
+        "date": "2024-05-06",
+        "home": "Excelsior",
+        "away": "NEC Nijmegen",
+        "home_goals": 0,
+        "away_goals": 3
+      },
+      {
+        "date": "2025-08-09",
+        "home": "NEC Nijmegen",
+        "away": "Excelsior",
+        "home_goals": 5,
+        "away_goals": 0
+      },
+      {
+        "date": "2026-04-04",
+        "home": "Excelsior",
+        "away": "NEC Nijmegen",
+        "home_goals": 0,
+        "away_goals": 2
+      }
+    ],
+    "home_attackers": [
+      {
+        "player_id": 50120,
+        "name": "T. Chery",
+        "starts_in_window": 15,
+        "starts_tracked": 10,
+        "goals_in_tracked": 6,
+        "goals_per_start": 0.6
+      },
+      {
+        "player_id": 14343,
+        "name": "D. Neja\u0161mi\u0107",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 1,
+        "goals_per_start": 0.1
+      },
+      {
+        "player_id": 37134,
+        "name": "B. Linssen",
+        "starts_in_window": 13,
+        "starts_tracked": 10,
+        "goals_in_tracked": 5,
+        "goals_per_start": 0.5
+      }
+    ],
+    "away_attackers": [
+      {
+        "player_id": 319518,
+        "name": "L. Hartjes",
+        "starts_in_window": 15,
+        "starts_tracked": 10,
+        "goals_in_tracked": 1,
+        "goals_per_start": 0.1
+      },
+      {
+        "player_id": 371231,
+        "name": "I. Yegoian",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 2,
+        "goals_per_start": 0.2
+      },
+      {
+        "player_id": 321632,
+        "name": "N. Naujoks",
+        "starts_in_window": 13,
+        "starts_tracked": 10,
+        "goals_in_tracked": 5,
+        "goals_per_start": 0.5
+      }
+    ]
+  },
+  {
+    "competition": "MLS",
+    "fixture_id": 1490439,
+    "date": "2026-09-05T23:30:00+00:00",
+    "home": "FC Cincinnati",
+    "home_id": 2242,
+    "away": "DC United",
+    "away_id": 1615,
+    "home_venue_games": [
+      {
+        "date": "2026-05-23",
+        "home": "FC Cincinnati",
+        "away": "Orlando City SC",
+        "home_goals": 6,
+        "away_goals": 2,
+        "shots": 22,
+        "on_target": 11,
+        "inside_box": 17,
+        "xg": 3.23
+      },
+      {
+        "date": "2026-07-22",
+        "home": "FC Cincinnati",
+        "away": "Vancouver Whitecaps",
+        "home_goals": 4,
+        "away_goals": 3,
+        "shots": 10,
+        "on_target": 6,
+        "inside_box": 7,
+        "xg": 1.56
+      },
+      {
+        "date": "2026-08-01",
+        "home": "FC Cincinnati",
+        "away": "San Jose Earthquakes",
+        "home_goals": 4,
+        "away_goals": 2,
+        "shots": null,
+        "on_target": null,
+        "inside_box": null,
+        "xg": null
+      },
+      {
+        "date": "2026-08-19",
+        "home": "FC Cincinnati",
+        "away": "New York City FC",
+        "home_goals": 2,
+        "away_goals": 1,
+        "shots": 14,
+        "on_target": 6,
+        "inside_box": 9,
+        "xg": 1.19
+      },
+      {
+        "date": "2026-08-22",
+        "home": "FC Cincinnati",
+        "away": "Seattle Sounders",
+        "home_goals": 1,
+        "away_goals": 1,
+        "shots": 17,
+        "on_target": 9,
+        "inside_box": 11,
+        "xg": 1.38
+      }
+    ],
+    "away_venue_games": [
+      {
+        "date": "2026-05-03",
+        "home": "New York City FC",
+        "away": "DC United",
+        "home_goals": 0,
+        "away_goals": 2,
+        "shots": 19,
+        "on_target": 7,
+        "inside_box": 9,
+        "xg": 2.79
+      },
+      {
+        "date": "2026-05-10",
+        "home": "Nashville SC",
+        "away": "DC United",
+        "home_goals": 2,
+        "away_goals": 2,
+        "shots": 12,
+        "on_target": 6,
+        "inside_box": 8,
+        "xg": 1.38
+      },
+      {
+        "date": "2026-07-23",
+        "home": "Houston Dynamo",
+        "away": "DC United",
+        "home_goals": 1,
+        "away_goals": 1,
+        "shots": 7,
+        "on_target": 1,
+        "inside_box": 3,
+        "xg": 0.85
+      },
+      {
+        "date": "2026-08-15",
+        "home": "CF Montreal",
+        "away": "DC United",
+        "home_goals": 1,
+        "away_goals": 1,
+        "shots": 7,
+        "on_target": 2,
+        "inside_box": 4,
+        "xg": 0.56
+      },
+      {
+        "date": "2026-08-22",
+        "home": "Charlotte",
+        "away": "DC United",
+        "home_goals": 3,
+        "away_goals": 1,
+        "shots": 17,
+        "on_target": 5,
+        "inside_box": 11,
+        "xg": 1.27
+      }
+    ],
+    "home_season_games": [
+      {
+        "date": "2026-02-21",
+        "venue": "home",
+        "gf": 2,
+        "ga": 0,
+        "opp": "Atlanta United FC"
+      },
+      {
+        "date": "2026-02-28",
+        "venue": "away",
+        "gf": 0,
+        "ga": 1,
+        "opp": "Minnesota United FC"
+      },
+      {
+        "date": "2026-03-08",
+        "venue": "home",
+        "gf": 0,
+        "ga": 1,
+        "opp": "Toronto FC"
+      },
+      {
+        "date": "2026-03-15",
+        "venue": "away",
+        "gf": 1,
+        "ga": 6,
+        "opp": "New England Revolution"
+      },
+      {
+        "date": "2026-03-22",
+        "venue": "home",
+        "gf": 4,
+        "ga": 3,
+        "opp": "CF Montreal"
+      },
+      {
+        "date": "2026-04-04",
+        "venue": "away",
+        "gf": 2,
+        "ga": 4,
+        "opp": "New York Red Bulls"
+      },
+      {
+        "date": "2026-04-11",
+        "venue": "away",
+        "gf": 1,
+        "ga": 1,
+        "opp": "Toronto FC"
+      },
+      {
+        "date": "2026-04-18",
+        "venue": "home",
+        "gf": 3,
+        "ga": 3,
+        "opp": "Chicago Fire"
+      },
+      {
+        "date": "2026-04-22",
+        "venue": "away",
+        "gf": 4,
+        "ga": 4,
+        "opp": "New York City FC"
+      },
+      {
+        "date": "2026-04-25",
+        "venue": "home",
+        "gf": 2,
+        "ga": 0,
+        "opp": "New York Red Bulls"
+      },
+      {
+        "date": "2026-05-03",
+        "venue": "away",
+        "gf": 3,
+        "ga": 2,
+        "opp": "Chicago Fire"
+      },
+      {
+        "date": "2026-05-09",
+        "venue": "away",
+        "gf": 2,
+        "ga": 2,
+        "opp": "Charlotte"
+      },
+      {
+        "date": "2026-05-13",
+        "venue": "home",
+        "gf": 3,
+        "ga": 5,
+        "opp": "Inter Miami"
+      },
+      {
+        "date": "2026-05-17",
+        "venue": "away",
+        "gf": 3,
+        "ga": 3,
+        "opp": "San Diego"
+      },
+      {
+        "date": "2026-05-23",
+        "venue": "home",
+        "gf": 6,
+        "ga": 2,
+        "opp": "Orlando City SC"
+      },
+      {
+        "date": "2026-07-22",
+        "venue": "home",
+        "gf": 4,
+        "ga": 3,
+        "opp": "Vancouver Whitecaps"
+      },
+      {
+        "date": "2026-07-25",
+        "venue": "away",
+        "gf": 1,
+        "ga": 2,
+        "opp": "Columbus Crew"
+      },
+      {
+        "date": "2026-08-01",
+        "venue": "home",
+        "gf": 4,
+        "ga": 2,
+        "opp": "San Jose Earthquakes"
+      },
+      {
+        "date": "2026-08-15",
+        "venue": "away",
+        "gf": 1,
+        "ga": 1,
+        "opp": "Orlando City SC"
+      },
+      {
+        "date": "2026-08-19",
+        "venue": "home",
+        "gf": 2,
+        "ga": 1,
+        "opp": "New York City FC"
+      },
+      {
+        "date": "2026-08-22",
+        "venue": "home",
+        "gf": 1,
+        "ga": 1,
+        "opp": "Seattle Sounders"
+      },
+      {
+        "date": "2026-08-30",
+        "venue": "away",
+        "gf": 0,
+        "ga": 4,
+        "opp": "Nashville SC"
+      }
+    ],
+    "away_season_games": [
+      {
+        "date": "2026-02-22",
+        "venue": "home",
+        "gf": 1,
+        "ga": 0,
+        "opp": "Philadelphia Union"
+      },
+      {
+        "date": "2026-03-01",
+        "venue": "away",
+        "gf": 0,
+        "ga": 1,
+        "opp": "Austin"
+      },
+      {
+        "date": "2026-03-07",
+        "venue": "home",
+        "gf": 1,
+        "ga": 2,
+        "opp": "Inter Miami"
+      },
+      {
+        "date": "2026-03-15",
+        "venue": "away",
+        "gf": 2,
+        "ga": 1,
+        "opp": "Chicago Fire"
+      },
+      {
+        "date": "2026-03-21",
+        "venue": "away",
+        "gf": 0,
+        "ga": 0,
+        "opp": "Atlanta United FC"
+      },
+      {
+        "date": "2026-04-04",
+        "venue": "home",
+        "gf": 0,
+        "ga": 4,
+        "opp": "FC Dallas"
+      },
+      {
+        "date": "2026-04-11",
+        "venue": "away",
+        "gf": 0,
+        "ga": 1,
+        "opp": "New England Revolution"
+      },
+      {
+        "date": "2026-04-18",
+        "venue": "away",
+        "gf": 0,
+        "ga": 0,
+        "opp": "Philadelphia Union"
+      },
+      {
+        "date": "2026-04-22",
+        "venue": "away",
+        "gf": 4,
+        "ga": 4,
+        "opp": "New York Red Bulls"
+      },
+      {
+        "date": "2026-04-25",
+        "venue": "home",
+        "gf": 3,
+        "ga": 2,
+        "opp": "Orlando City SC"
+      },
+      {
+        "date": "2026-05-03",
+        "venue": "away",
+        "gf": 2,
+        "ga": 0,
+        "opp": "New York City FC"
+      },
+      {
+        "date": "2026-05-10",
+        "venue": "away",
+        "gf": 2,
+        "ga": 2,
+        "opp": "Nashville SC"
+      },
+      {
+        "date": "2026-05-13",
+        "venue": "home",
+        "gf": 1,
+        "ga": 3,
+        "opp": "Chicago Fire"
+      },
+      {
+        "date": "2026-05-16",
+        "venue": "home",
+        "gf": 1,
+        "ga": 1,
+        "opp": "St. Louis City"
+      },
+      {
+        "date": "2026-05-23",
+        "venue": "home",
+        "gf": 4,
+        "ga": 4,
+        "opp": "CF Montreal"
+      },
+      {
+        "date": "2026-07-23",
+        "venue": "away",
+        "gf": 1,
+        "ga": 1,
+        "opp": "Houston Dynamo"
+      },
+      {
+        "date": "2026-07-25",
+        "venue": "home",
+        "gf": 2,
+        "ga": 1,
+        "opp": "Toronto FC"
+      },
+      {
+        "date": "2026-08-01",
+        "venue": "home",
+        "gf": 2,
+        "ga": 2,
+        "opp": "Nashville SC"
+      },
+      {
+        "date": "2026-08-15",
+        "venue": "away",
+        "gf": 1,
+        "ga": 1,
+        "opp": "CF Montreal"
+      },
+      {
+        "date": "2026-08-19",
+        "venue": "home",
+        "gf": 0,
+        "ga": 3,
+        "opp": "New England Revolution"
+      },
+      {
+        "date": "2026-08-22",
+        "venue": "away",
+        "gf": 1,
+        "ga": 3,
+        "opp": "Charlotte"
+      },
+      {
+        "date": "2026-08-29",
+        "venue": "home",
+        "gf": 0,
+        "ga": 0,
+        "opp": "Los Angeles FC"
+      }
+    ],
+    "h2h": [
+      {
+        "date": "2022-03-05",
+        "home": "FC Cincinnati",
+        "away": "DC United",
+        "home_goals": 0,
+        "away_goals": 1
+      },
+      {
+        "date": "2022-10-09",
+        "home": "DC United",
+        "away": "FC Cincinnati",
+        "home_goals": 2,
+        "away_goals": 5
+      },
+      {
+        "date": "2023-05-06",
+        "home": "FC Cincinnati",
+        "away": "DC United",
+        "home_goals": 2,
+        "away_goals": 1
+      },
+      {
+        "date": "2023-06-24",
+        "home": "DC United",
+        "away": "FC Cincinnati",
+        "home_goals": 3,
+        "away_goals": 0
+      },
+      {
+        "date": "2024-03-10",
+        "home": "FC Cincinnati",
+        "away": "DC United",
+        "home_goals": 0,
+        "away_goals": 0
+      },
+      {
+        "date": "2024-07-03",
+        "home": "DC United",
+        "away": "FC Cincinnati",
+        "home_goals": 2,
+        "away_goals": 3
+      },
+      {
+        "date": "2025-04-12",
+        "home": "DC United",
+        "away": "FC Cincinnati",
+        "home_goals": 0,
+        "away_goals": 1
+      },
+      {
+        "date": "2025-05-31",
+        "home": "FC Cincinnati",
+        "away": "DC United",
+        "home_goals": 1,
+        "away_goals": 2
+      }
+    ],
+    "home_attackers": [
+      {
+        "player_id": 15798,
+        "name": "Evander",
+        "starts_in_window": 15,
+        "starts_tracked": 10,
+        "goals_in_tracked": 7,
+        "goals_per_start": 0.7
+      },
+      {
+        "player_id": 66249,
+        "name": "P. Bucha",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 4,
+        "goals_per_start": 0.4
+      },
+      {
+        "player_id": 467157,
+        "name": "K. Mboma Dem",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 4,
+        "goals_per_start": 0.4
+      }
+    ],
+    "away_attackers": [
+      {
+        "player_id": 323776,
+        "name": "J. Hopkins",
+        "starts_in_window": 14,
+        "starts_tracked": 10,
+        "goals_in_tracked": 0,
+        "goals_per_start": 0.0
+      },
+      {
+        "player_id": 195090,
+        "name": "Peglow",
+        "starts_in_window": 13,
+        "starts_tracked": 10,
+        "goals_in_tracked": 1,
+        "goals_per_start": 0.1
+      },
+      {
+        "player_id": 51138,
+        "name": "B. Servania",
+        "starts_in_window": 13,
+        "starts_tracked": 10,
+        "goals_in_tracked": 0,
+        "goals_per_start": 0.0
+      }
+    ]
+  }
+]
