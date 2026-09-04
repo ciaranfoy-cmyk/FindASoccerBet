@@ -90,8 +90,12 @@ def attacker_card(a: dict, team: str) -> str:
 def attacker_spotlight(home_att: list, away_att: list, home: str, away: str) -> str:
     if not home_att and not away_att:
         return ""
-    h = home_att[0] if home_att else None
-    a = away_att[0] if away_att else None
+    # Pick by actual scoring output (goals_per_start), not by who started the
+    # most games -- "who's driving the attack" means goals, and a low-scoring
+    # regular starter (e.g. a defensive midfielder tagged as an attacking
+    # position) isn't that even if he plays every week.
+    h = max(home_att, key=lambda a: a["goals_per_start"]) if home_att else None
+    a = max(away_att, key=lambda a: a["goals_per_start"]) if away_att else None
     cards = []
     if h:
         cards.append(attacker_card(h, home))
