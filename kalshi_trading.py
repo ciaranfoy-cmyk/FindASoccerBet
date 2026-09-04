@@ -208,7 +208,11 @@ def main() -> int:
     place = sub.add_parser("place", help="Places a REAL order -- double check every argument")
     place.add_argument("--ticker", required=True)
     place.add_argument("--side", required=True, choices=["yes", "no"], help="yes=buy Over-side outcome, no=buy Under-side outcome")
-    place.add_argument("--count", required=True, type=float, help="number of contracts")
+    size = place.add_mutually_exclusive_group(required=True)
+    size.add_argument("--count", type=float, help="exact number of contracts")
+    size.add_argument("--dollars", type=float, help="dollar amount to spend -- count is computed as dollars/price, "
+                                                      "fractional contracts and all (matches Kalshi's own UI, which "
+                                                      "takes a dollar amount directly rather than a contract count)")
     place.add_argument("--price", required=True, type=float, help="price in dollars, e.g. 0.56")
     place.add_argument("--tif", dest="time_in_force", default="good_till_canceled",
                         choices=["fill_or_kill", "good_till_canceled", "immediate_or_cancel"])
@@ -228,10 +232,12 @@ def main() -> int:
         elif args.cmd == "fills":
             print(json.dumps(get_fills(), indent=2))
         elif args.cmd == "place":
-            print(f"Placing REAL order: buy {args.count}x {args.side.upper()} "
-                  f"on {args.ticker} @ ${args.price:.4f} ({args.time_in_force})")
+            count = args.count if args.count is not None else args.dollars / args.price
+            print(f"Placing REAL order: buy {count:.4f}x {args.side.upper()} "
+                  f"on {args.ticker} @ ${args.price:.4f} ({args.time_in_force})"
+                  + (f" -- ${args.dollars:.2f} requested" if args.dollars is not None else ""))
             fn = buy_yes if args.side == "yes" else buy_no
-            result = fn(args.ticker, args.count, args.price, time_in_force=args.time_in_force)
+            result = fn(args.ticker, count, args.price, time_in_force=args.time_in_force)
             print(json.dumps(result, indent=2))
         elif args.cmd == "cancel":
             print(json.dumps(cancel_order(args.order_id), indent=2))
