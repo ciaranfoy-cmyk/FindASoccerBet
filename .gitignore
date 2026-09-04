@@ -4,3 +4,4 @@ __pycache__/
 .cache/
 .cache_apifootball/
 secrets/
+.claude/settings.local.json
