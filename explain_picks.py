@@ -47,6 +47,7 @@ import pandas as pd
 from sklearn.linear_model import LogisticRegressionCV
 from sklearn.preprocessing import StandardScaler
 
+import model_cache
 from analyze_dataset_apifootball import add_derived_features
 from analyze_player_form import add_player_form_derived_features
 from analyze_shots_venue import (
@@ -205,36 +206,46 @@ def main() -> int:
                          help="Skip the confidence-bar filter -- explore everything, not just real picks")
     args = parser.parse_args()
 
-    print("Computing the live confidence bar (rolling p95 of trailing historical predictions)...")
-    bar = compute_rolling_p95_bar()
-    under_bar = compute_rolling_p95_under_bar()
-    print(f"  bar (Over)  = {bar*100:.1f}% -- only fixtures at or above this are real Over picks")
-    print(f"  bar (Under) = {under_bar*100:.1f}% -- only fixtures at or above this are real Under picks "
-          f"(weaker track record than Over -- see compute_rolling_p95_under_bar docstring)\n")
+    cached = model_cache.load("explain_picks_bundle")
+    if cached is not None:
+        print("Reusing cached models/bars/replayed state (data/*.csv unchanged since last run)...")
+        bar, under_bar, model, scaler, xg_model, xg_scaler, state = cached
+        print(f"  bar (Over)  = {bar*100:.1f}%  |  bar (Under) = {under_bar*100:.1f}%")
+    else:
+        print("Computing the live confidence bar (rolling p95 of trailing historical predictions)...")
+        bar = compute_rolling_p95_bar()
+        under_bar = compute_rolling_p95_under_bar()
+        print(f"  bar (Over)  = {bar*100:.1f}% -- only fixtures at or above this are real Over picks")
+        print(f"  bar (Under) = {under_bar*100:.1f}% -- only fixtures at or above this are real Under picks "
+              f"(weaker track record than Over -- see compute_rolling_p95_under_bar docstring)\n")
 
-    print("Training the core model...")
-    historical = load_with_player_form_and_shots_venue()
-    model_df = historical[CORE_CANDIDATES + ["over_2_5"]].dropna()
-    scaler = StandardScaler()
-    X_train = scaler.fit_transform(model_df[CORE_CANDIDATES])
-    model = LogisticRegressionCV(Cs=15, cv=5, penalty="l1", solver="liblinear", scoring="roc_auc", max_iter=2000, random_state=0)
-    model.fit(X_train, model_df["over_2_5"])
+        print("Training the core model...")
+        historical = load_with_player_form_and_shots_venue()
+        model_df = historical[CORE_CANDIDATES + ["over_2_5"]].dropna()
+        scaler = StandardScaler()
+        X_train = scaler.fit_transform(model_df[CORE_CANDIDATES])
+        model = LogisticRegressionCV(Cs=15, cv=5, penalty="l1", solver="liblinear", scoring="roc_auc", max_iter=2000, random_state=0)
+        model.fit(X_train, model_df["over_2_5"])
 
-    print("Training the xG-augmented model...")
-    xg_historical = load_with_xg_player_form_and_shots_venue()
-    xg_historical = load_weighted_xg(xg_historical)
-    xg_model_df = xg_historical[XG_CANDIDATES + ["over_2_5"]].dropna()
-    xg_scaler = StandardScaler()
-    X_xg_train = xg_scaler.fit_transform(xg_model_df[XG_CANDIDATES])
-    xg_model = LogisticRegressionCV(Cs=15, cv=5, penalty="l1", solver="liblinear", scoring="roc_auc", max_iter=2000, random_state=0)
-    xg_model.fit(X_xg_train, xg_model_df["over_2_5"])
+        print("Training the xG-augmented model...")
+        xg_historical = load_with_xg_player_form_and_shots_venue()
+        xg_historical = load_weighted_xg(xg_historical)
+        xg_model_df = xg_historical[XG_CANDIDATES + ["over_2_5"]].dropna()
+        xg_scaler = StandardScaler()
+        X_xg_train = xg_scaler.fit_transform(xg_model_df[XG_CANDIDATES])
+        xg_model = LogisticRegressionCV(Cs=15, cv=5, penalty="l1", solver="liblinear", scoring="roc_auc", max_iter=2000, random_state=0)
+        xg_model.fit(X_xg_train, xg_model_df["over_2_5"])
+
+        print("Replaying full match history to build current team state...")
+        all_finished = fetch_all_fixtures(None)
+        state = replay_to_current_state(all_finished)
+
+        model_cache.save("explain_picks_bundle", (bar, under_bar, model, scaler, xg_model, xg_scaler, state))
 
     print("Fetching upcoming fixtures...")
     upcoming = fetch_upcoming_fixtures(args.days)
     if args.fixture_id is not None:
         upcoming = [m for m in upcoming if m["fixture_id"] == args.fixture_id]
-    all_finished = fetch_all_fixtures(None)
-    state = replay_to_current_state(all_finished)
 
     rows = []
     for m in upcoming:
