@@ -1,0 +1,2 @@
+fill_id,order_id,ticker,action,side,count,price_dollars,fee_dollars,cost_dollars,created_time,logged_at,settled,result,payout_dollars,pnl_dollars,settled_at
+0721d1e9-10d9-8df1-83c6-e4f837e7c9ed,01a06d8d-83d0-7d95-83d1-e874bc805ec1,KXLIGUE1TOTAL-26SEP05RCLFCL-3,buy,yes,2.0,0.6,0.0336,1.2336,2026-09-04T17:53:06.604748Z,2026-09-04T17:56:29.424849+00:00,False,,,,
