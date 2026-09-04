@@ -1026,7 +1026,7 @@
       },
       {
         "player_id": 6002,
-        "name": "E. Palacios",
+        "name": "player #6002",
         "starts_in_window": 11,
         "starts_tracked": 10,
         "goals_in_tracked": 0,
@@ -1554,7 +1554,7 @@
     "home_attackers": [
       {
         "player_id": 280074,
-        "name": "N. Brown",
+        "name": "player #280074",
         "starts_in_window": 14,
         "starts_tracked": 10,
         "goals_in_tracked": 2,
@@ -1562,7 +1562,7 @@
       },
       {
         "player_id": 147831,
-        "name": "A. Kalimuendo",
+        "name": "player #147831",
         "starts_in_window": 13,
         "starts_tracked": 10,
         "goals_in_tracked": 3,
@@ -1827,7 +1827,7 @@
       },
       {
         "player_id": 31146,
-        "name": "S. Tonali",
+        "name": "player #31146",
         "starts_in_window": 9,
         "starts_tracked": 10,
         "goals_in_tracked": 0,
@@ -2112,7 +2112,7 @@
       },
       {
         "player_id": 21010,
-        "name": "E. Owusu",
+        "name": "player #21010",
         "starts_in_window": 13,
         "starts_tracked": 10,
         "goals_in_tracked": 0,
@@ -2809,7 +2809,7 @@
     "home_attackers": [
       {
         "player_id": 1234,
-        "name": "A. Kr\u00e1l",
+        "name": "player #1234",
         "starts_in_window": 14,
         "starts_tracked": 10,
         "goals_in_tracked": 0,
@@ -2817,7 +2817,7 @@
       },
       {
         "player_id": 25242,
-        "name": "M. B\u00fclter",
+        "name": "player #25242",
         "starts_in_window": 13,
         "starts_tracked": 10,
         "goals_in_tracked": 2,
@@ -2825,7 +2825,7 @@
       },
       {
         "player_id": 1156,
-        "name": "T. Krau\u00df",
+        "name": "player #1156",
         "starts_in_window": 11,
         "starts_tracked": 10,
         "goals_in_tracked": 0,
@@ -2851,7 +2851,7 @@
       },
       {
         "player_id": 511,
-        "name": "L. Goretzka",
+        "name": "player #511",
         "starts_in_window": 10,
         "starts_tracked": 10,
         "goals_in_tracked": 4,
