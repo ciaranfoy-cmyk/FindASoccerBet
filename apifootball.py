@@ -1,8 +1,12 @@
 """Thin client for api-sports.io (API-Football) v3, with on-disk caching.
 
-Requires an API key from https://api-sports.io, passed via the
-APIFOOTBALL_KEY environment variable, sent as the X-Auth-Token-style
-header this API actually uses: x-apisports-key.
+Requires an API key from https://api-sports.io, sent as the
+X-Auth-Token-style header this API actually uses: x-apisports-key. The
+key is read from the APIFOOTBALL_KEY environment variable if set,
+otherwise from secrets/apifootball.env (gitignored, never committed) --
+shell env vars don't persist between separate tool invocations in this
+harness, so the on-disk fallback is what makes the key durable across
+commands within a session.
 """
 
 import hashlib
@@ -21,6 +25,7 @@ _MAX_RETRIES = 4
 
 API_BASE = "https://v3.football.api-sports.io"
 CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cache_apifootball")
+SECRETS_ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "secrets", "apifootball.env")
 
 # The account's per-minute limit is 450; stay comfortably under it.
 _MIN_REQUEST_INTERVAL = 60 / 400
@@ -33,9 +38,17 @@ class ApiFootballError(RuntimeError):
 
 def _api_key() -> str:
     key = os.environ.get("APIFOOTBALL_KEY")
-    if not key:
-        raise ApiFootballError("Missing APIFOOTBALL_KEY environment variable.")
-    return key
+    if key:
+        return key
+    if os.path.exists(SECRETS_ENV_PATH):
+        with open(SECRETS_ENV_PATH) as f:
+            for line in f:
+                if line.startswith("APIFOOTBALL_KEY="):
+                    return line.strip().split("=", 1)[1]
+    raise ApiFootballError(
+        "Missing APIFOOTBALL_KEY -- set the environment variable or "
+        f"put it in {SECRETS_ENV_PATH}"
+    )
 
 
 def _throttle() -> None:
