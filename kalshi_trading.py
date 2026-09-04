@@ -159,6 +159,50 @@ def cancel_order(order_id: str) -> dict:
     return _request("DELETE", f"{API_PREFIX}/portfolio/orders/{order_id}")
 
 
+def _probe_order_schemas(ticker: str, side: str, action: str, count: int, price_cents: int) -> None:
+    """Diagnostic only -- POSTs several plausible v2 order-creation body
+    shapes to the one real, documented path, to see whether the
+    'deprecated_v1_order_endpoint' response is a blanket path-level block
+    (same error regardless of body) or a real schema mismatch (error
+    changes once the right fields are sent). Never places contradictory
+    real orders -- every variant describes the exact same order.
+    """
+    path = f"{API_PREFIX}/portfolio/orders"
+    variants = {
+        "current (yes_price/no_price, cents)": {
+            "ticker": ticker, "side": side, "action": action, "count": count,
+            "type": "limit", "yes_price": price_cents, "client_order_id": "probe-a",
+        },
+        "price field (not yes_price)": {
+            "ticker": ticker, "side": side, "action": action, "count": count,
+            "type": "limit", "price": price_cents, "client_order_id": "probe-b",
+        },
+        "quantity instead of count": {
+            "ticker": ticker, "side": side, "action": action, "quantity": count,
+            "type": "limit", "yes_price": price_cents, "client_order_id": "probe-c",
+        },
+        "order_type instead of type": {
+            "ticker": ticker, "side": side, "action": action, "count": count,
+            "order_type": "limit", "yes_price": price_cents, "client_order_id": "probe-d",
+        },
+        "price in dollars (string)": {
+            "ticker": ticker, "side": side, "action": action, "count": count,
+            "type": "limit", "yes_price_dollars": f"{price_cents/100:.2f}", "client_order_id": "probe-e",
+        },
+        "buy_max_cost market-style": {
+            "ticker": ticker, "side": side, "action": action, "count": count,
+            "type": "market", "buy_max_cost": price_cents, "client_order_id": "probe-f",
+        },
+        "empty body": {},
+    }
+    for label, body in variants.items():
+        try:
+            result = _request("POST", path, body=body)
+            print(f"[{label}] SUCCESS: {result}")
+        except KalshiError as exc:
+            print(f"[{label}] {exc}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -180,6 +224,13 @@ def main() -> int:
     cancel = sub.add_parser("cancel")
     cancel.add_argument("--order-id", required=True)
 
+    probe = sub.add_parser("probe-schema", help="Diagnostic: try several v2 order body shapes against the real endpoint")
+    probe.add_argument("--ticker", required=True)
+    probe.add_argument("--side", required=True, choices=["yes", "no"])
+    probe.add_argument("--action", required=True, choices=["buy", "sell"])
+    probe.add_argument("--count", required=True, type=int)
+    probe.add_argument("--price", dest="price_cents", required=True, type=int)
+
     args = parser.parse_args()
 
     try:
@@ -199,6 +250,8 @@ def main() -> int:
             print(json.dumps(result, indent=2))
         elif args.cmd == "cancel":
             print(json.dumps(cancel_order(args.order_id), indent=2))
+        elif args.cmd == "probe-schema":
+            _probe_order_schemas(args.ticker, args.side, args.action, args.count, args.price_cents)
     except KalshiError as exc:
         print(f"Error: {exc}")
         return 1
