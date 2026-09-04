@@ -20,7 +20,16 @@ Usage (read-only, safe):
 
 Usage (places a REAL order -- confirm every field before running):
     python3 kalshi_trading.py place --ticker KXEPLTOTAL-26SEP05MCICOV-3 \
-        --side yes --action buy --count 1 --price 59 --type limit
+        --side yes --count 1 --price 0.59
+
+Order creation uses Kalshi's V2 order endpoint
+(POST https://external-api.kalshi.com/trade-api/v2/portfolio/events/orders),
+which replaced the legacy /portfolio/orders path this client used to call.
+The V2 body only knows a single YES-leg book: side "bid" buys YES, side
+"ask" sells YES (== economically buying NO at 1 - price). buy_yes()/buy_no()
+below translate the "yes"/"no" mental model into that bid/ask + price shape.
+Balance/positions/orders/fills are unaffected -- those still live on the
+original host and are unchanged.
 """
 
 import argparse
@@ -30,6 +39,7 @@ import os
 import time
 import urllib.error
 import urllib.request
+import uuid
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -39,6 +49,9 @@ ENV_PATH = os.path.join(SECRETS_DIR, "kalshi.env")
 KEY_PATH = os.path.join(SECRETS_DIR, "kalshi_private_key.pem")
 API_BASE = "https://api.elections.kalshi.com"
 API_PREFIX = "/trade-api/v2"
+
+ORDER_V2_BASE = "https://external-api.kalshi.com"
+ORDER_V2_PATH = "/trade-api/v2/portfolio/events/orders"
 
 
 class KalshiError(RuntimeError):
@@ -71,7 +84,7 @@ def _sign(private_key, message: str) -> str:
     return base64.b64encode(signature).decode("utf-8")
 
 
-def _request(method: str, path: str, body: dict | None = None) -> dict:
+def _request(method: str, path: str, body: dict | None = None, base: str | None = None) -> dict:
     key_id = _load_key_id()
     private_key = _load_private_key()
 
@@ -86,7 +99,7 @@ def _request(method: str, path: str, body: dict | None = None) -> dict:
         "Content-Type": "application/json",
     }
 
-    url = API_BASE + path
+    url = (base or API_BASE) + path
     data = json.dumps(body).encode("utf-8") if body is not None else None
     request = urllib.request.Request(url, data=data, headers=headers, method=method.upper())
 
@@ -118,89 +131,69 @@ def get_fills() -> dict:
 
 
 def place_order(
-    ticker: str, side: str, action: str, count: int,
-    order_type: str = "limit", price_cents: int | None = None,
+    ticker: str, side: str, count: float, price: float,
+    time_in_force: str = "good_till_canceled",
+    self_trade_prevention_type: str = "taker_at_cross",
     client_order_id: str | None = None,
+    post_only: bool = False,
+    cancel_order_on_pause: bool = False,
+    reduce_only: bool = False,
+    subaccount: int = 0,
+    exchange_index: int = 0,
 ) -> dict:
-    """Places a REAL order on the real account. Nothing calls this
-    automatically -- it only runs when explicitly invoked with a
-    specific ticker/side/action/count/price, confirmed by the user.
+    """Places a REAL order on the real account via Kalshi's V2 order
+    endpoint. Nothing calls this automatically -- it only runs when
+    explicitly invoked with a specific ticker/side/count/price, confirmed
+    by the user. Prefer buy_yes()/buy_no() below unless you specifically
+    need to place a raw bid/ask (e.g. to sell an existing position).
 
     ticker: the Kalshi market ticker, e.g. "KXEPLTOTAL-26SEP05MCICOV-3"
-    side: "yes" or "no"
-    action: "buy" or "sell"
-    count: number of contracts
-    order_type: "limit" or "market"
-    price_cents: required for limit orders, 1-99 (price in cents)
+    side: "bid" (buy YES) or "ask" (sell YES, == buying NO at 1 - price)
+    count: number of contracts (formatted to "N.00")
+    price: price in dollars, e.g. 0.56 for 56c (formatted to "N.NNNN")
     """
-    if side not in ("yes", "no"):
-        raise ValueError("side must be 'yes' or 'no'")
-    if action not in ("buy", "sell"):
-        raise ValueError("action must be 'buy' or 'sell'")
-    if order_type == "limit" and price_cents is None:
-        raise ValueError("price_cents is required for limit orders")
+    if side not in ("bid", "ask"):
+        raise ValueError("side must be 'bid' (buy YES) or 'ask' (sell YES)")
+    if time_in_force not in ("fill_or_kill", "good_till_canceled", "immediate_or_cancel"):
+        raise ValueError("time_in_force must be fill_or_kill, good_till_canceled, or immediate_or_cancel")
+    if self_trade_prevention_type not in ("taker_at_cross", "maker"):
+        raise ValueError("self_trade_prevention_type must be taker_at_cross or maker")
+    if not (0 < price < 1):
+        raise ValueError("price must be a dollar amount strictly between 0 and 1, e.g. 0.56")
 
     body = {
         "ticker": ticker,
+        "client_order_id": client_order_id or str(uuid.uuid4()),
         "side": side,
-        "action": action,
-        "count": count,
-        "type": order_type,
-        "client_order_id": client_order_id or f"cli-{int(time.time() * 1000)}",
+        "count": f"{count:.2f}",
+        "price": f"{price:.4f}",
+        "time_in_force": time_in_force,
+        "self_trade_prevention_type": self_trade_prevention_type,
+        "post_only": post_only,
+        "cancel_order_on_pause": cancel_order_on_pause,
+        "reduce_only": reduce_only,
+        "subaccount": subaccount,
+        "exchange_index": exchange_index,
     }
-    if order_type == "limit":
-        price_field = "yes_price" if side == "yes" else "no_price"
-        body[price_field] = price_cents
+    return _request("POST", ORDER_V2_PATH, body=body, base=ORDER_V2_BASE)
 
-    return _request("POST", f"{API_PREFIX}/portfolio/orders", body=body)
+
+def buy_yes(ticker: str, count: float, price: float, **kwargs) -> dict:
+    """Buy YES (e.g. 'Over 2.5') at `price` dollars -- side=bid."""
+    return place_order(ticker, "bid", count, price, **kwargs)
+
+
+def buy_no(ticker: str, count: float, price: float, **kwargs) -> dict:
+    """Buy NO (e.g. 'Under 2.5') at `price` dollars. Per Kalshi's V2
+    schema there is no direct NO leg -- this is placed as an "ask"
+    (sell YES) at 1 - price, which the docs state is economically
+    equivalent.
+    """
+    return place_order(ticker, "ask", count, round(1 - price, 4), **kwargs)
 
 
 def cancel_order(order_id: str) -> dict:
     return _request("DELETE", f"{API_PREFIX}/portfolio/orders/{order_id}")
-
-
-def _probe_order_schemas(ticker: str, side: str, action: str, count: int, price_cents: int) -> None:
-    """Diagnostic only -- POSTs several plausible v2 order-creation body
-    shapes to the one real, documented path, to see whether the
-    'deprecated_v1_order_endpoint' response is a blanket path-level block
-    (same error regardless of body) or a real schema mismatch (error
-    changes once the right fields are sent). Never places contradictory
-    real orders -- every variant describes the exact same order.
-    """
-    path = f"{API_PREFIX}/portfolio/orders"
-    variants = {
-        "current (yes_price/no_price, cents)": {
-            "ticker": ticker, "side": side, "action": action, "count": count,
-            "type": "limit", "yes_price": price_cents, "client_order_id": "probe-a",
-        },
-        "price field (not yes_price)": {
-            "ticker": ticker, "side": side, "action": action, "count": count,
-            "type": "limit", "price": price_cents, "client_order_id": "probe-b",
-        },
-        "quantity instead of count": {
-            "ticker": ticker, "side": side, "action": action, "quantity": count,
-            "type": "limit", "yes_price": price_cents, "client_order_id": "probe-c",
-        },
-        "order_type instead of type": {
-            "ticker": ticker, "side": side, "action": action, "count": count,
-            "order_type": "limit", "yes_price": price_cents, "client_order_id": "probe-d",
-        },
-        "price in dollars (string)": {
-            "ticker": ticker, "side": side, "action": action, "count": count,
-            "type": "limit", "yes_price_dollars": f"{price_cents/100:.2f}", "client_order_id": "probe-e",
-        },
-        "buy_max_cost market-style": {
-            "ticker": ticker, "side": side, "action": action, "count": count,
-            "type": "market", "buy_max_cost": price_cents, "client_order_id": "probe-f",
-        },
-        "empty body": {},
-    }
-    for label, body in variants.items():
-        try:
-            result = _request("POST", path, body=body)
-            print(f"[{label}] SUCCESS: {result}")
-        except KalshiError as exc:
-            print(f"[{label}] {exc}")
 
 
 def main() -> int:
@@ -214,22 +207,14 @@ def main() -> int:
 
     place = sub.add_parser("place", help="Places a REAL order -- double check every argument")
     place.add_argument("--ticker", required=True)
-    place.add_argument("--side", required=True, choices=["yes", "no"])
-    place.add_argument("--action", required=True, choices=["buy", "sell"])
-    place.add_argument("--count", required=True, type=int)
-    place.add_argument("--type", dest="order_type", default="limit", choices=["limit", "market"])
-    place.add_argument("--price", dest="price_cents", type=int, default=None,
-                        help="Price in cents (1-99), required for limit orders")
+    place.add_argument("--side", required=True, choices=["yes", "no"], help="yes=buy Over-side outcome, no=buy Under-side outcome")
+    place.add_argument("--count", required=True, type=float, help="number of contracts")
+    place.add_argument("--price", required=True, type=float, help="price in dollars, e.g. 0.56")
+    place.add_argument("--tif", dest="time_in_force", default="good_till_canceled",
+                        choices=["fill_or_kill", "good_till_canceled", "immediate_or_cancel"])
 
     cancel = sub.add_parser("cancel")
     cancel.add_argument("--order-id", required=True)
-
-    probe = sub.add_parser("probe-schema", help="Diagnostic: try several v2 order body shapes against the real endpoint")
-    probe.add_argument("--ticker", required=True)
-    probe.add_argument("--side", required=True, choices=["yes", "no"])
-    probe.add_argument("--action", required=True, choices=["buy", "sell"])
-    probe.add_argument("--count", required=True, type=int)
-    probe.add_argument("--price", dest="price_cents", required=True, type=int)
 
     args = parser.parse_args()
 
@@ -243,15 +228,13 @@ def main() -> int:
         elif args.cmd == "fills":
             print(json.dumps(get_fills(), indent=2))
         elif args.cmd == "place":
-            print(f"Placing REAL order: {args.action} {args.count}x {args.side.upper()} "
-                  f"on {args.ticker} @ {args.price_cents}c ({args.order_type})")
-            result = place_order(args.ticker, args.side, args.action, args.count,
-                                  args.order_type, args.price_cents)
+            print(f"Placing REAL order: buy {args.count}x {args.side.upper()} "
+                  f"on {args.ticker} @ ${args.price:.4f} ({args.time_in_force})")
+            fn = buy_yes if args.side == "yes" else buy_no
+            result = fn(args.ticker, args.count, args.price, time_in_force=args.time_in_force)
             print(json.dumps(result, indent=2))
         elif args.cmd == "cancel":
             print(json.dumps(cancel_order(args.order_id), indent=2))
-        elif args.cmd == "probe-schema":
-            _probe_order_schemas(args.ticker, args.side, args.action, args.count, args.price_cents)
     except KalshiError as exc:
         print(f"Error: {exc}")
         return 1
