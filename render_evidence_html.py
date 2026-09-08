@@ -49,14 +49,21 @@ def season_table(games: list, team: str) -> str:
     for g in games[-6:]:
         venue_tag = "(h)" if g["venue"] == "home" else "(a)"
         prep = "vs" if g["venue"] == "home" else "at"
-        rows.append(f"<tr><td>{fmt_date(g['date'])}</td><td>{esc(team)} {venue_tag} {g['gf']}&ndash;{g['ga']} {prep} {esc(g['opp'])}</td></tr>")
+        xg = f"{g['xg']:.2f}" if g.get("xg") is not None else "&ndash;"
+        rows.append(
+            f"<tr><td>{fmt_date(g['date'])}</td><td>{esc(team)} {venue_tag} {g['gf']}&ndash;{g['ga']} {prep} {esc(g['opp'])}</td>"
+            f"<td>{g.get('shots') if g.get('shots') is not None else '&ndash;'}</td>"
+            f"<td>{g.get('on_target') if g.get('on_target') is not None else '&ndash;'}</td>"
+            f"<td>{g.get('inside_box') if g.get('inside_box') is not None else '&ndash;'}</td><td>{xg}</td></tr>"
+        )
     thin_note = ""
     if n <= 3:
-        thin_note = f'<div class="xg-note" style="border-top:none;padding-top:0;">Only {n} game{"s" if n != 1 else ""} played &mdash; this early-season average carries real but thin evidence.</div>'
+        thin_note = f'<div class="xg-note" style="border-top:none;padding-top:0;">Only {n} game{"s" if n != 1 else ""} played &mdash; this early-season average carries real but thin evidence. Shots/xG shown here are NOT season-total model inputs -- the model only ever uses rolling last-5/last-10 windows that span season boundaries, never a season sum.</div>'
     shown_note = f"<!-- showing last {min(n,6)} of {n} -->" if n > 6 else ""
     return (
         f'<div class="esub">{esc(team)}\'s 2026&ndash;27 season so far ({n} game{"s" if n != 1 else ""})</div>\n'
-        f'{shown_note}<div class="etable-wrap"><table class="etable">\n<tr><th>Date</th><th>Result</th></tr>\n'
+        f'{shown_note}<div class="etable-wrap"><table class="etable">\n'
+        f'<tr><th>Date</th><th>Result</th><th>Shots</th><th>On Target</th><th>In Box</th><th>xG</th></tr>\n'
         + "\n".join(rows) + f"\n</table></div>\n{thin_note}"
     )
 

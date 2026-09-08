@@ -89,7 +89,20 @@ def season_games(prior: list, team_name: str, competition: str, season: int, bef
         venue = "home" if m["home"] == team_name else "away"
         gf, ga = (m["home_goals"], m["away_goals"]) if venue == "home" else (m["away_goals"], m["home_goals"])
         opp = m["away"] if venue == "home" else m["home"]
-        out.append({"date": m["date"][:10], "venue": venue, "gf": gf, "ga": ga, "opp": opp})
+        team_id = m["home_id"] if venue == "home" else m["away_id"]
+        try:
+            shots = shot_stats_for(m["fixture_id"]).get(team_id, {})
+        except apifootball.ApiFootballError:
+            shots = {}
+        try:
+            xg_val = xg_stats_for(m["fixture_id"]).get(team_id, {}).get("xg")
+        except apifootball.ApiFootballError:
+            xg_val = None
+        out.append({
+            "date": m["date"][:10], "venue": venue, "gf": gf, "ga": ga, "opp": opp,
+            "shots": shots.get("total_shots"), "on_target": shots.get("shots_on_goal"),
+            "inside_box": shots.get("shots_inside_box"), "xg": xg_val,
+        })
     return out
 
 
