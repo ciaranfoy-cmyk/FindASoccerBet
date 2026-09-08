@@ -64,10 +64,12 @@ from build_xg_weighted_features import (
 from build_league_finish_features import add_league_finish_features, build_standings_cache
 from calibration import apply_calibration, load_calibrators
 from forward_test_log import (
+    EARLY_SEASON_CUTOFF,
     KALSHI_SERIES_BY_COMPETITION,
     compute_rolling_p95_bar,
     compute_rolling_p95_under_bar,
     fetch_kalshi_over25_for_series,
+    team_games_into_season_live,
 )
 from live_kalshi_edge_test import _normalize
 from predict_upcoming import (
@@ -208,9 +210,18 @@ def main() -> int:
 
     cached = model_cache.load("explain_picks_bundle")
     if cached is not None:
+        try:
+            bar, under_bar, early_bar, early_under_bar, model, scaler, xg_model, xg_scaler, state = cached
+        except (ValueError, TypeError):
+            # A code change altered the bundle's shape since this cache
+            # file was written under the same data fingerprint -- treat
+            # it as a miss and retrain, don't crash on a stale format.
+            cached = None
+    if cached is not None:
         print("Reusing cached models/bars/replayed state (data/*.csv unchanged since last run)...")
-        bar, under_bar, model, scaler, xg_model, xg_scaler, state = cached
         print(f"  bar (Over)  = {bar*100:.1f}%  |  bar (Under) = {under_bar*100:.1f}%")
+        print(f"  early-season bar (Over) = {early_bar*100:.1f}%  |  early-season bar (Under) = {early_under_bar*100:.1f}%  "
+              f"(applies when either team has <= {EARLY_SEASON_CUTOFF} games played this season)")
     else:
         print("Computing the live confidence bar (rolling p95 of trailing historical predictions)...")
         bar = compute_rolling_p95_bar()
@@ -218,6 +229,13 @@ def main() -> int:
         print(f"  bar (Over)  = {bar*100:.1f}% -- only fixtures at or above this are real Over picks")
         print(f"  bar (Under) = {under_bar*100:.1f}% -- only fixtures at or above this are real Under picks "
               f"(weaker track record than Over -- see compute_rolling_p95_under_bar docstring)\n")
+
+        print("Computing the stricter early-season bar (check_early_season_reliability.py found "
+              f"+6.1pp overconfidence when either team has <= {EARLY_SEASON_CUTOFF} games played this season)...")
+        early_bar = compute_rolling_p95_bar(early_season_only=True)
+        early_under_bar = compute_rolling_p95_under_bar(early_season_only=True)
+        print(f"  early-season bar (Over)  = {early_bar*100:.1f}%")
+        print(f"  early-season bar (Under) = {early_under_bar*100:.1f}%\n")
 
         print("Training the core model...")
         historical = load_with_player_form_and_shots_venue()
@@ -240,7 +258,13 @@ def main() -> int:
         all_finished = fetch_all_fixtures(None)
         state = replay_to_current_state(all_finished)
 
-        model_cache.save("explain_picks_bundle", (bar, under_bar, model, scaler, xg_model, xg_scaler, state))
+        model_cache.save("explain_picks_bundle", (bar, under_bar, early_bar, early_under_bar, model, scaler, xg_model, xg_scaler, state))
+
+    # Cheap regardless of cache hit/miss -- apifootball's own on-disk cache
+    # (ttl=None) makes this a near-instant reload when it was just fetched
+    # above, and it's needed unconditionally for live games-into-season
+    # lookups below.
+    all_finished = fetch_all_fixtures(None)
 
     print("Fetching upcoming fixtures...")
     upcoming = fetch_upcoming_fixtures(args.days)
@@ -283,9 +307,24 @@ def main() -> int:
 
     calibrators = load_calibrators()
     live_df["calibrated_p"] = apply_calibration(live_df["raw_p"], live_df["model_used"], calibrators)
-    live_df["clears_bar"] = live_df["calibrated_p"] >= bar
+
+    # Whichever of the two teams has played fewer games this
+    # competition+season is the binding constraint -- a fixture is
+    # "early season" if that minimum is <= EARLY_SEASON_CUTOFF, in which
+    # case it has to clear the stricter early-season bar instead of the
+    # regular one (see forward_test_log.py's EARLY_SEASON_CUTOFF docstring).
+    live_df["home_games_into_season"] = live_df.apply(
+        lambda r: team_games_into_season_live(r["home_team"], r["competition"], r["season"], all_finished), axis=1)
+    live_df["away_games_into_season"] = live_df.apply(
+        lambda r: team_games_into_season_live(r["away_team"], r["competition"], r["season"], all_finished), axis=1)
+    live_df["min_games_into_season"] = live_df[["home_games_into_season", "away_games_into_season"]].min(axis=1)
+    live_df["is_early_season"] = live_df["min_games_into_season"] <= EARLY_SEASON_CUTOFF
+    live_df["effective_bar"] = live_df["is_early_season"].map({True: early_bar, False: bar})
+    live_df["effective_under_bar"] = live_df["is_early_season"].map({True: early_under_bar, False: under_bar})
+
+    live_df["clears_bar"] = live_df["calibrated_p"] >= live_df["effective_bar"]
     live_df["under_p"] = 1 - live_df["calibrated_p"]
-    live_df["clears_under_bar"] = live_df["under_p"] >= under_bar
+    live_df["clears_under_bar"] = live_df["under_p"] >= live_df["effective_under_bar"]
 
     print("\nFetching real Kalshi prices per league...")
     kalshi_by_comp = {}
@@ -352,16 +391,18 @@ def main() -> int:
         contributions = explain_row(r, features, m, s)
 
         print("\n" + "=" * 90)
+        early_note = f", early-season bar: min {int(r['min_games_into_season'])} games played" if r["is_early_season"] else ""
         if r["is_pick"]:
-            tag = "PICK (Over)"
+            tag = f"PICK (Over{early_note})"
         elif r["is_under_pick"]:
-            tag = "PICK (Under, weaker track record -- see docs)"
+            tag = f"PICK (Under, weaker track record -- see docs{early_note})"
         elif not r["clears_bar"] and not r["clears_under_bar"]:
-            tag = f"below both bars (Over {bar*100:.1f}% / Under {under_bar*100:.1f}%), reference only"
+            tag = (f"below both bars (Over {r['effective_bar']*100:.1f}% / Under {r['effective_under_bar']*100:.1f}%"
+                   f"{early_note}), reference only")
         elif not r["priced"]:
-            tag = "confident, but no Kalshi price yet -- not a recommendation"
+            tag = f"confident, but no Kalshi price yet -- not a recommendation{early_note}"
         else:
-            tag = "confident, but negative Kalshi edge on both sides -- not a recommendation"
+            tag = f"confident, but negative Kalshi edge on both sides -- not a recommendation{early_note}"
         print(f"[{tag}]  {home} vs {away}  ({r['date']}, {r['competition']})")
         print(f"P(over 2.5) = {r['calibrated_p']*100:.1f}% calibrated  (raw {r['raw_p']*100:.1f}%, [{r['model_used']}] model)"
               f"   |   P(under 2.5) = {r['under_p']*100:.1f}%")
@@ -408,14 +449,15 @@ def main() -> int:
               f"{WATCHLIST_MAX_ABS_EDGE*100:.0f}pp of Kalshi). Re-check closer to kickoff.")
     else:
         for _, r in combined.iterrows():
+            early_note = f", early-season bar (min {int(r['min_games_into_season'])} games played)" if r["is_early_season"] else ""
             if r["is_pick"]:
-                label = "PICK (Over)"
+                label = f"PICK (Over{early_note})"
                 price, edge = r["kalshi_yes_ask"], r["edge_vs_ask"]
             elif r["is_under_pick"]:
-                label = "PICK (Under, weaker track record)"
+                label = f"PICK (Under, weaker track record{early_note})"
                 price, edge = r["kalshi_no_ask"], r["edge_no"]
             else:
-                label = "WATCH (model/market agree, no edge)"
+                label = f"WATCH (model/market agree, no edge{early_note})"
                 price, edge = r["kalshi_yes_ask"], r["edge_vs_ask"]
             fair_str = f", edge vs de-vigged fair {r['edge_vs_fair']*100:+.1f}pp" if pd.notna(r["edge_vs_fair"]) else ""
             print(f"  [{label}] {r['home_team']} vs {r['away_team']} ({r['competition']}, {r['date']}) -- "

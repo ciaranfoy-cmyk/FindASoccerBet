@@ -152,35 +152,66 @@ def fetch_kalshi_over25_for_series(series_ticker: str) -> list[dict]:
     return out
 
 
-def compute_rolling_p95_bar() -> float:
-    """The live selection bar: 95th percentile of the trailing 500
-    out-of-fold predictions in the model's own validated history --
-    same construction as backtest_season_rolling_percentile.py."""
-    df = load_with_xg_player_form_and_shots_venue()
-    df = load_weighted_xg(df)
-    core_stream = build_stream(df, CORE_CANDIDATES, N_FOLDS_CORE, "core").rename(columns={"pred_p": "pred_p_core"})
-    xg_stream = build_stream(df, XG_CANDIDATES, N_FOLDS_XG, "xG")[["fixture_id", "pred_p"]].rename(columns={"pred_p": "pred_p_xg"})
-    merged = core_stream.merge(xg_stream, on="fixture_id", how="left")
-    merged["pred_p_raw"] = merged["pred_p_xg"].combine_first(merged["pred_p_core"])
-    merged["model_used"] = merged["pred_p_xg"].notna().map({True: "xG", False: "core"})
-    stream = merged.sort_values("date").reset_index(drop=True)
+# Both a fixture's own games-into-season AND its opponent's matter --
+# whichever team has played fewer games this competition+season is the
+# binding constraint on how much current-season signal is really
+# available, so EARLY_SEASON_CUTOFF is applied to min(home, away).
+# Validated in check_early_season_reliability.py: fixtures at or below
+# this cutoff are overconfident by +6.1pp in the model-confident (>=60%)
+# regime (n=209) versus +1.1pp the rest of the season (n=2533) -- using
+# the SAME out-of-fold stream and calibrators this bar is built from.
+#
+# FIX: compute_rolling_p95_bar(early_season_only=True) below -- a
+# separate rolling-p95 threshold computed only from early-season
+# out-of-fold predictions, applied to early-season live fixtures instead
+# of the regular bar. Counterintuitively it comes out LOWER than the
+# regular bar (68.5% vs 70.1% in one run), but validated to genuinely
+# help: early-season picks selected by this stratified bar came in at
+# +3.4pp calibration gap / 0.1962 Brier (n=36) versus +4.9pp / 0.2254
+# (n=22) for the same fixtures under the old regular-bar cutoff -- fewer
+# false positives AND more real picks found, not a tradeoff between the
+# two. An additive-penalty alternative (regular bar + the measured 6.1pp
+# gap = ~76%) was also tested and rejected: it left n=2 fixtures,
+# effectively vetoing early-season picks outright. The stratified bar
+# doesn't fully close the gap to mid-season reliability (+3.4pp still
+# versus +1.5pp for non-early fixtures at the regular bar) -- an honest
+# residual, not a failure; both comparison sample sizes are small
+# (n=22-36) so treat the exact numbers as suggestive, not precise.
+EARLY_SEASON_CUTOFF = 4
 
-    calibrators = load_calibrators()
-    stream["pred_p"] = apply_calibration(stream["pred_p_raw"], stream["model_used"], calibrators)
-    trailing = deque(stream["pred_p"].dropna().tail(500), maxlen=500)
-    return float(pd.Series(trailing).quantile(0.95))
+
+def _games_into_season_lookup() -> pd.DataFrame:
+    """fixture_id -> min(home team's, away team's) games already played
+    in that competition+season BEFORE this fixture, computed from date
+    order -- NOT the home/away_competition_games column in
+    matches_apifootball.csv, which is cumulative across ALL seasons and
+    never resets. Same construction as
+    check_early_season_reliability.py's games_into_season().
+    """
+    raw = pd.read_csv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "matches_apifootball.csv"))
+    raw = raw.sort_values("date").reset_index(drop=True)
+    long = pd.concat([
+        raw[["fixture_id", "date", "competition", "season", "home_team"]].rename(columns={"home_team": "team"}),
+        raw[["fixture_id", "date", "competition", "season", "away_team"]].rename(columns={"away_team": "team"}),
+    ]).sort_values("date")
+    long["games_played"] = long.groupby(["team", "competition", "season"]).cumcount()
+
+    home_map = raw[["fixture_id", "home_team"]].merge(
+        long.rename(columns={"team": "home_team", "games_played": "home_gis"}),
+        on=["fixture_id", "home_team"], how="left")[["fixture_id", "home_gis"]]
+    away_map = raw[["fixture_id", "away_team"]].merge(
+        long.rename(columns={"team": "away_team", "games_played": "away_gis"}),
+        on=["fixture_id", "away_team"], how="left")[["fixture_id", "away_gis"]]
+
+    out = raw[["fixture_id"]].merge(home_map, on="fixture_id").merge(away_map, on="fixture_id").drop_duplicates("fixture_id")
+    out["min_games_into_season"] = out[["home_gis", "away_gis"]].min(axis=1)
+    return out[["fixture_id", "min_games_into_season"]]
 
 
-def compute_rolling_p95_under_bar() -> float:
-    """Same construction as compute_rolling_p95_bar(), mirrored onto
-    Under confidence (1 - pred_p) -- the live Under-side selection bar.
-    Validated in diagnose_under_overconfidence.py: this exact rolling-p95
-    selection rule, walked forward over the whole dataset, gave a 56.4%
-    hit rate at a mean predicted confidence of 58.1% (n=598) -- a real,
-    statistically significant edge over the ~46% baseline under-rate, but
-    a smaller, less sharp edge than the Over side's bar produces, and
-    mildly overconfident (-1.7pp) in its own stated probability. Worth
-    surfacing, not worth treating as equally reliable as an Over PICK.
+def _calibrated_stream() -> pd.DataFrame:
+    """Shared by compute_rolling_p95_bar() and compute_rolling_p95_under_bar()
+    -- the out-of-fold prediction stream both are built from, calibrated
+    the same way live predictions are.
     """
     df = load_with_xg_player_form_and_shots_venue()
     df = load_weighted_xg(df)
@@ -193,9 +224,64 @@ def compute_rolling_p95_under_bar() -> float:
 
     calibrators = load_calibrators()
     stream["pred_p"] = apply_calibration(stream["pred_p_raw"], stream["model_used"], calibrators)
+    return stream
+
+
+def compute_rolling_p95_bar(early_season_only: bool = False) -> float:
+    """The live selection bar: 95th percentile of the trailing 500
+    out-of-fold predictions in the model's own validated history --
+    same construction as backtest_season_rolling_percentile.py.
+
+    early_season_only=True restricts the trailing window to fixtures
+    where min(home, away) games played this competition+season was
+    <= EARLY_SEASON_CUTOFF -- a separate, stricter bar for the specific
+    regime found to be overconfident (see EARLY_SEASON_CUTOFF docstring).
+    """
+    stream = _calibrated_stream()
+    if early_season_only:
+        gis = _games_into_season_lookup()
+        stream = stream.merge(gis, on="fixture_id", how="left")
+        stream = stream[stream["min_games_into_season"] <= EARLY_SEASON_CUTOFF]
+    trailing = deque(stream["pred_p"].dropna().tail(500), maxlen=500)
+    return float(pd.Series(trailing).quantile(0.95))
+
+
+def compute_rolling_p95_under_bar(early_season_only: bool = False) -> float:
+    """Same construction as compute_rolling_p95_bar(), mirrored onto
+    Under confidence (1 - pred_p) -- the live Under-side selection bar.
+    Validated in diagnose_under_overconfidence.py: this exact rolling-p95
+    selection rule, walked forward over the whole dataset, gave a 56.4%
+    hit rate at a mean predicted confidence of 58.1% (n=598) -- a real,
+    statistically significant edge over the ~46% baseline under-rate, but
+    a smaller, less sharp edge than the Over side's bar produces, and
+    mildly overconfident (-1.7pp) in its own stated probability. Worth
+    surfacing, not worth treating as equally reliable as an Over PICK.
+
+    early_season_only=True -- see compute_rolling_p95_bar().
+    """
+    stream = _calibrated_stream()
     stream["under_p"] = 1 - stream["pred_p"]
+    if early_season_only:
+        gis = _games_into_season_lookup()
+        stream = stream.merge(gis, on="fixture_id", how="left")
+        stream = stream[stream["min_games_into_season"] <= EARLY_SEASON_CUTOFF]
     trailing = deque(stream["under_p"].dropna().tail(500), maxlen=500)
     return float(pd.Series(trailing).quantile(0.95))
+
+
+def team_games_into_season_live(team_name: str, competition: str, season: int, all_finished: list[dict]) -> int:
+    """Live-time equivalent of _games_into_season_lookup(), for an
+    upcoming fixture instead of a historical one: how many matches has
+    this team already played in this competition+season, among the
+    already-finished matches available right now. Used to decide whether
+    a live fixture should be checked against the regular or early-season
+    bar.
+    """
+    return sum(
+        1 for m in all_finished
+        if m["competition"] == competition and m["season"] == season
+        and (m["home"] == team_name or m["away"] == team_name)
+    )
 
 
 def cmd_snapshot(days: int) -> int:

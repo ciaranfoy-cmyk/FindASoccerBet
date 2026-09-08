@@ -31,11 +31,21 @@ def data_fingerprint() -> str:
 
 
 def load(key: str):
+    """Returns None on any load failure, not just a missing file -- the
+    fingerprint only tracks data/*.csv, not the calling code, so a code
+    change that alters what gets cached (e.g. the bundle's tuple shape)
+    can leave a stale, incompatible file sitting under a still-valid
+    fingerprint. Treating that as a cache miss (retrain) is always safe;
+    letting it raise is not.
+    """
     path = os.path.join(CACHE_DIR, f"{key}_{data_fingerprint()}.dill")
     if not os.path.exists(path):
         return None
-    with open(path, "rb") as f:
-        return dill.load(f)
+    try:
+        with open(path, "rb") as f:
+            return dill.load(f)
+    except Exception:
+        return None
 
 
 def save(key: str, obj) -> None:
