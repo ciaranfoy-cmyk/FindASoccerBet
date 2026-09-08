@@ -16,6 +16,28 @@ was gated on:
      +6.1pp early-season calibration gap in the model-confident bucket
      (>=60%) that check_early_season_reliability.py found?
 
+RESULT: rejected, on the test that decides it here. Full-dataset L1
+survival is WEAKER for both venue-split variants than the current
+blended features -- home_gf_season_home survives at +0.0376 vs blended
+home_gf_season's +0.0843, goal_diff_gap_venue at +0.0343 vs blended
+goal_diff_gap's +0.0566, and every other venue-split feature (raw or
+winsorized) gets zeroed outright where its blended counterpart doesn't.
+Combining (keeping both) doesn't help either -- L1 just re-zeroes the
+venue-split side. The opposite of what happened when this swap-test was
+run for shots and xG.
+
+There IS a real out-of-sample improvement in the early-season-confident
+bucket specifically (calib gap +2.2pp -> +1.4pp, Brier 0.2365 -> 0.2202,
+AUC 0.489 -> 0.578, raw swap, n~190-197) -- but that's from a
+core-model-only stream, not the combined core+xG stream the original
++6.1pp finding used, so it isn't a clean apples-to-apples comparison,
+and it doesn't override the primary full-dataset gate. Winsorization
+added nothing beyond the raw swap (worse AUC: 0.537 vs 0.578).
+
+Not wired into CORE_CANDIDATES/XG_CANDIDATES. If the early-season hint
+is worth chasing further, redo it with the matching combined core+xG
+out-of-fold stream before drawing a conclusion from it.
+
 Usage:
     python3 check_home_away_season_full_dataset.py
 """
