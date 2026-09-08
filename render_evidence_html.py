@@ -116,9 +116,39 @@ def attacker_spotlight(home_att: list, away_att: list, home: str, away: str) -> 
     )
 
 
+def standing_card(standing: dict, team: str) -> str:
+    pos = standing.get("position")
+    pts = standing.get("points")
+    gd = standing.get("goal_diff")
+    form = standing.get("form") or []
+    pos_line = f"{pos}{_ordinal_suffix(pos)} &middot; {pts} pts &middot; GD {gd:+d}" if pos is not None else "Position not yet available"
+    form_line = " ".join(form) if form else "&ndash;"
+    return (
+        '<div class="p">'
+        f'<div class="pname">{esc(team)}</div>'
+        f'<div class="prole">{pos_line}</div>'
+        f'<div class="pstat">Form (last {len(form)}): <b>{esc(form_line)}</b></div>'
+        '</div>'
+    )
+
+
+def _ordinal_suffix(n: int) -> str:
+    if 10 <= n % 100 <= 20:
+        return "th"
+    return {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+
+
+def standing_row(home_standing: dict, away_standing: dict, home: str, away: str) -> str:
+    return (
+        '<div class="esub">League position &amp; recent form</div>\n'
+        f'<div class="player-card">{standing_card(home_standing, home)}{standing_card(away_standing, away)}</div>'
+    )
+
+
 def render_fixture(e: dict) -> str:
     home, away = e["home"], e["away"]
     parts = [
+        standing_row(e.get("home_standing", {}), e.get("away_standing", {}), home, away) if e.get("home_standing") else "",
         venue_table(e["home_venue_games"], home, "home"),
         venue_table(e["away_venue_games"], away, "away"),
         season_table(e["home_season_games"], home),

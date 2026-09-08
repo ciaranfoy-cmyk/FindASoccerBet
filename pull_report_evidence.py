@@ -16,7 +16,7 @@ import json
 from collections import defaultdict
 
 import apifootball
-from build_dataset_apifootball import fetch_all_fixtures, shot_stats_for
+from build_dataset_apifootball import fetch_all_fixtures, shot_stats_for, table_standing
 from build_xg_features import xg_stats_for
 from build_player_form_features import ATTACKING_POS
 from predict_upcoming import new_state, apply_match
@@ -106,6 +106,27 @@ def season_games(prior: list, team_name: str, competition: str, season: int, bef
     return out
 
 
+def team_standing_and_form(state: dict, prior: list, team_name: str, competition: str, season: int, n: int = 5) -> dict:
+    """Current league position (same table_standing() the live model's
+    own home/away_league_position feature reads -- no separate lookup,
+    same numbers) plus W/L/D form over the team's last n games, any
+    competition, most recent last.
+    """
+    season_label = f"{competition}-{season}"
+    position, points, goal_diff = table_standing(state["table"], season_label, team_name)
+
+    games = [m for m in prior if m["home"] == team_name or m["away"] == team_name]
+    form = []
+    for m in games[-n:]:
+        if m["home"] == team_name:
+            gf, ga = m["home_goals"], m["away_goals"]
+        else:
+            gf, ga = m["away_goals"], m["home_goals"]
+        form.append("W" if gf > ga else "L" if gf < ga else "D")
+
+    return {"position": position, "points": points, "goal_diff": goal_diff, "form": form}
+
+
 def h2h_games(prior: list, home: str, away: str, before: datetime.datetime, n: int = 8) -> list:
     games = [m for m in prior if {m["home"], m["away"]} == {home, away}
              and datetime.datetime.fromisoformat(m["date"].replace("Z", "+00:00")) < before]
@@ -173,6 +194,8 @@ def main() -> None:
             "h2h": h2h_games(prior, home, away, before),
             "home_attackers": attackers(state, home_id),
             "away_attackers": attackers(state, away_id),
+            "home_standing": team_standing_and_form(state, prior, home, comp, season),
+            "away_standing": team_standing_and_form(state, prior, away, comp, season),
         }
         report.append(entry)
 
