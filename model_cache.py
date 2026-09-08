@@ -17,6 +17,7 @@ predict_upcoming.new_state()) is a dict of defaultdicts with lambda
 default_factories, which stdlib pickle cannot serialize.
 """
 
+import glob
 import hashlib
 import os
 
