@@ -1,20 +1,22 @@
 """On-disk cache for the expensive, purely-deterministic pieces of a
 prediction run: the trained models, the live confidence bars, and the
 replayed historical team state. All three depend only on the contents
-of data/*.csv -- same inputs, same outputs, always -- so caching them
-turns a multi-minute retrain-from-scratch into a sub-second load for
-repeated prediction requests against the same data snapshot. A cache
-entry is keyed by a fingerprint of every data/*.csv's mtime + size, so
-it is invalidated automatically the instant any of that data changes
-(e.g. after pulling in new match results) -- a cache hit can never be
-stale relative to what a fresh run would produce.
+of the model's TRAINING data (data/*.csv), not on every file that
+happens to live in data/ -- kalshi_trades.csv, forward_test_log.csv and
+similar logs live there too and change on every trade/settle, which
+would silently invalidate this cache (forcing a full retrain) on data
+that has nothing to do with what the model was trained on. A cache
+entry is keyed by a fingerprint of only TRAINING_FILES' mtime + size,
+so it is invalidated automatically the instant training data actually
+changes (e.g. after pulling in new match results) -- a cache hit can
+never be stale relative to what a fresh run would produce -- while
+being immune to unrelated writes elsewhere in data/.
 
 Uses dill, not stdlib pickle: the replayed team-history state (built by
 predict_upcoming.new_state()) is a dict of defaultdicts with lambda
 default_factories, which stdlib pickle cannot serialize.
 """
 
-import glob
 import hashlib
 import os
 
@@ -23,10 +25,25 @@ import dill
 CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cache_model")
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
+# Explicit allowlist, not a glob over data/*.csv -- see module docstring.
+# Every file the live model's training pipeline actually reads from disk.
+TRAINING_FILES = [
+    "matches_apifootball.csv",
+    "lineup_features.csv",
+    "player_form_features.csv",
+    "shots_venue_features.csv",
+    "xg_features.csv",
+    "xg_weighted_features.csv",
+    "calibrators.pkl",
+]
+
 
 def data_fingerprint() -> str:
-    files = sorted(glob.glob(os.path.join(DATA_DIR, "*.csv")))
-    parts = [f"{os.path.basename(f)}:{os.path.getmtime(f)}:{os.path.getsize(f)}" for f in files]
+    parts = []
+    for name in sorted(TRAINING_FILES):
+        path = os.path.join(DATA_DIR, name)
+        if os.path.exists(path):
+            parts.append(f"{name}:{os.path.getmtime(path)}:{os.path.getsize(path)}")
     return hashlib.sha256("|".join(parts).encode()).hexdigest()[:16]
 
 
