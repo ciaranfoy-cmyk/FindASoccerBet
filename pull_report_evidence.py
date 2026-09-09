@@ -58,24 +58,26 @@ def venue_games(prior: list, team_name: str, venue: str, before: datetime.dateti
              datetime.datetime.fromisoformat(m["date"].replace("Z", "+00:00")) < before]
     out = []
     for m in games[-n:]:
+        team_id = m["home_id"] if venue == "home" else m["away_id"]
+        opp_id = m["away_id"] if venue == "home" else m["home_id"]
         try:
             shots = shot_stats_for(m["fixture_id"])
-            team_id = m["home_id"] if venue == "home" else m["away_id"]
             s = shots.get(team_id, {})
         except apifootball.ApiFootballError:
             s = {}
         try:
             xg = xg_stats_for(m["fixture_id"])
-            team_id = m["home_id"] if venue == "home" else m["away_id"]
             xg_val = xg.get(team_id, {}).get("xg")
+            xg_against_val = xg.get(opp_id, {}).get("xg")
         except apifootball.ApiFootballError:
             xg_val = None
+            xg_against_val = None
         out.append({
             "date": m["date"][:10],
             "home": m["home"], "away": m["away"],
             "home_goals": m["home_goals"], "away_goals": m["away_goals"],
             "shots": s.get("total_shots"), "on_target": s.get("shots_on_goal"), "inside_box": s.get("shots_inside_box"),
-            "xg": xg_val,
+            "xg": xg_val, "xg_against": xg_against_val,
         })
     return out
 
@@ -90,18 +92,22 @@ def season_games(prior: list, team_name: str, competition: str, season: int, bef
         gf, ga = (m["home_goals"], m["away_goals"]) if venue == "home" else (m["away_goals"], m["home_goals"])
         opp = m["away"] if venue == "home" else m["home"]
         team_id = m["home_id"] if venue == "home" else m["away_id"]
+        opp_id = m["away_id"] if venue == "home" else m["home_id"]
         try:
             shots = shot_stats_for(m["fixture_id"]).get(team_id, {})
         except apifootball.ApiFootballError:
             shots = {}
         try:
-            xg_val = xg_stats_for(m["fixture_id"]).get(team_id, {}).get("xg")
+            xg_stats = xg_stats_for(m["fixture_id"])
+            xg_val = xg_stats.get(team_id, {}).get("xg")
+            xg_against_val = xg_stats.get(opp_id, {}).get("xg")
         except apifootball.ApiFootballError:
             xg_val = None
+            xg_against_val = None
         out.append({
             "date": m["date"][:10], "venue": venue, "gf": gf, "ga": ga, "opp": opp,
             "shots": shots.get("total_shots"), "on_target": shots.get("shots_on_goal"),
-            "inside_box": shots.get("shots_inside_box"), "xg": xg_val,
+            "inside_box": shots.get("shots_inside_box"), "xg": xg_val, "xg_against": xg_against_val,
         })
     return out
 

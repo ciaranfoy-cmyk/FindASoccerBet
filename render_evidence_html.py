@@ -30,15 +30,17 @@ def venue_table(games: list, team: str, venue: str) -> str:
     for g in games:
         result = f"{esc(g['home'])} {g['home_goals']}&ndash;{g['away_goals']} {esc(g['away'])}"
         xg = f"{g['xg']:.2f}" if g["xg"] is not None else "&ndash;"
+        xg_against = f"{g['xg_against']:.2f}" if g.get("xg_against") is not None else "&ndash;"
         rows.append(
             f"<tr><td>{fmt_date(g['date'])}</td><td>{result}</td><td>{g['shots'] if g['shots'] is not None else '&ndash;'}</td>"
-            f"<td>{g['on_target'] if g['on_target'] is not None else '&ndash;'}</td><td>{g['inside_box'] if g['inside_box'] is not None else '&ndash;'}</td><td>{xg}</td></tr>"
+            f"<td>{g['on_target'] if g['on_target'] is not None else '&ndash;'}</td><td>{g['inside_box'] if g['inside_box'] is not None else '&ndash;'}</td>"
+            f"<td>{xg}</td><td>{xg_against}</td></tr>"
         )
     label = "home" if venue == "home" else "away"
     return (
         f'<div class="esub">{esc(team)}\'s last {len(games)} {label} games</div>\n'
         f'<div class="etable-wrap"><table class="etable">\n'
-        f'<tr><th>Date</th><th>Result</th><th>Shots</th><th>On Target</th><th>In Box</th><th>xG</th></tr>\n'
+        f'<tr><th>Date</th><th>Result</th><th>Shots</th><th>On Target</th><th>In Box</th><th>xG</th><th>xG Against</th></tr>\n'
         + "\n".join(rows) + "\n</table></div>"
     )
 
@@ -50,11 +52,12 @@ def season_table(games: list, team: str) -> str:
         venue_tag = "(h)" if g["venue"] == "home" else "(a)"
         prep = "vs" if g["venue"] == "home" else "at"
         xg = f"{g['xg']:.2f}" if g.get("xg") is not None else "&ndash;"
+        xg_against = f"{g['xg_against']:.2f}" if g.get("xg_against") is not None else "&ndash;"
         rows.append(
             f"<tr><td>{fmt_date(g['date'])}</td><td>{esc(team)} {venue_tag} {g['gf']}&ndash;{g['ga']} {prep} {esc(g['opp'])}</td>"
             f"<td>{g.get('shots') if g.get('shots') is not None else '&ndash;'}</td>"
             f"<td>{g.get('on_target') if g.get('on_target') is not None else '&ndash;'}</td>"
-            f"<td>{g.get('inside_box') if g.get('inside_box') is not None else '&ndash;'}</td><td>{xg}</td></tr>"
+            f"<td>{g.get('inside_box') if g.get('inside_box') is not None else '&ndash;'}</td><td>{xg}</td><td>{xg_against}</td></tr>"
         )
     thin_note = ""
     if n <= 3:
@@ -63,7 +66,7 @@ def season_table(games: list, team: str) -> str:
     return (
         f'<div class="esub">{esc(team)}\'s 2026&ndash;27 season so far ({n} game{"s" if n != 1 else ""})</div>\n'
         f'{shown_note}<div class="etable-wrap"><table class="etable">\n'
-        f'<tr><th>Date</th><th>Result</th><th>Shots</th><th>On Target</th><th>In Box</th><th>xG</th></tr>\n'
+        f'<tr><th>Date</th><th>Result</th><th>Shots</th><th>On Target</th><th>In Box</th><th>xG</th><th>xG Against</th></tr>\n'
         + "\n".join(rows) + f"\n</table></div>\n{thin_note}"
     )
 
@@ -141,7 +144,12 @@ def _ordinal_suffix(n: int) -> str:
 def standing_row(home_standing: dict, away_standing: dict, home: str, away: str) -> str:
     return (
         '<div class="esub">League position &amp; recent form</div>\n'
-        f'<div class="player-card">{standing_card(home_standing, home)}{standing_card(away_standing, away)}</div>'
+        f'<div class="player-card">{standing_card(home_standing, home)}{standing_card(away_standing, away)}</div>\n'
+        '<div class="xg-note" style="border-top:none;padding-top:0;">'
+        '"xG Against" is the OPPONENT\'s xG in that same match -- quality of chances this team allowed, not conceded goals. '
+        'A team can post good results (clean sheets, low-scoring wins) while still facing high xG against, which flags '
+        'defensive vulnerability the scoreline alone hides -- this is what the model\'s weighted xG feature actually tracks '
+        'for both sides, not just goals-for.</div>'
     )
 
 
