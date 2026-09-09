@@ -20,6 +20,7 @@ from analyze_shots_venue import load_with_xg_player_form_and_shots_venue
 from backtest_season_rolling_percentile import N_FOLDS_CORE, N_FOLDS_XG, build_stream
 from build_dataset_apifootball import fetch_all_fixtures
 from build_xg_weighted_features import load_weighted_xg
+from build_team_ratings_features import load_team_ratings
 from calibration import apply_calibration, load_calibrators
 from predict_upcoming import CORE_CANDIDATES, XG_CANDIDATES
 
@@ -46,6 +47,7 @@ def rolling_percentile_picks(stream: pd.DataFrame, window: int, percentile: floa
 def main() -> None:
     df = load_with_xg_player_form_and_shots_venue()
     df = load_weighted_xg(df)
+    df = load_team_ratings(df)
 
     print("Building out-of-fold prediction streams...")
     core_stream = build_stream(df, CORE_CANDIDATES, N_FOLDS_CORE, "core").rename(columns={"pred_p": "pred_p_core"})

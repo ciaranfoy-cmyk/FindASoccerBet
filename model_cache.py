@@ -35,6 +35,7 @@ TRAINING_FILES = [
     "shots_venue_features.csv",
     "xg_features.csv",
     "xg_weighted_features.csv",
+    "team_ratings_features.csv",
     "calibrators.pkl",
 ]
 

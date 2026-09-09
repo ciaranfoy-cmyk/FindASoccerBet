@@ -59,6 +59,12 @@ from build_xg_weighted_features import (
     add_weighted_xg_derived_features,
     load_weighted_xg,
 )
+from build_team_ratings_features import (
+    RATINGS_DERIVED_FEATURES,
+    RATINGS_RAW_FEATURES,
+    add_ratings_derived_features,
+    load_team_ratings,
+)
 from backtest_season_rolling_percentile import N_FOLDS_CORE, N_FOLDS_XG, build_stream
 from build_dataset_apifootball import LEAGUES, fetch_all_fixtures
 from build_league_finish_features import add_league_finish_features, build_standings_cache
@@ -215,6 +221,7 @@ def _calibrated_stream() -> pd.DataFrame:
     """
     df = load_with_xg_player_form_and_shots_venue()
     df = load_weighted_xg(df)
+    df = load_team_ratings(df)
     core_stream = build_stream(df, CORE_CANDIDATES, N_FOLDS_CORE, "core").rename(columns={"pred_p": "pred_p_core"})
     xg_stream = build_stream(df, XG_CANDIDATES, N_FOLDS_XG, "xG")[["fixture_id", "pred_p"]].rename(columns={"pred_p": "pred_p_xg"})
     merged = core_stream.merge(xg_stream, on="fixture_id", how="left")
@@ -296,6 +303,7 @@ def cmd_snapshot(days: int) -> int:
     print("Training the xG-augmented model...")
     xg_historical = load_with_xg_player_form_and_shots_venue()
     xg_historical = load_weighted_xg(xg_historical)
+    xg_historical = load_team_ratings(xg_historical)
     xg_model_df = xg_historical[XG_CANDIDATES + ["over_2_5"]].dropna()
     xg_scaler = StandardScaler()
     X_xg_train = xg_scaler.fit_transform(xg_model_df[XG_CANDIDATES])
@@ -323,6 +331,7 @@ def cmd_snapshot(days: int) -> int:
     live_df = pd.DataFrame(rows)
     live_df = add_derived_features(live_df)
     live_df = add_weighted_xg_derived_features(live_df)
+    live_df = add_ratings_derived_features(live_df)
     live_df = add_player_form_derived_features(live_df)
     live_df = add_shots_venue_derived_features(live_df)
     standings_cache = build_standings_cache()
@@ -332,7 +341,10 @@ def cmd_snapshot(days: int) -> int:
         print("All fixtures were missing a required feature.")
         return 0
 
-    has_xg = live_df[XG_FINISHING_FEATURES + WEIGHTED_XG_RAW_FEATURES + WEIGHTED_XG_DERIVED_FEATURES].notna().all(axis=1)
+    has_xg = live_df[
+        XG_FINISHING_FEATURES + WEIGHTED_XG_RAW_FEATURES + WEIGHTED_XG_DERIVED_FEATURES
+        + RATINGS_RAW_FEATURES + RATINGS_DERIVED_FEATURES
+    ].notna().all(axis=1)
     live_df["raw_p"] = pd.NA
     live_df["model_used"] = ""
     core_rows = live_df.loc[~has_xg]

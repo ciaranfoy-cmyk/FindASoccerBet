@@ -39,6 +39,12 @@ from build_xg_weighted_features import (
     add_weighted_xg_derived_features,
     load_weighted_xg,
 )
+from build_team_ratings_features import (
+    RATINGS_DERIVED_FEATURES,
+    RATINGS_RAW_FEATURES,
+    add_ratings_derived_features,
+    load_team_ratings,
+)
 from build_dataset_apifootball import fetch_all_fixtures
 from build_league_finish_features import add_league_finish_features, build_standings_cache
 from predict_upcoming import (
@@ -91,6 +97,7 @@ def main() -> int:
     print("Training the xG-augmented model...")
     xg_historical = load_with_xg_player_form_and_shots_venue()
     xg_historical = load_weighted_xg(xg_historical)
+    xg_historical = load_team_ratings(xg_historical)
     xg_model_df = xg_historical[XG_CANDIDATES + ["over_2_5"]].dropna()
     xg_scaler = StandardScaler()
     X_xg_train = xg_scaler.fit_transform(xg_model_df[XG_CANDIDATES])
@@ -127,6 +134,7 @@ def main() -> int:
     live_df = pd.DataFrame(rows)
     live_df = add_derived_features(live_df)
     live_df = add_weighted_xg_derived_features(live_df)
+    live_df = add_ratings_derived_features(live_df)
     live_df = add_player_form_derived_features(live_df)
     live_df = add_shots_venue_derived_features(live_df)
     standings_cache = build_standings_cache()
@@ -137,7 +145,10 @@ def main() -> int:
         print("All fixtures were missing a required feature.")
         return 0
 
-    has_xg = live_df[XG_FINISHING_FEATURES + WEIGHTED_XG_RAW_FEATURES + WEIGHTED_XG_DERIVED_FEATURES].notna().all(axis=1)
+    has_xg = live_df[
+        XG_FINISHING_FEATURES + WEIGHTED_XG_RAW_FEATURES + WEIGHTED_XG_DERIVED_FEATURES
+        + RATINGS_RAW_FEATURES + RATINGS_DERIVED_FEATURES
+    ].notna().all(axis=1)
     live_df["pred_p"] = pd.NA
     live_df["model_used"] = ""
     core_rows = live_df.loc[~has_xg]

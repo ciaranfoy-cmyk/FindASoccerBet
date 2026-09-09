@@ -33,12 +33,14 @@ from sklearn.preprocessing import StandardScaler
 import apifootball
 from analyze_dataset_apifootball import add_derived_features
 from build_xg_weighted_features import add_weighted_xg_derived_features, load_weighted_xg
+from build_team_ratings_features import add_ratings_derived_features, load_team_ratings
 from build_dataset_apifootball import LEAGUES, fetch_all_fixtures
 from predict_upcoming import (
     CORE_CANDIDATES,
     XG_CANDIDATES,
     apply_match,
     build_feature_row,
+    fit_current_team_ratings,
     new_state,
 )
 from analyze_player_form import add_player_form_derived_features
@@ -111,6 +113,7 @@ def main() -> int:
     historical = load_with_player_form_and_shots_venue()
     xg_historical = load_with_xg_player_form_and_shots_venue()
     xg_historical = load_weighted_xg(xg_historical)
+    xg_historical = load_team_ratings(xg_historical)
     standings_cache = build_standings_cache()
 
     # Group this season's matches into calendar weeks, chronological.
@@ -153,6 +156,13 @@ def main() -> int:
             )
             xg_model.fit(X_xg_train, xg_model_df["over_2_5"])
 
+        # Same no-lookahead cutoff as the model retrain above -- team
+        # ratings are refit fresh each week from matches strictly before
+        # this week's first kickoff, not carried over from a stale state.
+        state["team_ratings"] = fit_current_team_ratings(
+            [m for m in all_finished if parse_dt(m["date"]) < cutoff]
+        )
+
         rows = []
         for m in week_matches:
             row = build_feature_row(m, state)
@@ -167,6 +177,7 @@ def main() -> int:
             live_df = pd.DataFrame(rows)
             live_df = add_derived_features(live_df)
             live_df = add_weighted_xg_derived_features(live_df)
+            live_df = add_ratings_derived_features(live_df)
             live_df = add_player_form_derived_features(live_df)
             live_df = add_shots_venue_derived_features(live_df)
             live_df = add_league_finish_features(live_df, standings_cache)

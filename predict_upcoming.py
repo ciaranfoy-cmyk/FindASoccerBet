@@ -72,6 +72,15 @@ from build_xg_weighted_features import (
     load_weighted_xg,
     weighted_avg,
 )
+from build_team_ratings_features import LOOKBACK_DAYS as RATINGS_LOOKBACK_DAYS
+from build_team_ratings_features import MIN_MATCHES_FOR_FIT as RATINGS_MIN_MATCHES_FOR_FIT
+from build_team_ratings_features import (
+    RATINGS_DERIVED_FEATURES,
+    RATINGS_RAW_FEATURES,
+    add_ratings_derived_features,
+    fit_ratings,
+    load_team_ratings,
+)
 from build_dataset_apifootball import (
     LEAGUES,
     clean_sheet_pct,
@@ -142,7 +151,22 @@ XG_FINISHING_FEATURES = ["home_finishing_last5", "away_finishing_last5"]
 # the single largest coefficient in the whole model, +0.179, well ahead
 # of h2h_avg_goals_shrunk's +0.068), so combining just carries dead
 # features. See check_xg_weighted_full_dataset.py.
-XG_CANDIDATES = CORE_CANDIDATES + XG_FINISHING_FEATURES + WEIGHTED_XG_RAW_FEATURES + WEIGHTED_XG_DERIVED_FEATURES
+# Two-way (attack/defense) regression team-quality ratings
+# (build_team_ratings_features.py) -- COMBINED, not swapped in, same
+# logic as LEAGUE_FINISH_FEATURES: full-dataset L1 survival showed the
+# jointly-solved, opponent-adjusted ratings capture something the flat
+# per-team history doesn't. home_attack_rating and combined_expected_rating
+# survive as the 2nd and 3rd largest coefficients in the whole model
+# (behind only poisson_p_over_last5_weighted), knock out home_xg_last5_weighted
+# entirely (the ratings subsume that signal, not just add noise beside
+# it), and the combined variant beats both the baseline and a full swap
+# on out-of-sample Brier (0.2406 vs 0.2412) and AUC (0.595 vs 0.591) --
+# swapping instead of combining loses AUC (0.587). See
+# check_team_ratings_full_dataset.py.
+XG_CANDIDATES = (
+    CORE_CANDIDATES + XG_FINISHING_FEATURES + WEIGHTED_XG_RAW_FEATURES + WEIGHTED_XG_DERIVED_FEATURES
+    + RATINGS_RAW_FEATURES + RATINGS_DERIVED_FEATURES
+)
 
 
 def new_state() -> dict:
@@ -273,6 +297,36 @@ def apply_match(state: dict, m: dict) -> None:
         away_row["points"] += 1
 
 
+def fit_current_team_ratings(matches: list[dict]) -> dict[str, tuple[dict, dict] | None]:
+    """Live counterpart to build_team_ratings_features.py's periodic
+    refit -- ONE current snapshot per competition (never pooled across
+    competitions, same division-aware fix Elo needed but never got),
+    not a point-in-time history of snapshots, since a live run only
+    ever needs "team quality right now". Same trailing LOOKBACK_DAYS
+    window and MIN_MATCHES_FOR_FIT threshold as training, anchored to
+    the most recent match date in `matches` rather than wall-clock
+    "now" so a stale local data pull can't silently window in matches
+    that haven't actually been fetched yet. None for a competition
+    without enough matches in the window (cold start, same convention
+    as everywhere else in this project) -- build_feature_row below
+    turns that into NaN features rather than a fake average.
+    """
+    by_competition: dict[str, list[dict]] = defaultdict(list)
+    for m in matches:
+        by_competition[m["competition"]].append(m)
+    now = max(datetime.datetime.fromisoformat(m["date"].replace("Z", "+00:00")) for m in matches)
+    lookback_start = now - datetime.timedelta(days=RATINGS_LOOKBACK_DAYS)
+
+    result: dict[str, tuple[dict, dict] | None] = {}
+    for comp, comp_matches in by_competition.items():
+        window = [
+            m for m in comp_matches
+            if lookback_start <= datetime.datetime.fromisoformat(m["date"].replace("Z", "+00:00")) <= now
+        ]
+        result[comp] = fit_ratings(window) if len(window) >= RATINGS_MIN_MATCHES_FOR_FIT else None
+    return result
+
+
 def replay_to_current_state(matches: list[dict]) -> dict:
     """Replay every finished match chronologically to arrive at each
     team's current tracked state — identical bookkeeping to
@@ -284,6 +338,7 @@ def replay_to_current_state(matches: list[dict]) -> dict:
         apply_match(state, m)
         if i % 2000 == 0:
             print(f"  ...replayed {i}/{len(matches)} historical matches", file=sys.stderr)
+    state["team_ratings"] = fit_current_team_ratings(matches)
     return state
 
 
@@ -399,6 +454,16 @@ def build_feature_row(m: dict, state: dict) -> dict | None:
     home_attacking_form = attacking_form_for(state, m["home_id"], live_lineups.get(m["home_id"]))
     away_attacking_form = attacking_form_for(state, m["away_id"], live_lineups.get(m["away_id"]))
 
+    comp_ratings = state.get("team_ratings", {}).get(competition)
+    if comp_ratings is not None:
+        rating_attack, rating_defense = comp_ratings
+        home_attack_rating = rating_attack.get(home, 0.0)
+        home_defense_rating = rating_defense.get(home, 0.0)
+        away_attack_rating = rating_attack.get(away, 0.0)
+        away_defense_rating = rating_defense.get(away, 0.0)
+    else:
+        home_attack_rating = home_defense_rating = away_attack_rating = away_defense_rating = None
+
     return {
         "fixture_id": m["fixture_id"],
         "date": match_date.date().isoformat(),
@@ -464,6 +529,10 @@ def build_feature_row(m: dict, state: dict) -> dict | None:
         "away_venue_shots_on_goal_last5": rolling_avg_venue_shots(away_venue_shot_hist, "shots_on_goal"),
         "home_venue_shots_inside_box_last5": rolling_avg_venue_shots(home_venue_shot_hist, "shots_inside_box"),
         "away_venue_shots_inside_box_last5": rolling_avg_venue_shots(away_venue_shot_hist, "shots_inside_box"),
+        "home_attack_rating": home_attack_rating,
+        "home_defense_rating": home_defense_rating,
+        "away_attack_rating": away_attack_rating,
+        "away_defense_rating": away_defense_rating,
     }
 
 
@@ -488,6 +557,7 @@ def main() -> int:
     print("Training the xG-augmented model on the real-xG-covered recent-era subset...")
     xg_historical = load_with_xg_player_form_and_shots_venue()
     xg_historical = load_weighted_xg(xg_historical)
+    xg_historical = load_team_ratings(xg_historical)
     xg_model_df = xg_historical[XG_CANDIDATES + ["over_2_5"]].dropna()
     print(f"  {len(xg_model_df)} complete-case matches used for training "
           f"(real xG only exists PL 2022-23+ / ELC 2023-24+ — validated on 3 rolling-origin "
@@ -534,6 +604,7 @@ def main() -> int:
     live_df = pd.DataFrame(rows)
     live_df = add_derived_features(live_df)
     live_df = add_weighted_xg_derived_features(live_df)
+    live_df = add_ratings_derived_features(live_df)
     live_df = add_player_form_derived_features(live_df)
     live_df = add_shots_venue_derived_features(live_df)
     standings_cache = build_standings_cache()
@@ -549,7 +620,10 @@ def main() -> int:
         print("All upcoming fixtures were missing at least one required feature (likely shot-stat or form gaps).")
         return 0
 
-    has_xg = live_df[XG_FINISHING_FEATURES + WEIGHTED_XG_RAW_FEATURES + WEIGHTED_XG_DERIVED_FEATURES].notna().all(axis=1)
+    has_xg = live_df[
+        XG_FINISHING_FEATURES + WEIGHTED_XG_RAW_FEATURES + WEIGHTED_XG_DERIVED_FEATURES
+        + RATINGS_RAW_FEATURES + RATINGS_DERIVED_FEATURES
+    ].notna().all(axis=1)
 
     live_df["raw_pred_p"] = pd.NA
     live_df["model_used"] = ""
