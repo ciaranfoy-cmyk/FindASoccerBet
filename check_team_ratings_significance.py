@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
 """check_team_ratings_full_dataset.py's decisive test is full-dataset L1
 coefficient survival, and that passed clearly. But its SECONDARY
-out-of-sample Brier/AUC comparison (baseline 0.2412/0.591 vs combine
-0.2406/0.595) was reported as a plain point-estimate difference with no
+out-of-sample Brier/AUC comparison (baseline 0.2405/0.591 vs combine
+0.2400/0.595) was reported as a plain point-estimate difference with no
 check on whether it's distinguishable from sampling noise on ~5337
 fixtures -- exactly the kind of unverified "looks better" claim this
 project has been burned by before. This bootstraps the SAME two
 out-of-fold prediction streams (baseline XG_CANDIDATES vs combine
 XG_CANDIDATES+ratings) to put a confidence interval on the Brier and
 AUC deltas.
+
+(An earlier version of this script and check_team_ratings_full_dataset.py
+both passed apply_calibration() the label "xg" -- calibration.py's mask
+checks for "xG" exactly, so that label never matched and calibration
+silently never applied; the "calibrated" streams were actually raw
+model output. Fixed here; the numbers above are the corrected ones.
+Full-dataset L1 survival was never affected -- it doesn't touch
+calibration at all.)
 
 Usage:
     python3 check_team_ratings_significance.py
@@ -46,7 +54,7 @@ def main() -> int:
 
     def score_variant(label: str, features: list[str]) -> pd.DataFrame:
         stream = build_stream(df, features, N_FOLDS_XG, label)
-        stream["pred_p_cal"] = apply_calibration(stream["pred_p"], pd.Series(["xg"] * len(stream)), calibrators)
+        stream["pred_p_cal"] = apply_calibration(stream["pred_p"], pd.Series(["xG"] * len(stream)), calibrators)
         return stream
 
     base_stream = score_variant("baseline", baseline_features)

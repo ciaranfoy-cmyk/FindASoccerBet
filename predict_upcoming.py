@@ -159,10 +159,13 @@ XG_FINISHING_FEATURES = ["home_finishing_last5", "away_finishing_last5"]
 # survive as the 2nd and 3rd largest coefficients in the whole model
 # (behind only poisson_p_over_last5_weighted), knock out home_xg_last5_weighted
 # entirely (the ratings subsume that signal, not just add noise beside
-# it), and the combined variant beats both the baseline and a full swap
-# on out-of-sample Brier (0.2406 vs 0.2412) and AUC (0.595 vs 0.591) --
-# swapping instead of combining loses AUC (0.587). See
-# check_team_ratings_full_dataset.py.
+# it). Full-dataset L1 survival is what decides this (the same test that
+# rejected Elo and league-average-finish) and it's unambiguous; the
+# out-of-sample Brier/AUC comparison (0.2400 vs 0.2405 combine-vs-baseline,
+# AUC 0.595 vs 0.591; swap loses AUC at 0.587) points the same direction
+# but a paired bootstrap found it's NOT statistically distinguishable
+# from noise at n~5337 -- see check_team_ratings_significance.py. Treat
+# it as directionally consistent, not independent corroborating evidence.
 XG_CANDIDATES = (
     CORE_CANDIDATES + XG_FINISHING_FEATURES + WEIGHTED_XG_RAW_FEATURES + WEIGHTED_XG_DERIVED_FEATURES
     + RATINGS_RAW_FEATURES + RATINGS_DERIVED_FEATURES

@@ -23,7 +23,17 @@ out and rejected as a live feature before this check ever runs):
 Also runs the same out-of-sample walk-forward Brier/AUC comparison
 (build_stream, same CV the live confidence bar uses) as every other
 check in this project, for a second opinion -- but full-dataset L1
-survival is what decides it.
+survival is what decides it. That's a good thing: check_team_ratings_
+significance.py bootstrapped this OOS comparison and found it's NOT
+statistically distinguishable from noise at n~5337 (directionally
+consistent, not independent corroborating evidence) -- had this been
+the decisive test instead of L1, the result would have been a coin
+flip, not a validated finding.
+
+(This file previously mislabeled the calibration call ("xg" instead of
+calibration.py's exact-match "xG"), so the "calibrated" OOS numbers
+below were silently uncalibrated raw model output. Fixed -- see
+check_team_ratings_significance.py's docstring.)
 
 Usage:
     python3 check_team_ratings_full_dataset.py
@@ -123,7 +133,7 @@ def main() -> int:
 
     def score_variant(label: str, features: list[str]) -> pd.DataFrame:
         stream = build_stream(df, features, N_FOLDS_XG, label)
-        stream["pred_p_cal"] = apply_calibration(stream["pred_p"], pd.Series(["xg"] * len(stream)), calibrators)
+        stream["pred_p_cal"] = apply_calibration(stream["pred_p"], pd.Series(["xG"] * len(stream)), calibrators)
         return stream
 
     from sklearn.metrics import brier_score_loss, roc_auc_score
