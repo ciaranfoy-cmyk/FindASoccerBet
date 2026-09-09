@@ -89,9 +89,16 @@ def main() -> int:
     print("Loading full dataset with team-ratings features merged in...")
     df = load_data()
 
-    baseline_features = XG_CANDIDATES
-    combine_features = XG_CANDIDATES + RATINGS_ALL
-    swap_weighted_features = [f for f in XG_CANDIDATES if f not in WEIGHTED_XG_ALL] + RATINGS_ALL
+    # XG_CANDIDATES already includes the ratings features as of this
+    # script's run -- they were wired into the live model on the strength
+    # of the result this script originally produced. Strip them back out
+    # to reconstruct the pre-ratings baseline, so re-running this later
+    # doesn't silently double the ratings columns (duplicate-column crash)
+    # or compare ratings against itself.
+    pre_ratings_features = [f for f in XG_CANDIDATES if f not in RATINGS_ALL]
+    baseline_features = pre_ratings_features
+    combine_features = pre_ratings_features + RATINGS_ALL
+    swap_weighted_features = [f for f in pre_ratings_features if f not in WEIGHTED_XG_ALL] + RATINGS_ALL
 
     print("\n=== Full-dataset L1 coefficient survival ===")
     print("Baseline (live XG_CANDIDATES):")
