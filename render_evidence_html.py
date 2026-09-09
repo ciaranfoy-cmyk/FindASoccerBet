@@ -25,22 +25,30 @@ def esc(s) -> str:
     return html.escape(str(s))
 
 
+def _fmt_xg(val) -> str:
+    return f"{val:.2f}" if val is not None else "&ndash;"
+
+
+def _fmt_total_xg(xg, xg_against) -> str:
+    if xg is None or xg_against is None:
+        return "&ndash;"
+    return f"{xg + xg_against:.2f}"
+
+
 def venue_table(games: list, team: str, venue: str) -> str:
     rows = []
     for g in games:
         result = f"{esc(g['home'])} {g['home_goals']}&ndash;{g['away_goals']} {esc(g['away'])}"
-        xg = f"{g['xg']:.2f}" if g["xg"] is not None else "&ndash;"
-        xg_against = f"{g['xg_against']:.2f}" if g.get("xg_against") is not None else "&ndash;"
         rows.append(
             f"<tr><td>{fmt_date(g['date'])}</td><td>{result}</td><td>{g['shots'] if g['shots'] is not None else '&ndash;'}</td>"
             f"<td>{g['on_target'] if g['on_target'] is not None else '&ndash;'}</td><td>{g['inside_box'] if g['inside_box'] is not None else '&ndash;'}</td>"
-            f"<td>{xg}</td><td>{xg_against}</td></tr>"
+            f"<td>{_fmt_xg(g['xg'])}</td><td>{_fmt_xg(g.get('xg_against'))}</td><td>{_fmt_total_xg(g['xg'], g.get('xg_against'))}</td></tr>"
         )
     label = "home" if venue == "home" else "away"
     return (
         f'<div class="esub">{esc(team)}\'s last {len(games)} {label} games</div>\n'
         f'<div class="etable-wrap"><table class="etable">\n'
-        f'<tr><th>Date</th><th>Result</th><th>Shots</th><th>On Target</th><th>In Box</th><th>xG</th><th>xG Against</th></tr>\n'
+        f'<tr><th>Date</th><th>Result</th><th>Shots</th><th>On Target</th><th>In Box</th><th>xG</th><th>xG Against</th><th>Total xG</th></tr>\n'
         + "\n".join(rows) + "\n</table></div>"
     )
 
@@ -51,13 +59,12 @@ def season_table(games: list, team: str) -> str:
     for g in games[-6:]:
         venue_tag = "(h)" if g["venue"] == "home" else "(a)"
         prep = "vs" if g["venue"] == "home" else "at"
-        xg = f"{g['xg']:.2f}" if g.get("xg") is not None else "&ndash;"
-        xg_against = f"{g['xg_against']:.2f}" if g.get("xg_against") is not None else "&ndash;"
         rows.append(
             f"<tr><td>{fmt_date(g['date'])}</td><td>{esc(team)} {venue_tag} {g['gf']}&ndash;{g['ga']} {prep} {esc(g['opp'])}</td>"
             f"<td>{g.get('shots') if g.get('shots') is not None else '&ndash;'}</td>"
             f"<td>{g.get('on_target') if g.get('on_target') is not None else '&ndash;'}</td>"
-            f"<td>{g.get('inside_box') if g.get('inside_box') is not None else '&ndash;'}</td><td>{xg}</td><td>{xg_against}</td></tr>"
+            f"<td>{g.get('inside_box') if g.get('inside_box') is not None else '&ndash;'}</td>"
+            f"<td>{_fmt_xg(g.get('xg'))}</td><td>{_fmt_xg(g.get('xg_against'))}</td><td>{_fmt_total_xg(g.get('xg'), g.get('xg_against'))}</td></tr>"
         )
     thin_note = ""
     if n <= 3:
@@ -66,7 +73,7 @@ def season_table(games: list, team: str) -> str:
     return (
         f'<div class="esub">{esc(team)}\'s 2026&ndash;27 season so far ({n} game{"s" if n != 1 else ""})</div>\n'
         f'{shown_note}<div class="etable-wrap"><table class="etable">\n'
-        f'<tr><th>Date</th><th>Result</th><th>Shots</th><th>On Target</th><th>In Box</th><th>xG</th><th>xG Against</th></tr>\n'
+        f'<tr><th>Date</th><th>Result</th><th>Shots</th><th>On Target</th><th>In Box</th><th>xG</th><th>xG Against</th><th>Total xG</th></tr>\n'
         + "\n".join(rows) + f"\n</table></div>\n{thin_note}"
     )
 
@@ -149,7 +156,8 @@ def standing_row(home_standing: dict, away_standing: dict, home: str, away: str)
         '"xG Against" is the OPPONENT\'s xG in that same match -- quality of chances this team allowed, not conceded goals. '
         'A team can post good results (clean sheets, low-scoring wins) while still facing high xG against, which flags '
         'defensive vulnerability the scoreline alone hides -- this is what the model\'s weighted xG feature actually tracks '
-        'for both sides, not just goals-for.</div>'
+        'for both sides, not just goals-for. "Total xG" (xG + xG Against) is that single game\'s combined expected goals '
+        '-- directly comparable to the real 2.5 line, and to the actual total goals in the Result column next to it.</div>'
     )
 
 
