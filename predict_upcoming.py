@@ -66,8 +66,10 @@ from analyze_shots_venue import (
 from build_league_finish_features import add_league_finish_features, build_standings_cache
 from build_xg_weighted_features import HISTORY_MAXLEN as XG_WEIGHTED_HISTORY_MAXLEN
 from build_xg_weighted_features import (
+    GEO_FEATURES,
     WEIGHTED_XG_DERIVED_FEATURES,
     WEIGHTED_XG_RAW_FEATURES,
+    add_geo_mean_features,
     add_weighted_xg_derived_features,
     load_weighted_xg,
     weighted_avg,
@@ -166,8 +168,23 @@ XG_FINISHING_FEATURES = ["home_finishing_last5", "away_finishing_last5"]
 # but a paired bootstrap found it's NOT statistically distinguishable
 # from noise at n~5337 -- see check_team_ratings_significance.py. Treat
 # it as directionally consistent, not independent corroborating evidence.
+# Geometric-mean combiner (build_xg_weighted_features.py's GEO_FEATURES)
+# REPLACES WEIGHTED_XG_DERIVED_FEATURES -- a clean swap: full-dataset L1
+# zeroes out every one of the four arithmetic-mean derived features
+# (including poisson_p_over_last5_weighted, previously the single
+# largest coefficient in the model) once the geometric-mean version is
+# offered, in both a combine and a swap fit -- combined_expected_geo
+# alone takes over as the largest coefficient (+0.188). Prompted by a
+# real miss (Derby vs West Brom, ELC, 2026-09-09) where the arithmetic
+# mean let Derby's leaky recent defense drag the total up even though
+# West Brom's own recent attack was never sharp enough to exploit it; a
+# geometric mean gets pulled down when the two sides disagree instead of
+# averaging through it. Paired bootstrap on the OOS Brier delta excludes
+# zero ([-0.0003, -0.0000], real, not noise) -- see
+# check_xg_geo_mean_full_dataset.py. WEIGHTED_XG_RAW_FEATURES stay,
+# unchanged -- the geo features are computed from them.
 XG_CANDIDATES = (
-    CORE_CANDIDATES + XG_FINISHING_FEATURES + WEIGHTED_XG_RAW_FEATURES + WEIGHTED_XG_DERIVED_FEATURES
+    CORE_CANDIDATES + XG_FINISHING_FEATURES + WEIGHTED_XG_RAW_FEATURES + GEO_FEATURES
     + RATINGS_RAW_FEATURES + RATINGS_DERIVED_FEATURES
 )
 
@@ -607,6 +624,7 @@ def main() -> int:
     live_df = pd.DataFrame(rows)
     live_df = add_derived_features(live_df)
     live_df = add_weighted_xg_derived_features(live_df)
+    live_df = add_geo_mean_features(live_df)
     live_df = add_ratings_derived_features(live_df)
     live_df = add_player_form_derived_features(live_df)
     live_df = add_shots_venue_derived_features(live_df)
@@ -624,7 +642,7 @@ def main() -> int:
         return 0
 
     has_xg = live_df[
-        XG_FINISHING_FEATURES + WEIGHTED_XG_RAW_FEATURES + WEIGHTED_XG_DERIVED_FEATURES
+        XG_FINISHING_FEATURES + WEIGHTED_XG_RAW_FEATURES + GEO_FEATURES
         + RATINGS_RAW_FEATURES + RATINGS_DERIVED_FEATURES
     ].notna().all(axis=1)
 

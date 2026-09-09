@@ -42,7 +42,6 @@ import warnings
 
 import numpy as np
 import pandas as pd
-from scipy.stats import poisson
 from sklearn.linear_model import LogisticRegressionCV
 from sklearn.metrics import brier_score_loss, roc_auc_score
 from sklearn.preprocessing import StandardScaler
@@ -50,30 +49,20 @@ from sklearn.preprocessing import StandardScaler
 from analyze_shots_venue import load_with_xg_player_form_and_shots_venue
 from backtest_season_rolling_percentile import N_FOLDS_XG, build_stream
 from build_team_ratings_features import load_team_ratings
-from build_xg_weighted_features import WEIGHTED_XG_DERIVED_FEATURES, load_weighted_xg
+from build_xg_weighted_features import GEO_FEATURES, WEIGHTED_XG_DERIVED_FEATURES, load_weighted_xg
 from calibration import apply_calibration, load_calibrators
 from predict_upcoming import XG_CANDIDATES
 
 warnings.filterwarnings("ignore")
 
-GEO_FEATURES = ["home_expected_geo", "away_expected_geo", "combined_expected_geo", "poisson_p_over_geo"]
 N_BOOTSTRAP = 3000
 SEED = 0
 
 
-def add_geo_mean_features(df: pd.DataFrame) -> pd.DataFrame:
-    df["home_expected_geo"] = np.sqrt(df["home_xg_last5_weighted"] * df["away_xg_against_last5_weighted"])
-    df["away_expected_geo"] = np.sqrt(df["away_xg_last5_weighted"] * df["home_xg_against_last5_weighted"])
-    df["combined_expected_geo"] = df["home_expected_geo"] + df["away_expected_geo"]
-    df["poisson_p_over_geo"] = 1 - poisson.cdf(2, df["combined_expected_geo"] / 2)
-    return df
-
-
 def load_data() -> pd.DataFrame:
     df = load_with_xg_player_form_and_shots_venue()
-    df = load_weighted_xg(df)
-    df = load_team_ratings(df)
-    return add_geo_mean_features(df)
+    df = load_weighted_xg(df)  # already adds GEO_FEATURES -- see build_xg_weighted_features.py
+    return load_team_ratings(df)
 
 
 def fit_full(df: pd.DataFrame, features: list[str]) -> LogisticRegressionCV:
@@ -148,9 +137,17 @@ def main() -> int:
     print("Loading full dataset with geo-mean xG features added...")
     df = load_data()
 
-    baseline_features = XG_CANDIDATES
-    combine_features = XG_CANDIDATES + GEO_FEATURES
-    swap_features = [f for f in XG_CANDIDATES if f not in WEIGHTED_XG_DERIVED_FEATURES] + GEO_FEATURES
+    # XG_CANDIDATES already carries GEO_FEATURES instead of
+    # WEIGHTED_XG_DERIVED_FEATURES as of this script's run (wired in live
+    # on the strength of the result this script originally produced) --
+    # so "swap" is XG_CANDIDATES as-is, and "baseline"/"combine" need the
+    # old arithmetic-mean features reconstructed, same fix as
+    # check_team_ratings_full_dataset.py needed after its own feature
+    # went live.
+    pre_geo_features = [f for f in XG_CANDIDATES if f not in GEO_FEATURES]
+    baseline_features = pre_geo_features + WEIGHTED_XG_DERIVED_FEATURES
+    combine_features = pre_geo_features + WEIGHTED_XG_DERIVED_FEATURES + GEO_FEATURES
+    swap_features = pre_geo_features + GEO_FEATURES
 
     print("\n=== Full-dataset L1 coefficient survival ===")
     print("Baseline (live XG_CANDIDATES):")

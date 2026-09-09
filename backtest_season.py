@@ -32,7 +32,7 @@ from sklearn.preprocessing import StandardScaler
 
 import apifootball
 from analyze_dataset_apifootball import add_derived_features
-from build_xg_weighted_features import add_weighted_xg_derived_features, load_weighted_xg
+from build_xg_weighted_features import add_geo_mean_features, add_weighted_xg_derived_features, load_weighted_xg
 from build_team_ratings_features import add_ratings_derived_features, load_team_ratings
 from build_dataset_apifootball import LEAGUES, fetch_all_fixtures
 from predict_upcoming import (
@@ -177,6 +177,7 @@ def main() -> int:
             live_df = pd.DataFrame(rows)
             live_df = add_derived_features(live_df)
             live_df = add_weighted_xg_derived_features(live_df)
+            live_df = add_geo_mean_features(live_df)
             live_df = add_ratings_derived_features(live_df)
             live_df = add_player_form_derived_features(live_df)
             live_df = add_shots_venue_derived_features(live_df)

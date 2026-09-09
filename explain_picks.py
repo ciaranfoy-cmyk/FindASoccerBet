@@ -56,8 +56,9 @@ from analyze_shots_venue import (
     load_with_xg_player_form_and_shots_venue,
 )
 from build_xg_weighted_features import (
-    WEIGHTED_XG_DERIVED_FEATURES,
+    GEO_FEATURES,
     WEIGHTED_XG_RAW_FEATURES,
+    add_geo_mean_features,
     add_weighted_xg_derived_features,
     load_weighted_xg,
 )
@@ -290,6 +291,7 @@ def main() -> int:
     live_df = pd.DataFrame(rows)
     live_df = add_derived_features(live_df)
     live_df = add_weighted_xg_derived_features(live_df)
+    live_df = add_geo_mean_features(live_df)
     live_df = add_ratings_derived_features(live_df)
     live_df = add_player_form_derived_features(live_df)
     live_df = add_shots_venue_derived_features(live_df)
@@ -301,7 +303,7 @@ def main() -> int:
         return 0
 
     has_xg = live_df[
-        XG_FINISHING_FEATURES + WEIGHTED_XG_RAW_FEATURES + WEIGHTED_XG_DERIVED_FEATURES
+        XG_FINISHING_FEATURES + WEIGHTED_XG_RAW_FEATURES + GEO_FEATURES
         + RATINGS_RAW_FEATURES + RATINGS_DERIVED_FEATURES
     ].notna().all(axis=1)
     live_df["raw_p"] = pd.NA

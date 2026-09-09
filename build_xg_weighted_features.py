@@ -44,6 +44,7 @@ import os
 import sys
 from collections import defaultdict, deque
 
+import numpy as np
 import pandas as pd
 from scipy.stats import poisson
 
@@ -65,6 +66,24 @@ WEIGHTED_XG_DERIVED_FEATURES = [
     "combined_xg_last5_weighted", "xg_gap_last5_weighted",
     "naive_expected_total_xg_last5_weighted", "poisson_p_over_last5_weighted",
 ]
+# Geometric-mean combiner -- REPLACES WEIGHTED_XG_DERIVED_FEATURES above (a
+# clean swap, not a combine: full-dataset L1 zeroes out every one of those
+# four once this is offered alongside them, in both a combine and a swap
+# fit). Prompted by a real miss (Derby vs West Brom, ELC, 2026-09-09):
+# the arithmetic mean lets a noisy or small-sample side of the estimate
+# dominate regardless of whether the other side agrees -- West Brom's
+# expected goals came out to (own away xG-for 1.40 + Derby's leaky home
+# xG-against 3.33) / 2 = 2.365, even though West Brom's own attack was
+# never sharp enough to actually punish that leaky defense (final match:
+# 4 shots, 1 on target). A geometric mean is pulled down hard whenever
+# the two sides disagree instead of just averaging through it --
+# sqrt(1.40 * 3.33) = 2.16 for the same case, more so the bigger the gap.
+# combined_expected_geo alone becomes the single largest coefficient in
+# the whole model (+0.188, ahead of where poisson_p_over_last5_weighted
+# used to be at +0.180) and a paired bootstrap on the out-of-sample
+# Brier/AUC delta confirms it (Brier CI [-0.0003, -0.0000], excludes
+# zero). See check_xg_geo_mean_full_dataset.py.
+GEO_FEATURES = ["home_expected_geo", "away_expected_geo", "combined_expected_geo", "poisson_p_over_geo"]
 
 
 def add_weighted_xg_derived_features(df: pd.DataFrame) -> pd.DataFrame:
@@ -72,7 +91,10 @@ def add_weighted_xg_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     computed from the weighted raw features instead of the flat ones --
     shared by the historical loader (via load_weighted_xg below) and the
     live scorer (predict_upcoming.py), so a live prediction derives these
-    identically to training.
+    identically to training. Superseded as a live feature set by
+    add_geo_mean_features below (see GEO_FEATURES) -- kept computed since
+    nothing else currently depends on removing it, just no longer in
+    XG_CANDIDATES.
     """
     df["combined_xg_last5_weighted"] = df["home_xg_last5_weighted"] + df["away_xg_last5_weighted"]
     df["xg_gap_last5_weighted"] = (df["home_xg_last5_weighted"] - df["away_xg_last5_weighted"]).abs()
@@ -85,16 +107,32 @@ def add_weighted_xg_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def add_geo_mean_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Geometric- rather than arithmetic-mean combination of the same two
+    raw weighted-xG inputs each side's expected goals is built from -- see
+    GEO_FEATURES above for why. Shared by the historical loader (via
+    load_weighted_xg below) and the live scorer (predict_upcoming.py).
+    """
+    df["home_expected_geo"] = np.sqrt(df["home_xg_last5_weighted"] * df["away_xg_against_last5_weighted"])
+    df["away_expected_geo"] = np.sqrt(df["away_xg_last5_weighted"] * df["home_xg_against_last5_weighted"])
+    df["combined_expected_geo"] = df["home_expected_geo"] + df["away_expected_geo"]
+    df["poisson_p_over_geo"] = 1 - poisson.cdf(2, df["combined_expected_geo"] / 2)
+    return df
+
+
 def load_weighted_xg(df: pd.DataFrame) -> pd.DataFrame:
     """Merge the precomputed weighted-xG CSV onto df by fixture_id and add
-    the derived combo features -- for historical training data only; a
-    live prediction gets its weighted raw features directly from
+    the derived combo features (both the arithmetic-mean and geometric-
+    mean versions) -- for historical training data only; a live
+    prediction gets its weighted raw features directly from
     predict_upcoming.py's state (new_state/apply_match/build_feature_row),
-    then just needs add_weighted_xg_derived_features called on top.
+    then just needs add_weighted_xg_derived_features and
+    add_geo_mean_features called on top.
     """
     weighted_df = pd.read_csv(OUTPUT_PATH)[["fixture_id"] + WEIGHTED_XG_RAW_FEATURES]
     df = df.merge(weighted_df, on="fixture_id", how="left")
-    return add_weighted_xg_derived_features(df)
+    df = add_weighted_xg_derived_features(df)
+    return add_geo_mean_features(df)
 
 
 def weighted_avg(history: deque, match_date: datetime.datetime, competition: str) -> float | None:
