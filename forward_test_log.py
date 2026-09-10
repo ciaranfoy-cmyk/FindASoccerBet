@@ -303,6 +303,70 @@ def compute_rolling_p95_under_bar(early_season_only: bool = False) -> float:
     return float(pd.Series(trailing).quantile(0.95))
 
 
+def compute_pool_hit_rate(under: bool = False, early_season_only: bool = False) -> tuple[float, int]:
+    """The number that should actually be used to price edge against a
+    Kalshi ask -- NOT a fixture's own individually-stated calibrated
+    probability.
+
+    check_confidence_bar_sweep.py's bucket breakdown (651 historical
+    standard-bar Over picks, split by stated confidence: 60-68%, 68-70%,
+    70-72%, 72-75%, 75%+) found essentially no relationship between a
+    pick's own precise number and how often it actually won -- the
+    70-72% bucket outperformed the 72-75% bucket, and the correlation
+    between stated confidence and outcome WITHIN the bar-clearing pool
+    was 0.082, indistinguishable from zero. What IS validated is the
+    pool's aggregate hit rate: of everything that clears the bar, ~70%
+    of them win, regardless of which one you're looking at. So every
+    pick priced off this rule should use the SAME number -- the pool's
+    own historical hit rate -- not its individual stated probability,
+    which claims a precision (71% vs 76%, say) the data doesn't support.
+
+    Replays the same rolling-percentile selection rule compute_rolling_p95_bar
+    / compute_rolling_p95_under_bar use (same percentile, same window,
+    same warmup) forward through the whole out-of-fold history, and
+    reports what fraction of the fixtures it actually selected went on
+    to win. Returns (hit_rate, n).
+
+    under=True mirrors this onto the Under side. early_season_only=True
+    restricts to the early-season population and uses
+    EARLY_SEASON_OVER_PERCENTILE -- but only when under=False: the
+    early-season Under bar was swept in check_early_season_bar_sweep.py
+    and found unreliable at every percentile tested (large negative
+    calibration gaps throughout), so there is no trustworthy pool number
+    for early-season Under, and callers should not offer Under picks in
+    that regime at all rather than call this with under=True,
+    early_season_only=True.
+    """
+    stream = _calibrated_stream()
+    value_col, outcome_col = ("pred_p", "over_2_5")
+    if under:
+        stream["under_p"] = 1 - stream["pred_p"]
+        stream["under_2_5"] = 1 - stream["over_2_5"]
+        value_col, outcome_col = ("under_p", "under_2_5")
+
+    percentile = 95.0
+    if early_season_only:
+        gis = _games_into_season_lookup()
+        stream = stream.merge(gis, on="fixture_id", how="left")
+        stream = stream[stream["min_games_into_season"] <= EARLY_SEASON_CUTOFF]
+        if not under:
+            percentile = EARLY_SEASON_OVER_PERCENTILE
+
+    stream = stream.dropna(subset=[value_col]).sort_values("date").reset_index(drop=True)
+    trailing: deque = deque(maxlen=500)
+    picked_outcomes = []
+    for _, row in stream.iterrows():
+        if len(trailing) >= 200:
+            bar = pd.Series(trailing).quantile(percentile / 100.0)
+            if row[value_col] >= bar:
+                picked_outcomes.append(row[outcome_col])
+        trailing.append(row[value_col])
+
+    if not picked_outcomes:
+        return float("nan"), 0
+    return float(pd.Series(picked_outcomes).mean()), len(picked_outcomes)
+
+
 def team_games_into_season_live(team_name: str, competition: str, season: int, all_finished: list[dict]) -> int:
     """Live-time equivalent of _games_into_season_lookup(), for an
     upcoming fixture instead of a historical one: how many matches has

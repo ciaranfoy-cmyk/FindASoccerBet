@@ -73,6 +73,7 @@ from calibration import apply_calibration, load_calibrators
 from forward_test_log import (
     EARLY_SEASON_CUTOFF,
     KALSHI_SERIES_BY_COMPETITION,
+    compute_pool_hit_rate,
     compute_rolling_p95_bar,
     compute_rolling_p95_under_bar,
     fetch_kalshi_over25_for_series,
@@ -230,7 +231,8 @@ def main() -> int:
     cached = model_cache.load("explain_picks_bundle")
     if cached is not None:
         try:
-            bar, under_bar, early_bar, early_under_bar, model, scaler, xg_model, xg_scaler, state = cached
+            (bar, under_bar, early_bar, early_under_bar, pool_over, pool_over_early, pool_under,
+             model, scaler, xg_model, xg_scaler, state) = cached
         except (ValueError, TypeError):
             # A code change altered the bundle's shape since this cache
             # file was written under the same data fingerprint -- treat
@@ -241,6 +243,9 @@ def main() -> int:
         print(f"  bar (Over)  = {bar*100:.1f}%  |  bar (Under) = {under_bar*100:.1f}%")
         print(f"  early-season bar (Over) = {early_bar*100:.1f}%  |  early-season bar (Under) = {early_under_bar*100:.1f}%  "
               f"(applies when either team has <= {EARLY_SEASON_CUTOFF} games played this season)")
+        print(f"  pool hit rate used for edge: Over {pool_over[0]*100:.1f}% (n={pool_over[1]}), "
+              f"Over/early-season {pool_over_early[0]*100:.1f}% (n={pool_over_early[1]}), "
+              f"Under {pool_under[0]*100:.1f}% (n={pool_under[1]})")
     else:
         print("Computing the live confidence bar (rolling p95 of trailing historical predictions)...")
         bar = compute_rolling_p95_bar()
@@ -255,6 +260,22 @@ def main() -> int:
         early_under_bar = compute_rolling_p95_under_bar(early_season_only=True)
         print(f"  early-season bar (Over)  = {early_bar*100:.1f}%")
         print(f"  early-season bar (Under) = {early_under_bar*100:.1f}%\n")
+
+        # Edge is priced off the POOL's historical hit rate, not any single
+        # fixture's own calibrated_p -- see compute_pool_hit_rate()'s
+        # docstring. check_confidence_bar_sweep.py's bucket breakdown found
+        # ~zero correlation (r=0.082) between a bar-clearing pick's stated
+        # confidence and its actual outcome, so trusting the specific
+        # number claims precision the data doesn't support.
+        print("Computing pool hit rates (what edge actually gets priced against)...")
+        pool_over = compute_pool_hit_rate(under=False, early_season_only=False)
+        pool_over_early = compute_pool_hit_rate(under=False, early_season_only=True)
+        pool_under = compute_pool_hit_rate(under=True, early_season_only=False)
+        print(f"  Over pool hit rate = {pool_over[0]*100:.1f}% (n={pool_over[1]})")
+        print(f"  Over/early-season pool hit rate = {pool_over_early[0]*100:.1f}% (n={pool_over_early[1]})")
+        print(f"  Under pool hit rate = {pool_under[0]*100:.1f}% (n={pool_under[1]})")
+        print(f"  (no early-season Under pool number -- that bar was found unreliable at every percentile "
+              f"tested, so early-season fixtures are never offered as Under picks)\n")
 
         print("Training the core model...")
         historical = load_with_player_form_and_shots_venue()
@@ -278,7 +299,10 @@ def main() -> int:
         all_finished = fetch_all_fixtures(None)
         state = replay_to_current_state(all_finished)
 
-        model_cache.save("explain_picks_bundle", (bar, under_bar, early_bar, early_under_bar, model, scaler, xg_model, xg_scaler, state))
+        model_cache.save("explain_picks_bundle", (
+            bar, under_bar, early_bar, early_under_bar, pool_over, pool_over_early, pool_under,
+            model, scaler, xg_model, xg_scaler, state,
+        ))
 
     # Cheap regardless of cache hit/miss -- apifootball's own on-disk cache
     # (ttl=None) makes this a near-instant reload when it was just fetched
@@ -351,6 +375,35 @@ def main() -> int:
     live_df["under_p"] = 1 - live_df["calibrated_p"]
     live_df["clears_under_bar"] = live_df["under_p"] >= live_df["effective_under_bar"]
 
+    # Edge gets priced off the POOL's historical hit rate, not this
+    # fixture's own calibrated_p -- see compute_pool_hit_rate()'s
+    # docstring for why (essentially zero correlation between a
+    # bar-clearing pick's individual stated confidence and its actual
+    # outcome). calibrated_p/under_p are still shown for context, but the
+    # trading decision uses effective_over_prob/effective_under_prob.
+    #
+    # CRITICAL: the pool number is only a valid substitute for a fixture
+    # that actually CLEARS the corresponding bar -- it's the average
+    # outcome of "things confident enough to already be in this pool",
+    # not a universal constant. Applying it to a fixture nowhere near
+    # that pool (e.g. a fixture the model rates 19% Under, priced
+    # accordingly by Kalshi at a cheap no_ask) manufactures a nonsense
+    # "edge" out of the gap between an irrelevant flat number and a cheap
+    # price. Fixtures that don't clear a bar fall back to their own
+    # calibrated_p/under_p for display -- not independently validated
+    # to the same standard, but at least not actively misleading, and
+    # they were never going to become picks either way (is_pick/
+    # is_under_pick already gate on clears_bar/clears_under_bar below).
+    live_df["effective_over_prob"] = live_df["calibrated_p"].where(
+        ~live_df["clears_bar"], live_df["is_early_season"].map({True: pool_over_early[0], False: pool_over[0]})
+    )
+    # Under pool substitution additionally requires NOT early-season --
+    # no validated early-season Under pool exists, so even a fixture that
+    # clears the (separately-computed) early-season Under bar falls back
+    # to its own under_p for display, same as never clearing at all.
+    under_pool_applies = live_df["clears_under_bar"] & ~live_df["is_early_season"]
+    live_df["effective_under_prob"] = live_df["under_p"].where(~under_pool_applies, pool_under[0])
+
     print("\nFetching real Kalshi prices per league...")
     kalshi_by_comp = {}
     for comp, series in KALSHI_SERIES_BY_COMPETITION.items():
@@ -370,22 +423,29 @@ def main() -> int:
         for k in kalshi_by_comp.get(r["competition"], []):
             if _normalize(k["home"]) == _normalize(r["home_team"]) and _normalize(k["away"]) == _normalize(r["away_team"]):
                 live_df.at[idx, "kalshi_yes_ask"] = k["yes_ask"]
-                live_df.at[idx, "edge_vs_ask"] = r["calibrated_p"] - k["yes_ask"]
+                live_df.at[idx, "edge_vs_ask"] = r["effective_over_prob"] - k["yes_ask"]
                 if k.get("no_ask") is not None:
                     live_df.at[idx, "kalshi_no_ask"] = k["no_ask"]
-                    live_df.at[idx, "edge_no"] = r["under_p"] - k["no_ask"]
+                    live_df.at[idx, "edge_no"] = r["effective_under_prob"] - k["no_ask"]
                 if k.get("fair_p") is not None:
                     live_df.at[idx, "kalshi_fair_p"] = k["fair_p"]
-                    live_df.at[idx, "edge_vs_fair"] = r["calibrated_p"] - k["fair_p"]
+                    live_df.at[idx, "edge_vs_fair"] = r["effective_over_prob"] - k["fair_p"]
                 break
 
     live_df["priced"] = live_df["kalshi_yes_ask"].notna()
-    # A real pick requires all three: confident, priced, and profitable edge.
+    # A real pick requires all three: confident, priced, and profitable edge
+    # (edge priced off the pool hit rate, not calibrated_p -- see above).
     # No Kalshi price to compare against means no recommendation -- ever.
     live_df["is_pick"] = live_df["clears_bar"] & live_df["priced"] & (live_df["edge_vs_ask"] > 0)
     # Mirror for Under, using its own (weaker) validated bar -- see
     # compute_rolling_p95_under_bar(). Same three-part gate, opposite side.
-    live_df["is_under_pick"] = live_df["clears_under_bar"] & live_df["priced"] & (live_df["edge_no"] > 0)
+    # Early-season fixtures are EXCLUDED from Under picks entirely -- there
+    # is no validated early-season Under pool number (every percentile
+    # tested was unreliable, see compute_pool_hit_rate()'s docstring), so
+    # there's nothing trustworthy to price the edge against.
+    live_df["is_under_pick"] = (
+        live_df["clears_under_bar"] & live_df["priced"] & (live_df["edge_no"] > 0) & (~live_df["is_early_season"])
+    )
     live_df["best_edge"] = live_df[["edge_vs_ask", "edge_no"]].apply(pd.to_numeric, errors="coerce").max(axis=1, skipna=True)
 
     pool = live_df if (args.no_bar or args.fixture_id is not None) else live_df[live_df["clears_bar"] | live_df["clears_under_bar"]]
@@ -430,7 +490,9 @@ def main() -> int:
             tag = f"confident, but negative Kalshi edge on both sides -- not a recommendation{early_note}"
         print(f"[{tag}]  {home} vs {away}  ({r['date']}, {r['competition']})")
         print(f"P(over 2.5) = {r['calibrated_p']*100:.1f}% calibrated  (raw {r['raw_p']*100:.1f}%, [{r['model_used']}] model)"
-              f"   |   P(under 2.5) = {r['under_p']*100:.1f}%")
+              f"   |   P(under 2.5) = {r['under_p']*100:.1f}%  -- individual model estimate, shown for context only")
+        print(f"Edge is priced off the POOL hit rate, not the number above: Over {r['effective_over_prob']*100:.1f}% "
+              f"/ Under {r['effective_under_prob']*100:.1f}% -- see compute_pool_hit_rate() docstring")
         if pd.notna(r["kalshi_yes_ask"]):
             print(f"Kalshi yes ask = ${r['kalshi_yes_ask']:.2f}  |  edge vs ask (Over, tradeable) = {r['edge_vs_ask']*100:+.1f}pp")
             if pd.notna(r["kalshi_no_ask"]):
@@ -486,8 +548,9 @@ def main() -> int:
                 price, edge = r["kalshi_yes_ask"], r["edge_vs_ask"]
             fair_str = f", edge vs de-vigged fair {r['edge_vs_fair']*100:+.1f}pp" if pd.notna(r["edge_vs_fair"]) else ""
             print(f"  [{label}] {r['home_team']} vs {r['away_team']} ({r['competition']}, {r['date']}) -- "
-                  f"model {r['calibrated_p']*100:.1f}% over / {r['under_p']*100:.1f}% under vs Kalshi ${price:.2f}, "
-                  f"edge {edge*100:+.1f}pp{fair_str}")
+                  f"model {r['calibrated_p']*100:.1f}% over / {r['under_p']*100:.1f}% under (individual estimate) "
+                  f"vs Kalshi ${price:.2f}, edge {edge*100:+.1f}pp{fair_str} (priced off pool hit rate "
+                  f"{r['effective_over_prob']*100:.1f}%/{r['effective_under_prob']*100:.1f}%)")
     return 0
 
 
