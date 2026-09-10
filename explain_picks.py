@@ -187,6 +187,18 @@ DESCRIPTIONS = {
     "away_finishing_last5": "{away}'s actual goals minus xG, last 5",
     "season_year": "the calendar year itself -- the model has learned recent seasons trend higher-scoring than older ones",
     "min_competition_experience": "how established the less-tenured of the two teams is in this competition",
+    "home_attack_rating": "{home}'s attack rating -- a jointly-solved, opponent-adjusted regression, not a flat average",
+    "away_attack_rating": "{away}'s attack rating -- jointly-solved, opponent-adjusted",
+    "home_defense_rating": "{home}'s defense rating (higher = leakier) -- jointly-solved, opponent-adjusted",
+    "away_defense_rating": "{away}'s defense rating (higher = leakier) -- jointly-solved, opponent-adjusted",
+    "home_expected_rating": "{home}'s expected goals from the two-way attack/defense rating system",
+    "away_expected_rating": "{away}'s expected goals from the two-way attack/defense rating system",
+    "combined_expected_rating": "combined expected goals from the two-way (attack/defense) team-quality ratings",
+    "rating_gap": "gap between the two teams' expected goals under the two-way rating system",
+    "home_expected_geo": "{home}'s expected goals -- geometric mean of their own attack and the opponent's defense",
+    "away_expected_geo": "{away}'s expected goals -- geometric mean of their own attack and the opponent's defense",
+    "combined_expected_geo": "combined expected goals, geometric-mean combiner -- discounts a leaky defense when the opponent's own attack hasn't been sharp enough to exploit it",
+    "poisson_p_over_geo": "true Poisson probability of 3+ goals given the geometric-mean expected-goals rate",
 }
 
 
