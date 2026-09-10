@@ -169,22 +169,40 @@ def fetch_kalshi_over25_for_series(series_ticker: str) -> list[dict]:
 # the SAME out-of-fold stream and calibrators this bar is built from.
 #
 # FIX: compute_rolling_p95_bar(early_season_only=True) below -- a
-# separate rolling-p95 threshold computed only from early-season
-# out-of-fold predictions, applied to early-season live fixtures instead
-# of the regular bar. Counterintuitively it comes out LOWER than the
-# regular bar (68.5% vs 70.1% in one run), but validated to genuinely
-# help: early-season picks selected by this stratified bar came in at
-# +3.4pp calibration gap / 0.1962 Brier (n=36) versus +4.9pp / 0.2254
-# (n=22) for the same fixtures under the old regular-bar cutoff -- fewer
-# false positives AND more real picks found, not a tradeoff between the
-# two. An additive-penalty alternative (regular bar + the measured 6.1pp
-# gap = ~76%) was also tested and rejected: it left n=2 fixtures,
-# effectively vetoing early-season picks outright. The stratified bar
-# doesn't fully close the gap to mid-season reliability (+3.4pp still
-# versus +1.5pp for non-early fixtures at the regular bar) -- an honest
-# residual, not a failure; both comparison sample sizes are small
-# (n=22-36) so treat the exact numbers as suggestive, not precise.
+# separate rolling threshold computed only from early-season out-of-fold
+# predictions, applied to early-season live fixtures instead of the
+# regular bar.
+#
+# The percentile used for the early-season Over bar is
+# EARLY_SEASON_OVER_PERCENTILE=92.5, NOT 95 -- re-derived in
+# check_early_season_bar_sweep.py after the original p95-for-both
+# validation above went stale (it predates the geo-mean/team-ratings
+# features, and check_early_season_reliability.py had a real bug --
+# missing the ratings merge -- that made it silently unrunnable until
+# fixed). The re-swept result inverts the intuition from the regular
+# bar: going STRICTER (97.5, 99) makes the early-season Over bar worse,
+# not better (calibration gap goes from -3.7pp at 95 to -21.0pp at 99),
+# because the early-season population is small enough that a higher
+# threshold just selects noisy outliers. 92.5 was the best of the swept
+# candidates: n=52, +1.3pp calibration gap, Brier=0.2136 -- versus 95's
+# n=34, -3.7pp, Brier=0.2290. Sample sizes here (11-95 per candidate)
+# are small; treat this as the best available evidence, not a settled
+# number. The Under-side early-season bar was swept too and found
+# unreliable at every percentile tested (large negative calibration gaps
+# throughout) -- left at 95 rather than "fixed" to something unvalidated,
+# and the early-season Under bar generally should not be trusted.
+#
+# check_early_season_reliability.py's single-game breakdown (once fixed)
+# also shows EARLY_SEASON_CUTOFF=4 draws the boundary in the wrong place:
+# the real overconfidence is concentrated almost entirely at exactly 1
+# game played (n=44, model said 65% confident, actual hit rate 34% --
+# a 31pp gap), while games 2-4 are mostly fine or even underconfident
+# (game 4 specifically: 0.0pp gap, better-calibrated than many
+# "rest of season" fixtures). The cutoff itself has NOT been narrowed to
+# reflect this yet -- kept at 4 pending a decision on whether to test 1
+# or 2 instead.
 EARLY_SEASON_CUTOFF = 4
+EARLY_SEASON_OVER_PERCENTILE = 92.5
 
 
 def _games_into_season_lookup() -> pd.DataFrame:
@@ -236,9 +254,15 @@ def _calibrated_stream() -> pd.DataFrame:
 
 
 def compute_rolling_p95_bar(early_season_only: bool = False) -> float:
-    """The live selection bar: 95th percentile of the trailing 500
-    out-of-fold predictions in the model's own validated history --
-    same construction as backtest_season_rolling_percentile.py.
+    """The live selection bar: percentile of the trailing 500 out-of-fold
+    predictions in the model's own validated history -- same construction
+    as backtest_season_rolling_percentile.py. Despite the function name
+    (kept for compatibility with existing callers), the percentile used
+    is NOT always 95: the early-season case uses
+    EARLY_SEASON_OVER_PERCENTILE=92.5 instead, re-derived in
+    check_early_season_bar_sweep.py -- see EARLY_SEASON_CUTOFF's
+    docstring for why 95 (and especially anything stricter) tests worse
+    than 92.5 on this specific, smaller population.
 
     early_season_only=True restricts the trailing window to fixtures
     where min(home, away) games played this competition+season was
@@ -246,12 +270,14 @@ def compute_rolling_p95_bar(early_season_only: bool = False) -> float:
     regime found to be overconfident (see EARLY_SEASON_CUTOFF docstring).
     """
     stream = _calibrated_stream()
+    percentile = 95.0
     if early_season_only:
         gis = _games_into_season_lookup()
         stream = stream.merge(gis, on="fixture_id", how="left")
         stream = stream[stream["min_games_into_season"] <= EARLY_SEASON_CUTOFF]
+        percentile = EARLY_SEASON_OVER_PERCENTILE
     trailing = deque(stream["pred_p"].dropna().tail(500), maxlen=500)
-    return float(pd.Series(trailing).quantile(0.95))
+    return float(pd.Series(trailing).quantile(percentile / 100.0))
 
 
 def compute_rolling_p95_under_bar(early_season_only: bool = False) -> float:
