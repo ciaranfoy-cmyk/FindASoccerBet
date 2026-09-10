@@ -85,12 +85,28 @@ warnings.filterwarnings("ignore")
 LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "forward_test_log.csv")
 FIELDS = [
     "logged_at", "fixture_id", "competition", "kickoff_date", "home_team", "away_team",
-    "model_used", "raw_p", "calibrated_p", "rolling_p95_bar", "selected",
+    "model_used", "raw_p", "calibrated_p", "is_early_season", "effective_bar", "selected",
     "kalshi_ticker", "kalshi_yes_ask", "kalshi_yes_bid", "kalshi_no_ask", "kalshi_no_bid",
-    "kalshi_implied_p", "kalshi_fair_p", "edge_vs_ask", "edge_vs_fair",
+    "kalshi_implied_p", "kalshi_fair_p", "pool_hit_rate", "fee_per_contract",
+    "edge_vs_ask", "edge_vs_fair",
     "settled", "actual_home_goals", "actual_away_goals", "actual_over_2_5",
     "pnl_per_dollar_if_selected",
 ]
+
+
+def kalshi_fee(price: float) -> float:
+    """Kalshi's published standard trading fee (fee_type="quadratic",
+    fee_multiplier=1 -- confirmed for all 9 tracked series via /series):
+    fee = ceil_to_cent(0.07 * price * (1 - price)), charged per contract
+    on entry regardless of outcome. Not verified against a live
+    authenticated order preview (this session has no trading auth) --
+    this is Kalshi's stated schedule, applied here as a modeling
+    assumption. At the ~$0.60-0.75 price range these picks trade in,
+    this is consistently about $0.02/contract -- roughly 2 percentage
+    points of edge, enough on its own to flip a thin pick negative.
+    """
+    import math
+    return math.ceil(0.07 * price * (1 - price) * 100) / 100
 
 KALSHI_SERIES_BY_COMPETITION = {
     "PL": "KXEPLTOTAL",
@@ -401,9 +417,14 @@ def cmd_snapshot(days: int) -> int:
     xg_model = LogisticRegressionCV(Cs=15, cv=5, penalty="l1", solver="liblinear", scoring="roc_auc", max_iter=2000, random_state=0)
     xg_model.fit(X_xg_train, xg_model_df["over_2_5"])
 
-    print("Computing the live rolling-p95 selection bar from trailing historical predictions...")
+    print("Computing the live confidence bars and pool hit rates...")
     bar = compute_rolling_p95_bar()
-    print(f"  bar = {bar*100:.1f}%")
+    early_bar = compute_rolling_p95_bar(early_season_only=True)
+    pool_over = compute_pool_hit_rate(under=False, early_season_only=False)
+    pool_over_early = compute_pool_hit_rate(under=False, early_season_only=True)
+    print(f"  bar = {bar*100:.1f}%  |  early-season bar = {early_bar*100:.1f}%")
+    print(f"  pool hit rate: standard {pool_over[0]*100:.1f}% (n={pool_over[1]})  |  "
+          f"early-season {pool_over_early[0]*100:.1f}% (n={pool_over_early[1]})")
 
     print(f"\nFetching upcoming fixtures across all leagues (next {days} days): {list(LEAGUES)}...")
     upcoming = fetch_upcoming_fixtures(days)
@@ -480,13 +501,35 @@ def cmd_snapshot(days: int) -> int:
             if _normalize(k["home"]) == _normalize(r["home_team"]) and _normalize(k["away"]) == _normalize(r["away_team"]):
                 match = k
                 break
-        selected = bool(r["calibrated_p"] >= bar)
+
+        home_gis = team_games_into_season_live(r["home_team"], comp, r["season"], all_finished)
+        away_gis = team_games_into_season_live(r["away_team"], comp, r["season"], all_finished)
+        is_early = min(home_gis, away_gis) <= EARLY_SEASON_CUTOFF
+        effective_bar = early_bar if is_early else bar
+        selected = bool(r["calibrated_p"] >= effective_bar)
+
+        # Edge is priced off the POOL's historical hit rate, not this
+        # fixture's own calibrated_p -- see compute_pool_hit_rate()'s
+        # docstring (essentially zero correlation between a bar-clearing
+        # pick's individual stated confidence and its actual outcome).
+        # Only applies when the fixture actually clears its bar -- see
+        # explain_picks.py's effective_over_prob for why blanket
+        # substitution is wrong. Fee is subtracted from the effective
+        # probability side, matching how it actually hits P&L (paid on
+        # entry, win or lose) -- see kalshi_fee()'s docstring.
+        effective_prob = float(r["calibrated_p"])
+        pool_hit_rate = ""
+        if selected:
+            effective_prob = pool_over_early[0] if is_early else pool_over[0]
+            pool_hit_rate = round(effective_prob, 4)
+        fee = kalshi_fee(match["yes_ask"]) if match else None
+
         row = {
             "logged_at": pd.Timestamp.utcnow().isoformat(), "fixture_id": fid, "competition": comp,
             "kickoff_date": r["date"], "home_team": r["home_team"], "away_team": r["away_team"],
             "model_used": r["model_used"], "raw_p": round(float(r["raw_p"]), 4),
-            "calibrated_p": round(float(r["calibrated_p"]), 4), "rolling_p95_bar": round(bar, 4),
-            "selected": selected,
+            "calibrated_p": round(float(r["calibrated_p"]), 4),
+            "is_early_season": is_early, "effective_bar": round(effective_bar, 4), "selected": selected,
             "kalshi_ticker": match["ticker"] if match else "",
             "kalshi_yes_ask": match["yes_ask"] if match else "",
             "kalshi_yes_bid": match["yes_bid"] if match else "",
@@ -494,9 +537,11 @@ def cmd_snapshot(days: int) -> int:
             "kalshi_no_bid": match["no_bid"] if match and match.get("no_bid") is not None else "",
             "kalshi_implied_p": round(match["yes_ask"], 4) if match else "",
             "kalshi_fair_p": round(match["fair_p"], 4) if match and match.get("fair_p") is not None else "",
-            "edge_vs_ask": round(float(r["calibrated_p"]) - match["yes_ask"], 4) if match else "",
+            "pool_hit_rate": pool_hit_rate,
+            "fee_per_contract": fee if fee is not None else "",
+            "edge_vs_ask": round(effective_prob - fee - match["yes_ask"], 4) if match else "",
             "edge_vs_fair": (
-                round(float(r["calibrated_p"]) - match["fair_p"], 4)
+                round(effective_prob - fee - match["fair_p"], 4)
                 if match and match.get("fair_p") is not None else ""
             ),
             "settled": False, "actual_home_goals": "", "actual_away_goals": "",
@@ -530,8 +575,8 @@ def cmd_snapshot(days: int) -> int:
 
     n_selected = sum(1 for r in new_rows if r["selected"])
     n_priced = sum(1 for r in new_rows if r["kalshi_yes_ask"] != "")
-    print(f"\n{n_selected}/{len(new_rows)} fixtures cleared the rolling-p95 bar ({bar*100:.1f}%). "
-          f"{n_priced}/{len(new_rows)} had a real Kalshi price available.")
+    print(f"\n{n_selected}/{len(new_rows)} fixtures cleared their bar (standard {bar*100:.1f}% / "
+          f"early-season {early_bar*100:.1f}%). {n_priced}/{len(new_rows)} had a real Kalshi price available.")
     return 0
 
 
@@ -556,11 +601,22 @@ def cmd_settle() -> int:
         home_goals, away_goals = resp[0]["goals"]["home"], resp[0]["goals"]["away"]
         actual_over = (home_goals + away_goals) > 2.5
         row["actual_home_goals"], row["actual_away_goals"] = home_goals, away_goals
-        row["actual_over_2_5"] = actual_over
-        row["settled"] = True
+        # Stored as strings, not bools -- rows settled in a LATER run get
+        # read back from CSV as strings ("True"/"False"), and the summary
+        # check below (this same run included) compares against "True".
+        # A bare Python True here would silently fail that comparison for
+        # every row settled in this exact execution -- which is exactly
+        # what caused the very first settle run to report "no data yet"
+        # despite having just written 10 real settled+selected+priced rows.
+        row["actual_over_2_5"] = "True" if actual_over else "False"
+        row["settled"] = "True"
         if row["selected"] == "True" and row["kalshi_yes_ask"]:
             ask = float(row["kalshi_yes_ask"])
-            row["pnl_per_dollar_if_selected"] = round((1 - ask) if actual_over else -ask, 4)
+            # Fee is paid on entry regardless of outcome (kalshi_fee()'s
+            # docstring) -- fall back to computing it fresh for rows
+            # logged before fee_per_contract existed as a column.
+            fee = float(row["fee_per_contract"]) if row.get("fee_per_contract") else kalshi_fee(ask)
+            row["pnl_per_dollar_if_selected"] = round((1 - ask - fee) if actual_over else -(ask + fee), 4)
         updated += 1
 
     if updated:
