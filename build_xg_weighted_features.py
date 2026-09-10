@@ -26,9 +26,20 @@ game is discounted, not dropped entirely -- a promoted team's recent
 Championship form is real evidence, just less reliable evidence than
 actual top-flight games would be.
 
-HALF_LIFE_DAYS=60 and CROSS_COMPETITION_DISCOUNT=0.4 are starting
-points, not the result of a parameter search -- validate before
-treating them as final.
+HALF_LIFE_DAYS=60 and CROSS_COMPETITION_DISCOUNT=0.4 were originally
+starting points, not the result of a parameter search -- since
+combined_expected_geo (built from these raw features) became the
+model's largest coefficient, that gap got closed:
+check_xg_weighting_sweep_full_dataset.py swept HALF_LIFE_DAYS in
+[30,45,60,90,120,180] and CROSS_COMPETITION_DISCOUNT in
+[0.1,0.2,0.4,0.6,1.0] against full-dataset L1 coefficient magnitude and
+out-of-sample walk-forward Brier/AUC. Result: the response surface is
+flat everywhere from 45 days up (Brier 0.2397-0.2399 across the whole
+range, well inside noise) -- 60/0.4 was never wrong, it just also
+never mattered much. The one real finding: HALF_LIFE_DAYS=30 is
+measurably worse (Brier 0.2402, AUC drops to 0.593) -- don't go
+shorter than ~45 days. Kept at 60/0.4 rather than chasing a
+0.0001-Brier "improvement" that's indistinguishable from noise.
 
 Same no-lookahead discipline as everything else, same cached
 /fixtures/statistics re-parse as build_xg_features.py (no new API
