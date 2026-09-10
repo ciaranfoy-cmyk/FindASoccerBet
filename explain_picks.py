@@ -77,6 +77,7 @@ from forward_test_log import (
     compute_rolling_p95_bar,
     compute_rolling_p95_under_bar,
     fetch_kalshi_over25_for_series,
+    kalshi_fee,
     team_games_into_season_live,
 )
 from live_kalshi_edge_test import _normalize
@@ -419,17 +420,24 @@ def main() -> int:
     live_df["edge_no"] = pd.NA
     live_df["kalshi_fair_p"] = pd.NA
     live_df["edge_vs_fair"] = pd.NA
+    # Fee is paid on entry regardless of outcome (see kalshi_fee()'s
+    # docstring) -- subtracted here so edge reflects what a real trade
+    # actually nets, same as forward_test_log.py's cmd_snapshot/settle.
+    # ~$0.02/contract at these price levels, ~2pp of edge -- enough on
+    # its own to flip a thin pick negative.
     for idx, r in live_df.iterrows():
         for k in kalshi_by_comp.get(r["competition"], []):
             if _normalize(k["home"]) == _normalize(r["home_team"]) and _normalize(k["away"]) == _normalize(r["away_team"]):
                 live_df.at[idx, "kalshi_yes_ask"] = k["yes_ask"]
-                live_df.at[idx, "edge_vs_ask"] = r["effective_over_prob"] - k["yes_ask"]
+                yes_fee = kalshi_fee(k["yes_ask"])
+                live_df.at[idx, "edge_vs_ask"] = r["effective_over_prob"] - yes_fee - k["yes_ask"]
                 if k.get("no_ask") is not None:
                     live_df.at[idx, "kalshi_no_ask"] = k["no_ask"]
-                    live_df.at[idx, "edge_no"] = r["effective_under_prob"] - k["no_ask"]
+                    no_fee = kalshi_fee(k["no_ask"])
+                    live_df.at[idx, "edge_no"] = r["effective_under_prob"] - no_fee - k["no_ask"]
                 if k.get("fair_p") is not None:
                     live_df.at[idx, "kalshi_fair_p"] = k["fair_p"]
-                    live_df.at[idx, "edge_vs_fair"] = r["effective_over_prob"] - k["fair_p"]
+                    live_df.at[idx, "edge_vs_fair"] = r["effective_over_prob"] - yes_fee - k["fair_p"]
                 break
 
     live_df["priced"] = live_df["kalshi_yes_ask"].notna()
