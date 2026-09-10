@@ -40,6 +40,7 @@ from sklearn.metrics import brier_score_loss, roc_auc_score
 
 from analyze_shots_venue import load_with_player_form_and_shots_venue, load_with_xg_player_form_and_shots_venue
 from backtest_season_rolling_percentile import N_FOLDS_CORE, N_FOLDS_XG, build_stream
+from build_team_ratings_features import load_team_ratings
 from build_xg_weighted_features import load_weighted_xg
 from calibration import apply_calibration, load_calibrators
 from predict_upcoming import CORE_CANDIDATES, XG_CANDIDATES
@@ -93,7 +94,7 @@ def main() -> int:
     core_df = load_with_player_form_and_shots_venue()
     core_stream = build_stream(core_df, CORE_CANDIDATES, N_FOLDS_CORE, "core").rename(columns={"pred_p": "pred_p_core"})
 
-    xg_df = load_weighted_xg(load_with_xg_player_form_and_shots_venue())
+    xg_df = load_team_ratings(load_weighted_xg(load_with_xg_player_form_and_shots_venue()))
     xg_stream = build_stream(xg_df, XG_CANDIDATES, N_FOLDS_XG, "xG")[["fixture_id", "pred_p"]].rename(columns={"pred_p": "pred_p_xg"})
 
     merged = core_stream.merge(xg_stream, on="fixture_id", how="left")
@@ -134,6 +135,15 @@ def main() -> int:
     confident = merged["pred_p"] >= 0.60
     bucket_report(f"early, confident (n)", y[(early_mask & confident).values], p[(early_mask & confident).values])
     bucket_report(f"rest, confident (n)", y[(~early_mask & confident).values], p[(~early_mask & confident).values])
+
+    # Single-game resolution around the current cutoff (4), restricted to
+    # the confident regime -- this is what actually decides whether 4 is
+    # the right boundary or just a round number: at what exact games-played
+    # value does the overconfidence actually stop?
+    print("\nSingle-game resolution (confident regime, pred_p >= 60%) -- where does overconfidence actually end:")
+    for g in range(0, 9):
+        m = (merged["min_games_into_season"] == g) & confident
+        bucket_report(f"exactly {g} games played, confident", y[m.values], p[m.values])
 
     return 0
 
