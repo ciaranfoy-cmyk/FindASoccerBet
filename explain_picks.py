@@ -73,6 +73,7 @@ from calibration import apply_calibration, load_calibrators
 from forward_test_log import (
     EARLY_SEASON_CUTOFF,
     KALSHI_SERIES_BY_COMPETITION,
+    _calibrated_stream,
     compute_pool_hit_rate,
     compute_rolling_p95_bar,
     compute_rolling_p95_under_bar,
@@ -248,17 +249,24 @@ def main() -> int:
               f"Over/early-season {pool_over_early[0]*100:.1f}% (n={pool_over_early[1]}), "
               f"Under {pool_under[0]*100:.1f}% (n={pool_under[1]})")
     else:
+        # Built ONCE and passed to every call below -- each of bar/
+        # under_bar/early_bar/early_under_bar/pool_over/pool_over_early/
+        # pool_under used to rebuild this from scratch internally (7x
+        # redundant retrain of both models, the actual expensive part).
+        print("Building the out-of-fold calibrated stream once (shared by every bar/pool computation below)...")
+        shared_stream = _calibrated_stream()
+
         print("Computing the live confidence bar (rolling p95 of trailing historical predictions)...")
-        bar = compute_rolling_p95_bar()
-        under_bar = compute_rolling_p95_under_bar()
+        bar = compute_rolling_p95_bar(stream=shared_stream)
+        under_bar = compute_rolling_p95_under_bar(stream=shared_stream)
         print(f"  bar (Over)  = {bar*100:.1f}% -- only fixtures at or above this are real Over picks")
         print(f"  bar (Under) = {under_bar*100:.1f}% -- only fixtures at or above this are real Under picks "
               f"(weaker track record than Over -- see compute_rolling_p95_under_bar docstring)\n")
 
         print("Computing the stricter early-season bar (check_early_season_reliability.py found "
               f"+6.1pp overconfidence when either team has <= {EARLY_SEASON_CUTOFF} games played this season)...")
-        early_bar = compute_rolling_p95_bar(early_season_only=True)
-        early_under_bar = compute_rolling_p95_under_bar(early_season_only=True)
+        early_bar = compute_rolling_p95_bar(early_season_only=True, stream=shared_stream)
+        early_under_bar = compute_rolling_p95_under_bar(early_season_only=True, stream=shared_stream)
         print(f"  early-season bar (Over)  = {early_bar*100:.1f}%")
         print(f"  early-season bar (Under) = {early_under_bar*100:.1f}%\n")
 
@@ -269,9 +277,9 @@ def main() -> int:
         # confidence and its actual outcome, so trusting the specific
         # number claims precision the data doesn't support.
         print("Computing pool hit rates (what edge actually gets priced against)...")
-        pool_over = compute_pool_hit_rate(under=False, early_season_only=False)
-        pool_over_early = compute_pool_hit_rate(under=False, early_season_only=True)
-        pool_under = compute_pool_hit_rate(under=True, early_season_only=False)
+        pool_over = compute_pool_hit_rate(under=False, early_season_only=False, stream=shared_stream)
+        pool_over_early = compute_pool_hit_rate(under=False, early_season_only=True, stream=shared_stream)
+        pool_under = compute_pool_hit_rate(under=True, early_season_only=False, stream=shared_stream)
         print(f"  Over pool hit rate = {pool_over[0]*100:.1f}% (n={pool_over[1]})")
         print(f"  Over/early-season pool hit rate = {pool_over_early[0]*100:.1f}% (n={pool_over_early[1]})")
         print(f"  Under pool hit rate = {pool_under[0]*100:.1f}% (n={pool_under[1]})")

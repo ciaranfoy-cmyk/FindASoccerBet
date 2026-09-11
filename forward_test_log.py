@@ -270,7 +270,7 @@ def _calibrated_stream() -> pd.DataFrame:
     return stream
 
 
-def compute_rolling_p95_bar(early_season_only: bool = False) -> float:
+def compute_rolling_p95_bar(early_season_only: bool = False, stream: pd.DataFrame | None = None) -> float:
     """The live selection bar: percentile of the trailing 500 out-of-fold
     predictions in the model's own validated history -- same construction
     as backtest_season_rolling_percentile.py. Despite the function name
@@ -285,8 +285,15 @@ def compute_rolling_p95_bar(early_season_only: bool = False) -> float:
     where min(home, away) games played this competition+season was
     <= EARLY_SEASON_CUTOFF -- a separate, stricter bar for the specific
     regime found to be overconfident (see EARLY_SEASON_CUTOFF docstring).
+
+    stream: pass an already-built _calibrated_stream() to skip rebuilding
+    it (retrains both models from scratch, the expensive part) -- a
+    caller needing several of these bar/pool numbers in one run (e.g.
+    explain_picks.py, cmd_snapshot) should build the stream ONCE and pass
+    it to every call instead of the 7x-redundant rebuild that used to
+    happen here. Omit to build fresh (used by standalone callers/scripts).
     """
-    stream = _calibrated_stream()
+    stream = stream if stream is not None else _calibrated_stream()
     percentile = 95.0
     if early_season_only:
         gis = _games_into_season_lookup()
@@ -297,7 +304,7 @@ def compute_rolling_p95_bar(early_season_only: bool = False) -> float:
     return float(pd.Series(trailing).quantile(percentile / 100.0))
 
 
-def compute_rolling_p95_under_bar(early_season_only: bool = False) -> float:
+def compute_rolling_p95_under_bar(early_season_only: bool = False, stream: pd.DataFrame | None = None) -> float:
     """Same construction as compute_rolling_p95_bar(), mirrored onto
     Under confidence (1 - pred_p) -- the live Under-side selection bar.
     Validated in diagnose_under_overconfidence.py: this exact rolling-p95
@@ -308,9 +315,11 @@ def compute_rolling_p95_under_bar(early_season_only: bool = False) -> float:
     mildly overconfident (-1.7pp) in its own stated probability. Worth
     surfacing, not worth treating as equally reliable as an Over PICK.
 
-    early_season_only=True -- see compute_rolling_p95_bar().
+    early_season_only=True -- see compute_rolling_p95_bar(). stream --
+    see compute_rolling_p95_bar()'s docstring; pass a shared, pre-built
+    stream to avoid a redundant retrain.
     """
-    stream = _calibrated_stream()
+    stream = (stream if stream is not None else _calibrated_stream()).copy()
     stream["under_p"] = 1 - stream["pred_p"]
     if early_season_only:
         gis = _games_into_season_lookup()
@@ -320,7 +329,9 @@ def compute_rolling_p95_under_bar(early_season_only: bool = False) -> float:
     return float(pd.Series(trailing).quantile(0.95))
 
 
-def compute_pool_hit_rate(under: bool = False, early_season_only: bool = False) -> tuple[float, int]:
+def compute_pool_hit_rate(
+    under: bool = False, early_season_only: bool = False, stream: pd.DataFrame | None = None
+) -> tuple[float, int]:
     """The number that should actually be used to price edge against a
     Kalshi ask -- NOT a fixture's own individually-stated calibrated
     probability.
@@ -353,8 +364,11 @@ def compute_pool_hit_rate(under: bool = False, early_season_only: bool = False) 
     for early-season Under, and callers should not offer Under picks in
     that regime at all rather than call this with under=True,
     early_season_only=True.
+
+    stream -- see compute_rolling_p95_bar()'s docstring; pass a shared,
+    pre-built stream to avoid a redundant retrain.
     """
-    stream = _calibrated_stream()
+    stream = (stream if stream is not None else _calibrated_stream()).copy()
     value_col, outcome_col = ("pred_p", "over_2_5")
     if under:
         stream["under_p"] = 1 - stream["pred_p"]
@@ -419,10 +433,13 @@ def cmd_snapshot(days: int) -> int:
     xg_model.fit(X_xg_train, xg_model_df["over_2_5"])
 
     print("Computing the live confidence bars and pool hit rates...")
-    bar = compute_rolling_p95_bar()
-    early_bar = compute_rolling_p95_bar(early_season_only=True)
-    pool_over = compute_pool_hit_rate(under=False, early_season_only=False)
-    pool_over_early = compute_pool_hit_rate(under=False, early_season_only=True)
+    # Built ONCE, passed to all four calls below -- see compute_rolling_p95_bar()'s
+    # stream= docstring for why (this used to retrain both models 4x here alone).
+    shared_stream = _calibrated_stream()
+    bar = compute_rolling_p95_bar(stream=shared_stream)
+    early_bar = compute_rolling_p95_bar(early_season_only=True, stream=shared_stream)
+    pool_over = compute_pool_hit_rate(under=False, early_season_only=False, stream=shared_stream)
+    pool_over_early = compute_pool_hit_rate(under=False, early_season_only=True, stream=shared_stream)
     print(f"  bar = {bar*100:.1f}%  |  early-season bar = {early_bar*100:.1f}%")
     print(f"  pool hit rate: standard {pool_over[0]*100:.1f}% (n={pool_over[1]})  |  "
           f"early-season {pool_over_early[0]*100:.1f}% (n={pool_over_early[1]})")
