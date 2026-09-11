@@ -48,7 +48,7 @@ import os
 import sys
 
 import apifootball
-from build_dataset_apifootball import LEAGUES, fetch_all_fixtures
+from build_dataset_apifootball import CURRENT_SEASON_OVERRIDE, LEAGUES, fetch_all_fixtures
 
 OUTPUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "league_finish_features.csv")
 NOT_IN_LEAGUE_RANK = 30
@@ -75,10 +75,14 @@ def build_standings_cache() -> dict[str, dict[int, dict[str, int]]]:
     training -- no risk of the two drifting apart.
     """
     current_year = datetime.date.today().year if datetime.date.today().month >= 7 else datetime.date.today().year - 1
-    last_completed_season = current_year - 1
 
     standings_cache: dict[str, dict[int, dict[str, int]]] = {}
     for code, info in LEAGUES.items():
+        # See CURRENT_SEASON_OVERRIDE's docstring (build_dataset_apifootball.py)
+        # -- a league whose season numbering has drifted (J.League) needs its
+        # own "last completed season" computed from ITS current season, not
+        # the generic Aug-Jul-year-boundary one every other league follows.
+        last_completed_season = CURRENT_SEASON_OVERRIDE.get(code, current_year) - 1
         standings_cache[code] = {}
         for season in range(info["first_season"], last_completed_season + 1):
             standings_cache[code][season] = fetch_standings(info["id"], season)

@@ -207,6 +207,41 @@ _TEAM_ALIASES = {
     "atletico paranaense": "paranaense",
     "chapecoense-sc": "chapecoense",
     "rb bragantino": "bragantino",
+    # Liga Portugal -- verified against all 18 teams once the remaining 6
+    # markets opened (Nacional, Alverca, Casa Pia, Famalicao, Arouca,
+    # Sporting CP, Rio Ave, Moreirense, Estoril matched with no alias
+    # needed; the 9 below did).
+    "academico viseu": "viseu",
+    "vitória sc": "guimaraes",  # Vitoria SC = Vitoria de Guimaraes
+    "santa clara": "santa clara azores",
+    "benfica": "sl benfica",
+    "gil vicente": "vicente barcelos",
+    "fc porto": "porto",
+    "estrela": "estrela amadora",
+    "maritimo": "madeira",  # Maritimo is based on Madeira island
+    "sc braga": "braga",
+    # J.League -- verified against all 20 teams, all 20 had an open
+    # Kalshi market at the time this was added (full coverage, nothing
+    # left unverified). Only 3 of 20 (Kashima, Kyoto Sanga, Urawa)
+    # matched with no alias needed -- Kalshi shortens or drops a
+    # city/region qualifier on the other 17.
+    "avispa fukuoka": "avispa",
+    "cerezo osaka": "cerezo",
+    "fc tokyo": "tokyo",
+    "fagiano okayama": "fagiano o",
+    "gamba osaka": "gamba",
+    "jef united chiba": "united chiba",
+    "kashiwa reysol": "kashiwa",
+    "kawasaki frontale": "frontale",
+    "machida zelvia": "machida z",
+    "mito hollyhock": "mito h",
+    "nagoya grampus": "nagoya",
+    "sanfrecce hiroshima": "hiroshima",
+    "shimizu s-pulse": "shimizu",
+    "tokyo verdy": "tokyo v",
+    "v-varen nagasaki": "v-varen",
+    "vissel kobe": "kobe",
+    "yokohama f. marinos": "marinos",
 }
 
 

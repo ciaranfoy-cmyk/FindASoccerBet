@@ -76,14 +76,38 @@ LEAGUES = {
     # season is a calendar year (Jan-Dec), not Aug-Jul -- "season 2019"
     # here means calendar year 2019, same as API-Football's own labeling.
     "BRASILEIRAO": {"id": 71, "first_season": 2019},
+    "LIGAPORTUGAL": {"id": 94, "first_season": 2019},
+    # J.League switched from a calendar-year season (Feb-Dec, "season
+    # 2026" = Feb-Jun 2026) to a European-style Aug-Jun season starting
+    # what API-Football labels "season 2027" (2026-08-07 to 2027-06-06)
+    # -- confirmed via /leagues: season 2026 is 200 fixtures, all
+    # FT/PEN/AET (finished); season 2027 is 380 fixtures, 320 of them
+    # NS/TBD (upcoming). Without CURRENT_SEASON_OVERRIDE below, every
+    # season-current-year computation in this project (here, and
+    # fetch_upcoming_fixtures/build_standings_cache) would ask for
+    # season 2026 -- a season that already ended -- and Japan would
+    # silently vanish from live picks with zero fixtures, not error.
+    "JLEAGUE": {"id": 98, "first_season": 2019},
 }
+
+# Per-league override for "what season number is currently active" --
+# only needed when a league's own season numbering has drifted from the
+# generic Aug-Jul-crossing-a-year-boundary assumption every other
+# function in this project makes (see JLEAGUE above for why). Consulted
+# by fetch_all_fixtures below, predict_upcoming.fetch_upcoming_fixtures,
+# and build_league_finish_features.build_standings_cache -- all three
+# need to agree on which season is "current" for a given league or a
+# live prediction and its training data would disagree about something
+# as basic as what season a fixture belongs to.
+CURRENT_SEASON_OVERRIDE: dict[str, int] = {"JLEAGUE": 2027}
 
 
 def fetch_all_fixtures(seasons_override: list[int] | None) -> list[dict]:
     matches = []
     current_year = datetime.date.today().year if datetime.date.today().month >= 7 else datetime.date.today().year - 1
     for code, info in LEAGUES.items():
-        seasons = seasons_override or list(range(info["first_season"], current_year + 1))
+        league_current_year = CURRENT_SEASON_OVERRIDE.get(code, current_year)
+        seasons = seasons_override or list(range(info["first_season"], league_current_year + 1))
         for season in seasons:
             data = apifootball.get("/fixtures", {"league": info["id"], "season": season})
             for m in data.get("response", []):

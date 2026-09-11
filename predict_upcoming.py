@@ -84,6 +84,7 @@ from build_team_ratings_features import (
     load_team_ratings,
 )
 from build_dataset_apifootball import (
+    CURRENT_SEASON_OVERRIDE,
     LEAGUES,
     clean_sheet_pct,
     fetch_all_fixtures,
@@ -369,7 +370,8 @@ def fetch_upcoming_fixtures(days_ahead: int) -> list[dict]:
 
     upcoming = []
     for code, info in LEAGUES.items():
-        data = apifootball.get("/fixtures", {"league": info["id"], "season": current_year}, ttl_seconds=300)
+        league_season = CURRENT_SEASON_OVERRIDE.get(code, current_year)
+        data = apifootball.get("/fixtures", {"league": info["id"], "season": league_season}, ttl_seconds=300)
         for m in data.get("response", []):
             if m["fixture"]["status"]["short"] not in ("NS", "TBD"):
                 continue
@@ -380,7 +382,7 @@ def fetch_upcoming_fixtures(days_ahead: int) -> list[dict]:
                 "fixture_id": m["fixture"]["id"],
                 "date": m["fixture"]["date"],
                 "competition": code,
-                "season": current_year,
+                "season": league_season,
                 "home": m["teams"]["home"]["name"],
                 "away": m["teams"]["away"]["name"],
                 "home_id": m["teams"]["home"]["id"],
