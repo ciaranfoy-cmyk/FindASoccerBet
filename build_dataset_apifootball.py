@@ -67,6 +67,15 @@ LEAGUES = {
     "MLS": {"id": 253, "first_season": 2019},
     "EREDIVISIE": {"id": 88, "first_season": 2019},
     "SUPERLIG": {"id": 203, "first_season": 2019},
+    # Added one league at a time to test whether pool hit rate estimates
+    # tighten with more out-of-fold games to draw from (see
+    # check_confidence_bar_sweep.py / compute_pool_hit_rate()). Real xG
+    # coverage confirmed back to at least 2023 in a prior survey; kept
+    # at the same ~7-season depth as the other non-PL/ELC additions
+    # rather than digging for exactly how far back it goes. Brazil's
+    # season is a calendar year (Jan-Dec), not Aug-Jul -- "season 2019"
+    # here means calendar year 2019, same as API-Football's own labeling.
+    "BRASILEIRAO": {"id": 71, "first_season": 2019},
 }
 
 

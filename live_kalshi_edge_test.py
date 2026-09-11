@@ -199,6 +199,14 @@ _TEAM_ALIASES = {
     "nac breda": "breda",
     "vvv venlo": "venlo",
     "az alkmaar": "alkmaar",
+    # Brasileirao -- verified against all 11 open Kalshi markets at the
+    # time added (4 of 20 teams mismatched without these: API-Football
+    # keeps a club-type prefix/suffix or an alternate spelling Kalshi
+    # drops or renames). The other 16 teams matched with no alias needed.
+    "atletico-mg": "atletico mineiro",
+    "atletico paranaense": "paranaense",
+    "chapecoense-sc": "chapecoense",
+    "rb bragantino": "bragantino",
 }
 
 
