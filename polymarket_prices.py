@@ -28,9 +28,11 @@ differ from both our dataset's names and Kalshi's own truncated ones --
 a separate normalizer from live_kalshi_edge_test.py's _normalize() to
 avoid disturbing that already-tuned Kalshi matching. Matching here is
 deliberately conservative: substring containment after stripping a
-short list of noise tokens, nothing fuzzier. A fixture that doesn't
-confidently match (e.g. "Rennes" vs "Stade Rennais FC 1901" -- "rennes"
-is not a substring of "rennais", different suffix) is silently skipped
+short list of noise tokens, plus a small table of confirmed real
+aliases (_POLY_ALIASES) for the cases substring matching structurally
+can't reach -- e.g. "Rennes" vs "Stade Rennais FC 1901", where
+"rennais" is the demonym form of "Rennes", not a substring of it.
+Anything else that doesn't confidently match is silently skipped
 rather than guessed at -- a missing Polymarket price is a safe failure
 mode, a wrong one attached to the wrong fixture is not.
 
@@ -81,12 +83,24 @@ POLYMARKET_TAG_BY_COMPETITION = {
 # fine (see docstring), and stripping more only raises collision risk.
 _POLY_NOISE_TOKENS = {"fc", "afc", "cf", "cd", "sc", "ud"}
 
+# Confirmed real equivalences that plain substring containment can't
+# bridge on its own -- the adjectival/demonym form of a city or region
+# name (Rennais -> Rennes, same relationship as "Parisian" -> "Paris")
+# isn't a substring of the name it's derived from, so these need to be
+# named explicitly rather than caught by the generic rule. Keyed by the
+# post-noise-stripping normalized Polymarket name; add to this table
+# only for a confirmed real match, never to force a guess through.
+_POLY_ALIASES = {
+    "stade rennais": "rennes",
+}
+
 
 def _poly_normalize(name: str) -> str:
     n = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
     n = n.lower().strip().replace("-", " ")
     tokens = [t for t in re.split(r"\s+", n) if t not in _POLY_NOISE_TOKENS and not t.isdigit()]
-    return " ".join(tokens)
+    normalized = " ".join(tokens)
+    return _POLY_ALIASES.get(normalized, normalized)
 
 
 def _poly_names_match(our_name: str, poly_name: str) -> bool:
