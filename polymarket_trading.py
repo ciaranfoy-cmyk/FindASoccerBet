@@ -51,13 +51,20 @@ import json
 import os
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
 SECRETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "secrets")
 ENV_PATH = os.path.join(SECRETS_DIR, "polymarket.env")
+# Two genuinely separate hosts, confirmed against each endpoint's own
+# OpenAPI `servers:` block, not assumed -- account/portfolio/orders
+# (trading) live on API_BASE; search/markets/events/sports (discovery)
+# live on GATEWAY_BASE. Same signing scheme, same credentials, just a
+# different host per endpoint.
 API_BASE = "https://api.polymarket.us"
+GATEWAY_BASE = "https://gateway.polymarket.us"
 
 
 class PolymarketError(RuntimeError):
@@ -87,11 +94,22 @@ def _sign(secret_b64: str, message: str) -> str:
     return base64.b64encode(signature).decode("utf-8")
 
 
-def _request(method: str, path: str, body: dict | None = None) -> dict:
+def _request(method: str, path: str, params: dict | None = None, body: dict | None = None, base: str | None = None) -> dict:
     key_id, secret = _load_creds()
+
+    # CONFIRMED live (2026-09-18): the signature covers the bare path
+    # only, never the query string -- signing timestamp+method+path+
+    # querystring got a real 401 "Invalid API key signature" on a GET
+    # with params, and dropping the query string from the signed
+    # message (while still sending it on the actual request URL) fixed
+    # it. Do not sign query params.
     timestamp_ms = str(int(time.time() * 1000))
     message = timestamp_ms + method.upper() + path
     signature = _sign(secret, message)
+
+    signed_path = path
+    if params:
+        signed_path = path + "?" + urllib.parse.urlencode(params)
 
     headers = {
         "X-PM-Access-Key": key_id,
@@ -100,7 +118,7 @@ def _request(method: str, path: str, body: dict | None = None) -> dict:
         "Content-Type": "application/json",
     }
 
-    url = API_BASE + path
+    url = (base or API_BASE) + signed_path
     data = json.dumps(body).encode("utf-8") if body is not None else None
     request = urllib.request.Request(url, data=data, headers=headers, method=method.upper())
 
@@ -122,6 +140,19 @@ def get_positions() -> dict:
 
 def get_activities() -> dict:
     return _request("GET", "/v1/portfolio/activities")
+
+
+def search(query: str, limit: int = 10) -> dict:
+    return _request("GET", "/v1/search", params={"query": query, "limit": limit}, base=GATEWAY_BASE)
+
+
+def get_market_by_slug(slug: str) -> dict:
+    return _request("GET", f"/v1/market/slug/{slug}", base=GATEWAY_BASE)
+
+
+def get_market_bbo(slug: str) -> dict:
+    """Best bid/offer -- lightweight, no full order book."""
+    return _request("GET", f"/v1/markets/{slug}/bbo", base=GATEWAY_BASE)
 
 
 def place_order(
