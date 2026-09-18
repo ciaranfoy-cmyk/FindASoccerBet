@@ -191,7 +191,14 @@ def fetch_polymarket_over25_for_league(competition: str) -> list[dict]:
         if not sibling:
             continue
         ou25 = next((m for m in sibling[0].get("markets", []) if m.get("groupItemTitle") == "O/U 2.5"), None)
-        if ou25 is None or ou25.get("bestAsk") is None:
+        # Both sides of the book have to actually be there -- a thin,
+        # one-sided market (someone posted an ask, nobody's bid) drops
+        # the missing side's key entirely rather than nulling it, so
+        # .get() here isn't optional: a bare ou25["bestBid"] threw
+        # KeyError on exactly this case and took out every OTHER
+        # fixture in the same league with it, since this function's
+        # caller wraps the whole per-league call in one try/except.
+        if ou25 is None or ou25.get("bestAsk") is None or ou25.get("bestBid") is None:
             continue
         home, _, away = e["title"].partition(" vs. ")
         yes_ask, yes_bid = float(ou25["bestAsk"]), float(ou25["bestBid"])
