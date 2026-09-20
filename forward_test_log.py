@@ -122,7 +122,22 @@ KALSHI_SERIES_BY_COMPETITION = {
     "BRASILEIRAO": "KXBRASILEIROTOTAL",
     "LIGAPORTUGAL": "KXLIGAPORTUGALTOTAL",
     "JLEAGUE": "KXJLEAGUETOTAL",
+    "LIGAMX": "KXLIGAMXTOTAL",
 }
+
+# Competitions whose Under 2.5 picks are NOT trusted, despite having a
+# working Kalshi series -- a real walk-forward tier check (rolling
+# percentile picks specific to this competition, same methodology as
+# everywhere else) found LIGAMX's Under-side hit rate running ~4-7pp
+# below the shared pool's at every percentile tier with usable sample
+# size (70th-92.5th, n=81-325), while its Over-side picks tracked the
+# pool closely. Consistent with LIGAMX's higher overall Over-2.5 base
+# rate (54.9% vs the shared pool's 53.5%) -- the league appears to
+# genuinely run higher-scoring, which specifically hurts "bet on few
+# goals" picks. Re-validate (rerun the same per-competition tier check)
+# once more seasons of LIGAMX data accumulate; don't just remove this
+# without re-checking.
+UNDER_DISALLOWED_COMPETITIONS = {"LIGAMX"}
 
 
 # Above this width, the yes bid-ask spread is illiquid enough that its
