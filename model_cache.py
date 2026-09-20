@@ -46,6 +46,16 @@ def data_fingerprint() -> str:
         path = os.path.join(DATA_DIR, name)
         if os.path.exists(path):
             parts.append(f"{name}:{os.path.getmtime(path)}:{os.path.getsize(path)}")
+    # Data files alone aren't the whole story -- a constant like
+    # TRAINING_DATA_CUTOFF changes what a fresh run would train on
+    # without touching any file this fingerprint otherwise tracks,
+    # which would silently serve a stale-cutoff cached bundle after a
+    # code change. Deferred import: predict_upcoming doesn't import
+    # this module, so this is safe, but importing it at module load
+    # time here would still be a needless coupling for every other
+    # caller of load()/save() that has nothing to do with training.
+    from predict_upcoming import TRAINING_DATA_CUTOFF
+    parts.append(f"TRAINING_DATA_CUTOFF:{TRAINING_DATA_CUTOFF}")
     return hashlib.sha256("|".join(parts).encode()).hexdigest()[:16]
 
 

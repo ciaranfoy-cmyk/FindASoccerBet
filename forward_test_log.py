@@ -73,6 +73,7 @@ from calibration import apply_calibration, load_calibrators
 from live_kalshi_edge_test import kalshi_get, _normalize
 from predict_upcoming import (
     CORE_CANDIDATES,
+    TRAINING_DATA_CUTOFF,
     XG_CANDIDATES,
     XG_FINISHING_FEATURES,
     build_feature_row,
@@ -258,6 +259,7 @@ def _calibrated_stream() -> pd.DataFrame:
     the same way live predictions are.
     """
     df = load_with_xg_player_form_and_shots_venue()
+    df = df[df["date"] >= TRAINING_DATA_CUTOFF]
     df = load_weighted_xg(df)
     df = load_team_ratings(df)
     core_stream = build_stream(df, CORE_CANDIDATES, N_FOLDS_CORE, "core").rename(columns={"pred_p": "pred_p_core"})

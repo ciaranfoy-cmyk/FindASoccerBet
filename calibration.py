@@ -80,9 +80,10 @@ def build_hybrid_streams() -> tuple[pd.DataFrame, pd.DataFrame]:
     # CORE_CANDIDATES/XG_CANDIDATES from predict_upcoming -- importing either
     # at module level here would be circular.
     from backtest_season_rolling_percentile import N_FOLDS_CORE, N_FOLDS_XG, build_stream
-    from predict_upcoming import CORE_CANDIDATES, XG_CANDIDATES
+    from predict_upcoming import CORE_CANDIDATES, TRAINING_DATA_CUTOFF, XG_CANDIDATES
 
     df = load_with_xg_player_form_and_shots_venue()
+    df = df[df["date"] >= TRAINING_DATA_CUTOFF]
     df = load_weighted_xg(df)
     df = load_team_ratings(df)
     core_stream = build_stream(df, CORE_CANDIDATES, N_FOLDS_CORE, "core").sort_values("date").reset_index(drop=True)

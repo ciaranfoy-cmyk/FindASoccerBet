@@ -118,6 +118,21 @@ warnings.filterwarnings("ignore")
 # for the re-test that reversed this.
 LEAGUE_FINISH_FEATURES = ["home_avg_finish", "away_avg_finish", "avg_finish_gap", "avg_finish_combined"]
 
+# Pre-2019-08-01 matches (PL/Championship only, before the other 10
+# leagues were added) measurably drag down the live confidence-bar
+# tail's own accuracy, not just add noise -- a cutoff sweep found a real
+# peak, not a monotonic "newer is better" trend: full-history pct=95
+# Brier 0.2089/hit-rate 69.9% -> 2019-08-01 Brier 0.2009/hit-rate 72.4%,
+# degrading again by 2021-08-01 (Brier back to 0.2078) as the training
+# pool gets too thin for the ~46 L1-selected core features. Applied
+# everywhere the live model is trained or the out-of-fold stream (bar/
+# pool/calibration) is built from historical data -- see
+# explain_picks.py, forward_test_log.py, calibration.py, this file's
+# own main(). Deliberately NOT applied in backtest_season_rolling_percentile.py
+# or the rolling_validation_*.py / check_*.py dev-log scripts, which
+# validate against a specific past season's full history on purpose.
+TRAINING_DATA_CUTOFF = "2019-08-01"
+
 CORE_CANDIDATES = (
     # h2h_avg_goals swapped for h2h_avg_goals_shrunk (shrinks toward the
     # dataset-wide mean when a pairing has few prior meetings, instead of
@@ -563,9 +578,10 @@ def main() -> int:
     parser.add_argument("--days", type=int, default=10, help="Look at fixtures in the next N days, default 10")
     args = parser.parse_args()
 
-    print("Training the core model on the full historical dataset "
+    print(f"Training the core model on the {TRAINING_DATA_CUTOFF}-onward historical dataset "
           "(player-form + venue-split shots added alongside team-goals-form/blended-shots)...")
     historical = load_with_player_form_and_shots_venue()
+    historical = historical[historical["date"] >= TRAINING_DATA_CUTOFF]
     model_df = historical[CORE_CANDIDATES + ["over_2_5"]].dropna()
     print(f"  {len(model_df)} complete-case matches used for training")
 
@@ -578,6 +594,7 @@ def main() -> int:
 
     print("Training the xG-augmented model on the real-xG-covered recent-era subset...")
     xg_historical = load_with_xg_player_form_and_shots_venue()
+    xg_historical = xg_historical[xg_historical["date"] >= TRAINING_DATA_CUTOFF]
     xg_historical = load_weighted_xg(xg_historical)
     xg_historical = load_team_ratings(xg_historical)
     xg_model_df = xg_historical[XG_CANDIDATES + ["over_2_5"]].dropna()

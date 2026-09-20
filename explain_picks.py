@@ -94,6 +94,7 @@ from polymarket_prices import (
 )
 from predict_upcoming import (
     CORE_CANDIDATES,
+    TRAINING_DATA_CUTOFF,
     XG_CANDIDATES,
     XG_FINISHING_FEATURES,
     build_feature_row,
@@ -296,8 +297,9 @@ def main() -> int:
         print(f"  (no early-season Under pool number -- that bar was found unreliable at every percentile "
               f"tested, so early-season fixtures are never offered as Under picks)\n")
 
-        print("Training the core model...")
+        print(f"Training the core model ({TRAINING_DATA_CUTOFF} onward -- see that constant's docstring)...")
         historical = load_with_player_form_and_shots_venue()
+        historical = historical[historical["date"] >= TRAINING_DATA_CUTOFF]
         model_df = historical[CORE_CANDIDATES + ["over_2_5"]].dropna()
         scaler = StandardScaler()
         X_train = scaler.fit_transform(model_df[CORE_CANDIDATES])
@@ -306,6 +308,7 @@ def main() -> int:
 
         print("Training the xG-augmented model...")
         xg_historical = load_with_xg_player_form_and_shots_venue()
+        xg_historical = xg_historical[xg_historical["date"] >= TRAINING_DATA_CUTOFF]
         xg_historical = load_weighted_xg(xg_historical)
         xg_historical = load_team_ratings(xg_historical)
         xg_model_df = xg_historical[XG_CANDIDATES + ["over_2_5"]].dropna()
