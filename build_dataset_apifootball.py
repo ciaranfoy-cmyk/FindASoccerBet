@@ -88,6 +88,16 @@ LEAGUES = {
     # season 2026 -- a season that already ended -- and Japan would
     # silently vanish from live picks with zero fixtures, not error.
     "JLEAGUE": {"id": 98, "first_season": 2019},
+    # Pilot for expanding beyond the original 12 -- Liga MX has live,
+    # actively-traded Kalshi Over/Under markets (KXLIGAMXTOTAL) right now,
+    # a closed 18-team domestic pool (same modeling assumptions as the
+    # other leagues here), and API-Football already normalizes its
+    # split Apertura/Clausura tournaments into one Jul-May "season" label
+    # like every other league (confirmed via /leagues id=262 -- no
+    # CURRENT_SEASON_OVERRIDE needed). Same ~7-season depth convention
+    # as the other post-launch additions above; real xG confirmed
+    # present in a live sample before adding this.
+    "LIGAMX": {"id": 262, "first_season": 2019},
 }
 
 # Per-league override for "what season number is currently active" --
