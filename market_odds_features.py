@@ -44,7 +44,9 @@ predict_upcoming.py), so this fits the existing fallback pattern.
 
 import json
 import os
+import re
 import time
+import unicodedata
 import urllib.error
 import urllib.request
 
@@ -142,8 +144,27 @@ def _devig_over(over_o, under_o) -> float | None:
     return po / (po + pu)
 
 
+# thestatsapi and our own data disagree on a handful of common short forms
+# for the same city/club -- found by inspecting real name-match misses (see
+# git history for the specific fixtures this fixed).
+_ALIASES = {
+    "la": "los angeles",
+    "ny": "new york",
+    "sf": "san francisco",
+    "dc": "district of columbia",
+}
+
+
 def _normalize(name: str) -> str:
-    return name.lower().replace(".", "").replace("-", " ").strip()
+    # strip accents (e.g. "Montréal" vs "Montreal") before anything else
+    name = unicodedata.normalize("NFKD", name)
+    name = "".join(c for c in name if not unicodedata.combining(c))
+    # turn punctuation into a space rather than deleting it, so
+    # "St.Louis" (no space in source) and "St. Louis" (space in source)
+    # normalize identically instead of merging into different strings
+    name = name.lower().replace(".", " ").replace("-", " ")
+    name = re.sub(r"\s+", " ", name).strip()
+    return " ".join(_ALIASES.get(w, w) for w in name.split(" "))
 
 
 def _find_match_id(competition_id: str, home_team: str, away_team: str, date: str) -> str | None:
