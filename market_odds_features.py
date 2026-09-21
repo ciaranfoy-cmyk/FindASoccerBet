@@ -24,16 +24,17 @@ existed (no API calls made, no behavior change). To remove entirely:
 delete this file and the few call sites in predict_upcoming.py /
 explain_picks.py / calibration.py / model_cache.py that reference it.
 
-SCOPE: only validated for PL, La Liga, and Serie A so far (the leagues
-with enough historical odds volume to backtest). COVERED_COMPETITIONS
-below is deliberately narrow -- extending it to another league without
-first re-running the same walk-forward validation would be trusting an
-untested assumption, not a proven result. data/market_odds_features.csv
-now also has raw odds data for Bundesliga/Ligue 1/MLS/Eredivisie
-(pulled for a bigger-sample validation pass), but COVERED_COMPETITIONS
-deliberately stays at 3 until that validation actually confirms the
-same improvement holds for them -- pulling the data and trusting it
-live are two different steps.
+SCOPE: validated for PL, La Liga, Serie A, Bundesliga, Ligue 1, MLS,
+and Eredivisie (real walk-forward test, n=3579 for xG+odds -- see
+xg_odds_test.py in this session's history: Brier 0.2420 -> 0.2404,
+L1 coef +0.17, clean and consistent hit-rate improvement across every
+percentile tier 70th-97.5th except a noise-level -0.4pp blip at 95th,
+resolved from a -3.2pp dip on an earlier, thinner 3-league-only
+sample -- confirmed noise via a two-proportion test, p=0.674).
+COVERED_COMPETITIONS below is deliberately narrow to just these 7 --
+extending it to another league without first re-running the same
+walk-forward validation would be trusting an untested assumption, not
+a proven result.
 
 Any failure (auth, rate limit, subscription lapsed, no match found, no
 odds posted yet for a fixture that far out) returns None -- treated
@@ -62,6 +63,10 @@ COVERED_COMPETITIONS = {
     "PL": "comp_3039",
     "LALIGA": "comp_8814",
     "SERIEA": "comp_5840",
+    "BUNDESLIGA": "comp_4643",
+    "LIGUE1": "comp_0256",
+    "MLS": "comp_9799",
+    "EREDIVISIE": "comp_3809",
 }
 
 _MIN_REQUEST_INTERVAL = 60 / 110  # stay under the paid plan's 120/min cap

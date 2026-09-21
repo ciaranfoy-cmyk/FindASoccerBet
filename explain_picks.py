@@ -354,7 +354,7 @@ def main() -> int:
                 X_odds_train = odds_scaler.fit_transform(odds_model_df[ODDS_CANDIDATES])
                 odds_model = LogisticRegressionCV(Cs=15, cv=5, penalty="l1", solver="liblinear", scoring="roc_auc", max_iter=2000, random_state=0)
                 odds_model.fit(X_odds_train, odds_model_df["over_2_5"])
-                print(f"  trained on {len(odds_model_df)} rows (PL/LALIGA/SERIEA only -- see COVERED_COMPETITIONS)")
+                print(f"  trained on {len(odds_model_df)} rows (COVERED_COMPETITIONS leagues only)")
             else:
                 print(f"  only {len(odds_model_df)} rows with both core features and a market price -- skipping, too few to trust")
 
@@ -366,7 +366,7 @@ def main() -> int:
                 X_xg_odds_train = xg_odds_scaler.fit_transform(xg_odds_model_df[XG_ODDS_CANDIDATES])
                 xg_odds_model = LogisticRegressionCV(Cs=15, cv=5, penalty="l1", solver="liblinear", scoring="roc_auc", max_iter=2000, random_state=0)
                 xg_odds_model.fit(X_xg_odds_train, xg_odds_model_df["over_2_5"])
-                print(f"  trained on {len(xg_odds_model_df)} rows (PL/LALIGA/SERIEA only -- see COVERED_COMPETITIONS)")
+                print(f"  trained on {len(xg_odds_model_df)} rows (COVERED_COMPETITIONS leagues only)")
             else:
                 print(f"  only {len(xg_odds_model_df)} rows with both xG features and a market price -- skipping, too few to trust")
 
