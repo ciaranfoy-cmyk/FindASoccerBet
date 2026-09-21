@@ -36,6 +36,7 @@ TRAINING_FILES = [
     "xg_features.csv",
     "xg_weighted_features.csv",
     "team_ratings_features.csv",
+    "market_odds_features.csv",
     "calibrators.pkl",
 ]
 
@@ -56,6 +57,8 @@ def data_fingerprint() -> str:
     # caller of load()/save() that has nothing to do with training.
     from predict_upcoming import TRAINING_DATA_CUTOFF
     parts.append(f"TRAINING_DATA_CUTOFF:{TRAINING_DATA_CUTOFF}")
+    from market_odds_features import MARKET_ODDS_ENABLED
+    parts.append(f"MARKET_ODDS_ENABLED:{MARKET_ODDS_ENABLED}")
     return hashlib.sha256("|".join(parts).encode()).hexdigest()[:16]
 
 

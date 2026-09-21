@@ -204,6 +204,19 @@ XG_CANDIDATES = (
     + RATINGS_RAW_FEATURES + RATINGS_DERIVED_FEATURES
 )
 
+# A third, independent tier -- CORE_CANDIDATES plus a devigged Bet365
+# Over 2.5 probability (see market_odds_features.py). Built on top of
+# core, not xG: only the core+odds combination has actually been
+# validated (real walk-forward test, PL+LALIGA+SERIEA, n=3456: Brier
+# 0.2470 -> 0.2430, real L1 coefficient +0.18). A separately-tested
+# "moneyline quality gap" feature did NOT help and is deliberately
+# excluded. Only ever applies where market_odds_features.MARKET_ODDS_ENABLED
+# is True AND a live Bet365 price was actually found for that fixture
+# AND its competition is in COVERED_COMPETITIONS -- everything else
+# (flag off, no price yet, uncovered league) falls back to plain
+# core/xG exactly as before this feature existed.
+ODDS_CANDIDATES = CORE_CANDIDATES + ["mkt_over25_prob"]
+
 
 def new_state() -> dict:
     return {
