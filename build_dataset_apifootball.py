@@ -134,6 +134,7 @@ def fetch_all_fixtures(seasons_override: list[int] | None) -> list[dict]:
                     "away_id": m["teams"]["away"]["id"],
                     "home_goals": m["goals"]["home"],
                     "away_goals": m["goals"]["away"],
+                    "referee": m["fixture"].get("referee"),
                 })
     matches.sort(key=lambda m: m["date"])
     return matches
