@@ -336,7 +336,15 @@ def main() -> int:
         xg_odds_model = xg_odds_scaler = None
         odds_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "market_odds_features.csv")
         if os.path.exists(odds_path):
-            odds_features_df = pd.read_csv(odds_path)
+            # The CSV may hold rows for leagues pulled for a bigger
+            # validation pass but not yet confirmed/added to
+            # COVERED_COMPETITIONS -- filter to fixture_ids in a
+            # covered league so an uncovered league's data never
+            # silently enters training before it's actually validated.
+            odds_features_df_all = pd.read_csv(odds_path)
+            covered_fixture_ids = set(historical.loc[historical["competition"].isin(COVERED_COMPETITIONS), "fixture_id"]) | \
+                                   set(xg_historical.loc[xg_historical["competition"].isin(COVERED_COMPETITIONS), "fixture_id"])
+            odds_features_df = odds_features_df_all[odds_features_df_all["fixture_id"].isin(covered_fixture_ids)]
 
             print("Training the odds-augmented model (core + Bet365 devigged Over 2.5)...")
             odds_historical = historical.merge(odds_features_df, on="fixture_id", how="inner")

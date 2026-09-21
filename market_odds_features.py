@@ -28,7 +28,12 @@ SCOPE: only validated for PL, La Liga, and Serie A so far (the leagues
 with enough historical odds volume to backtest). COVERED_COMPETITIONS
 below is deliberately narrow -- extending it to another league without
 first re-running the same walk-forward validation would be trusting an
-untested assumption, not a proven result.
+untested assumption, not a proven result. data/market_odds_features.csv
+now also has raw odds data for Bundesliga/Ligue 1/MLS/Eredivisie
+(pulled for a bigger-sample validation pass), but COVERED_COMPETITIONS
+deliberately stays at 3 until that validation actually confirms the
+same improvement holds for them -- pulling the data and trusting it
+live are two different steps.
 
 Any failure (auth, rate limit, subscription lapsed, no match found, no
 odds posted yet for a fixture that far out) returns None -- treated
