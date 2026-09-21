@@ -24,17 +24,16 @@ existed (no API calls made, no behavior change). To remove entirely:
 delete this file and the few call sites in predict_upcoming.py /
 explain_picks.py / calibration.py / model_cache.py that reference it.
 
-SCOPE: validated for PL, La Liga, Serie A, Bundesliga, Ligue 1, MLS,
-and Eredivisie (real walk-forward test, n=3579 for xG+odds -- see
-xg_odds_test.py in this session's history: Brier 0.2420 -> 0.2404,
-L1 coef +0.17, clean and consistent hit-rate improvement across every
-percentile tier 70th-97.5th except a noise-level -0.4pp blip at 95th,
-resolved from a -3.2pp dip on an earlier, thinner 3-league-only
-sample -- confirmed noise via a two-proportion test, p=0.674).
-COVERED_COMPETITIONS below is deliberately narrow to just these 7 --
-extending it to another league without first re-running the same
-walk-forward validation would be trusting an untested assumption, not
-a proven result.
+SCOPE: validated across all 13 leagues this project trades (real
+walk-forward test, n=5567 for xG+odds -- see xg_odds_test.py in this
+session's history: Brier 0.2428 -> 0.2397, L1 coef +0.27, clean and
+CONSISTENTLY POSITIVE hit-rate improvement across every percentile
+tier 70th-97.5th, growing larger at the tighter tiers (+2.5pp at 70th
+up to +7.8pp at 97.5th, n=165-332 at the top two tiers -- healthy
+sample size, not the noisy 63-88 an earlier, thinner 3-league-only
+test had). That earlier test's -3.2pp dip at 95th was confirmed as
+pure small-sample noise (two-proportion test, p=0.674) and has fully
+resolved with real data.
 
 Any failure (auth, rate limit, subscription lapsed, no match found, no
 odds posted yet for a fixture that far out) returns None -- treated
@@ -67,6 +66,18 @@ COVERED_COMPETITIONS = {
     "LIGUE1": "comp_0256",
     "MLS": "comp_9799",
     "EREDIVISIE": "comp_3809",
+    "ELC": "comp_8321",
+    "SUPERLIG": "comp_9235",
+    "BRASILEIRAO": "comp_4795",
+    "LIGAPORTUGAL": "comp_8385",
+    "JLEAGUE": "comp_6240",
+    # LIGAMX deliberately excluded from live fetching even though its
+    # historical data was part of the validation above: thestatsapi
+    # splits it into two rotating competition_ids (Apertura/Clausura),
+    # so a single static id here would silently point at the wrong,
+    # off-season tournament for half of every year. Needs a small
+    # season-aware lookup (like CURRENT_SEASON_OVERRIDE elsewhere in
+    # this project) before it can be added safely, not just an id.
 }
 
 _MIN_REQUEST_INTERVAL = 60 / 110  # stay under the paid plan's 120/min cap
