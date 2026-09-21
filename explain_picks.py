@@ -100,6 +100,7 @@ from predict_upcoming import (
     TRAINING_DATA_CUTOFF,
     XG_CANDIDATES,
     XG_FINISHING_FEATURES,
+    XG_ODDS_CANDIDATES,
     build_feature_row,
     fetch_upcoming_fixtures,
     replay_to_current_state,
@@ -250,7 +251,8 @@ def main() -> int:
     if cached is not None:
         try:
             (bar, under_bar, early_bar, early_under_bar, pool_over, pool_over_early, pool_under,
-             model, scaler, xg_model, xg_scaler, odds_model, odds_scaler, state) = cached
+             model, scaler, xg_model, xg_scaler, odds_model, odds_scaler,
+             xg_odds_model, xg_odds_scaler, state) = cached
         except (ValueError, TypeError):
             # A code change altered the bundle's shape since this cache
             # file was written under the same data fingerprint -- treat
@@ -322,17 +324,21 @@ def main() -> int:
         xg_model = LogisticRegressionCV(Cs=15, cv=5, penalty="l1", solver="liblinear", scoring="roc_auc", max_iter=2000, random_state=0)
         xg_model.fit(X_xg_train, xg_model_df["over_2_5"])
 
-        # Third, independent tier -- see market_odds_features.py's
-        # docstring for the kill switch and why this is core+odds, not
-        # xG+odds (only core+odds is actually validated). odds_model is
-        # None when the odds data file is empty/missing (e.g. right
-        # after MARKET_ODDS_ENABLED was flipped off and the feature is
-        # being retired) -- callers below must check for that.
+        # Two more independent tiers -- see market_odds_features.py's
+        # docstring for the kill switch, and predict_upcoming.py's
+        # ODDS_CANDIDATES/XG_ODDS_CANDIDATES comment for both
+        # combinations' validated numbers (xG+odds improved more than
+        # core+odds). odds_model/xg_odds_model are None when the odds
+        # data file is empty/missing (e.g. right after
+        # MARKET_ODDS_ENABLED was flipped off and the feature is being
+        # retired) -- callers below must check for that.
         odds_model = odds_scaler = None
+        xg_odds_model = xg_odds_scaler = None
         odds_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "market_odds_features.csv")
         if os.path.exists(odds_path):
-            print("Training the odds-augmented model (core + Bet365 devigged Over 2.5)...")
             odds_features_df = pd.read_csv(odds_path)
+
+            print("Training the odds-augmented model (core + Bet365 devigged Over 2.5)...")
             odds_historical = historical.merge(odds_features_df, on="fixture_id", how="inner")
             odds_model_df = odds_historical[ODDS_CANDIDATES + ["over_2_5"]].dropna()
             if len(odds_model_df) >= 200:
@@ -344,13 +350,26 @@ def main() -> int:
             else:
                 print(f"  only {len(odds_model_df)} rows with both core features and a market price -- skipping, too few to trust")
 
+            print("Training the xG+odds model (xG-augmented + Bet365 devigged Over 2.5)...")
+            xg_odds_historical = xg_historical.merge(odds_features_df, on="fixture_id", how="inner")
+            xg_odds_model_df = xg_odds_historical[XG_ODDS_CANDIDATES + ["over_2_5"]].dropna()
+            if len(xg_odds_model_df) >= 200:
+                xg_odds_scaler = StandardScaler()
+                X_xg_odds_train = xg_odds_scaler.fit_transform(xg_odds_model_df[XG_ODDS_CANDIDATES])
+                xg_odds_model = LogisticRegressionCV(Cs=15, cv=5, penalty="l1", solver="liblinear", scoring="roc_auc", max_iter=2000, random_state=0)
+                xg_odds_model.fit(X_xg_odds_train, xg_odds_model_df["over_2_5"])
+                print(f"  trained on {len(xg_odds_model_df)} rows (PL/LALIGA/SERIEA only -- see COVERED_COMPETITIONS)")
+            else:
+                print(f"  only {len(xg_odds_model_df)} rows with both xG features and a market price -- skipping, too few to trust")
+
         print("Replaying full match history to build current team state...")
         all_finished = fetch_all_fixtures(None)
         state = replay_to_current_state(all_finished)
 
         model_cache.save("explain_picks_bundle", (
             bar, under_bar, early_bar, early_under_bar, pool_over, pool_over_early, pool_under,
-            model, scaler, xg_model, xg_scaler, odds_model, odds_scaler, state,
+            model, scaler, xg_model, xg_scaler, odds_model, odds_scaler,
+            xg_odds_model, xg_odds_scaler, state,
         ))
 
     # Cheap regardless of cache hit/miss -- apifootball's own on-disk cache
@@ -392,15 +411,19 @@ def main() -> int:
         + RATINGS_RAW_FEATURES + RATINGS_DERIVED_FEATURES
     ].notna().all(axis=1)
 
-    # Odds-augmented tier: only for fixtures that would otherwise use
-    # the core model (no real xG) AND are in a covered competition AND
-    # a live Bet365 price is actually found right now -- see
-    # market_odds_features.py's docstring for why it's core+odds, not
-    # xG+odds, and why this never blocks/crashes when unavailable.
+    # Odds-augmented tiers: any fixture in a covered competition with a
+    # live Bet365 price gets upgraded, whether it would otherwise use
+    # core or xG -- see market_odds_features.py's docstring for the
+    # kill switch and predict_upcoming.py's ODDS_CANDIDATES/
+    # XG_ODDS_CANDIDATES comment for why xG+odds > core+odds > xG >
+    # core is the priority order (strongest validated combination
+    # wins). Never blocks/crashes when unavailable -- falls back a
+    # step at a time.
     live_df["mkt_over25_prob"] = pd.NA
-    odds_eligible = (~has_xg) & live_df["competition"].isin(COVERED_COMPETITIONS)
-    if MARKET_ODDS_ENABLED and odds_model is not None and odds_eligible.any():
-        for idx in live_df.loc[odds_eligible].index:
+    odds_eligible = MARKET_ODDS_ENABLED and (odds_model is not None or xg_odds_model is not None)
+    if odds_eligible:
+        covered = live_df["competition"].isin(COVERED_COMPETITIONS)
+        for idx in live_df.loc[covered].index:
             r = live_df.loc[idx]
             price = fetch_market_over25_prob(r["competition"], r["home_team"], r["away_team"], r["date"])
             if price is not None:
@@ -409,26 +432,37 @@ def main() -> int:
 
     live_df["raw_p"] = pd.NA
     live_df["model_used"] = ""
-    core_rows = live_df.loc[~has_xg & ~has_odds]
-    if not core_rows.empty:
-        live_df.loc[core_rows.index, "raw_p"] = model.predict_proba(scaler.transform(core_rows[CORE_CANDIDATES]))[:, 1]
-        live_df.loc[core_rows.index, "model_used"] = "core"
-    odds_rows = live_df.loc[~has_xg & has_odds]
+
+    use_xg_odds = has_xg & has_odds & (xg_odds_model is not None)
+    use_core_odds = (~has_xg) & has_odds & (odds_model is not None)
+    use_xg = has_xg & ~use_xg_odds
+    use_core = (~has_xg) & ~use_core_odds
+
+    xg_odds_rows = live_df.loc[use_xg_odds]
+    if not xg_odds_rows.empty:
+        live_df.loc[xg_odds_rows.index, "raw_p"] = xg_odds_model.predict_proba(xg_odds_scaler.transform(xg_odds_rows[XG_ODDS_CANDIDATES]))[:, 1]
+        live_df.loc[xg_odds_rows.index, "model_used"] = "xG+odds"
+    odds_rows = live_df.loc[use_core_odds]
     if not odds_rows.empty:
         live_df.loc[odds_rows.index, "raw_p"] = odds_model.predict_proba(odds_scaler.transform(odds_rows[ODDS_CANDIDATES]))[:, 1]
         live_df.loc[odds_rows.index, "model_used"] = "core+odds"
-    xg_rows = live_df.loc[has_xg]
+    xg_rows = live_df.loc[use_xg]
     if not xg_rows.empty:
         live_df.loc[xg_rows.index, "raw_p"] = xg_model.predict_proba(xg_scaler.transform(xg_rows[XG_CANDIDATES]))[:, 1]
         live_df.loc[xg_rows.index, "model_used"] = "xG"
+    core_rows = live_df.loc[use_core]
+    if not core_rows.empty:
+        live_df.loc[core_rows.index, "raw_p"] = model.predict_proba(scaler.transform(core_rows[CORE_CANDIDATES]))[:, 1]
+        live_df.loc[core_rows.index, "model_used"] = "core"
     live_df["raw_p"] = live_df["raw_p"].astype(float)
 
     calibrators = load_calibrators()
-    # "core+odds" reuses the "core" calibrator -- same feature space
-    # plus one input, not a separately-fitted calibration curve. An
-    # approximation, not a full third calibration pipeline; documented
-    # here rather than silently assumed.
-    calibration_lookup = live_df["model_used"].replace({"core+odds": "core"})
+    # "core+odds" and "xG+odds" reuse the "core"/"xG" calibrators
+    # respectively -- same feature space plus one input, not a
+    # separately-fitted calibration curve. An approximation, not a
+    # full third/fourth calibration pipeline; documented here rather
+    # than silently assumed.
+    calibration_lookup = live_df["model_used"].replace({"core+odds": "core", "xG+odds": "xG"})
     live_df["calibrated_p"] = apply_calibration(live_df["raw_p"], calibration_lookup, calibrators)
 
     # Whichever of the two teams has played fewer games this
@@ -602,7 +636,9 @@ def main() -> int:
 
     for _, r in ranked.iterrows():
         home, away = r["home_team"], r["away_team"]
-        if r["model_used"] == "xG":
+        if r["model_used"] == "xG+odds":
+            features, m, s = XG_ODDS_CANDIDATES, xg_odds_model, xg_odds_scaler
+        elif r["model_used"] == "xG":
             features, m, s = XG_CANDIDATES, xg_model, xg_scaler
         elif r["model_used"] == "core+odds":
             features, m, s = ODDS_CANDIDATES, odds_model, odds_scaler

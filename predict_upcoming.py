@@ -204,18 +204,23 @@ XG_CANDIDATES = (
     + RATINGS_RAW_FEATURES + RATINGS_DERIVED_FEATURES
 )
 
-# A third, independent tier -- CORE_CANDIDATES plus a devigged Bet365
-# Over 2.5 probability (see market_odds_features.py). Built on top of
-# core, not xG: only the core+odds combination has actually been
-# validated (real walk-forward test, PL+LALIGA+SERIEA, n=3456: Brier
-# 0.2470 -> 0.2430, real L1 coefficient +0.18). A separately-tested
-# "moneyline quality gap" feature did NOT help and is deliberately
-# excluded. Only ever applies where market_odds_features.MARKET_ODDS_ENABLED
-# is True AND a live Bet365 price was actually found for that fixture
-# AND its competition is in COVERED_COMPETITIONS -- everything else
-# (flag off, no price yet, uncovered league) falls back to plain
-# core/xG exactly as before this feature existed.
+# Two more independent tiers -- CORE_CANDIDATES and XG_CANDIDATES each
+# plus a devigged Bet365 Over 2.5 probability (see
+# market_odds_features.py). Both combinations are validated (real
+# walk-forward tests, PL+LALIGA+SERIEA, same-population A/B):
+#   core+odds: Brier 0.2470 -> 0.2430 (n=3456), L1 coef +0.18
+#   xG+odds:   Brier 0.2656 -> 0.2421 (n=1961), L1 coef +0.29 (bigger effect)
+# A separately-tested "moneyline quality gap" feature did NOT help and
+# is deliberately excluded from both. Either tier only ever applies
+# where market_odds_features.MARKET_ODDS_ENABLED is True AND a live
+# Bet365 price was actually found for that fixture AND its competition
+# is in COVERED_COMPETITIONS -- everything else (flag off, no price
+# yet, uncovered league) falls back to plain core/xG exactly as before
+# this feature existed. Priority when a fixture qualifies for more than
+# one tier: xG+odds > core+odds > xG > core (strongest validated
+# combination wins).
 ODDS_CANDIDATES = CORE_CANDIDATES + ["mkt_over25_prob"]
+XG_ODDS_CANDIDATES = XG_CANDIDATES + ["mkt_over25_prob"]
 
 
 def new_state() -> dict:
