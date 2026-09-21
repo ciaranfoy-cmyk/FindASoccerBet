@@ -6,12 +6,24 @@ in the /fixtures/statistics response this project fetches for shot
 stats (build_dataset_apifootball.py's shot_stats_for), so this needs
 ZERO new API calls beyond what's already cached on disk.
 
-Hypothesis being tested (see build_referee_features_validation.py for
-the actual walk-forward Brier check): a referee's own historical
-tendency -- how many total goals/cards games they officiate tend to
-have -- might carry signal about game flow/pace independent of the two
-teams' own stats. Untested until the validation script says so; this
-file only BUILDS the candidate features, it does not claim they help.
+RESULT (real walk-forward check, same-population A/B so the comparison
+isn't confounded by dropna() shrinking each model's sample differently):
+adding ref_avg_goals_last15/ref_avg_cards_last15/ref_avg_fouls_last15 to
+CORE_CANDIDATES moved Brier from 0.2438 to 0.2435 (n=12263 out-of-fold,
+5-fold walk-forward, shared population of 15328 rows with both the core
+features and >= 8 prior officiated games for that match's referee) --
+a -0.0002 delta, smaller than even the smallest improvement this
+project has called "real but modest" elsewhere (calibration.py's Platt
+scaling: 0.0003-0.0048). L1 zeroed ref_avg_cards_last15 entirely and
+left ref_avg_goals_last15 at +0.0011 (negligible); only
+ref_avg_fouls_last15 got a non-trivial coefficient (-0.0371, more fouls
+-> lower Over 2.5, a plausible "disrupted-flow" story) but it wasn't
+enough to move the aggregate number. Conclusion: NOT wired into
+predict_upcoming.py/explain_picks.py -- this is a documented negative
+result, same as check_over15_edge.py's Over 1.5 finding. Re-test only
+if a materially different framing comes up (e.g. fouls alone as a
+single feature, or referee tendency interacted with competition), not
+by just re-running this as-is.
 
 Same no-lookahead discipline as every other feature builder here: a
 referee's rolling averages only include games officiated strictly
