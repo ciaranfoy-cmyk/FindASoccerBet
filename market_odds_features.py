@@ -4,36 +4,61 @@ from Bet365 (via thestatsapi.com) for a single upcoming fixture, for
 use as one extra input to the "odds-augmented" model tier in
 predict_upcoming.py/explain_picks.py.
 
-WHY Bet365, not Kalshi/Polymarket: using the same price we're trying to
-find edge against as a model INPUT would be circular -- the model
-would partly reconstruct Kalshi's own number and then "discover" it
-agrees with itself, making any resulting edge fake. Bet365 is an
-independent, much larger/sharper market; if it disagrees with Kalshi's
-price, that's real information, not a self-fulfilling comparison.
+DISABLED as of 2026-09-22 (see MARKET_ODDS_ENABLED below) -- kept for
+reference, not deleted, in case the underlying data source gets reused
+for something else (see the shotmap work started the same day).
 
-VALIDATED (see this session's real walk-forward tests, PL+LALIGA+SERIEA,
-n=3456): adding this feature to CORE_CANDIDATES moved Brier from 0.2470
-to 0.2430 with a real, non-zero L1 coefficient (+0.18) -- a genuine
-improvement, not noise. A separately-tested "moneyline quality gap"
-feature did NOT help (L1 zeroed it every time) and is deliberately not
-included here.
+WHY IT'S OFF: the feature was real and validated (Brier 0.2428 ->
+0.2397, n=5567 -- see history below), but a coefficient inspection of
+the actual live-cached models found the xG+odds and core+odds tiers
+each had exactly ONE nonzero coefficient out of 92/74 -- mkt_over25_prob
+itself. L1 hadn't "added the market as one more signal"; it had
+discarded every engineered feature and made the tier a straight,
+recalibrated pass-through of Bet365's own price. A forced-blend
+retest (L2 penalty, so no coefficient could be driven to exactly
+zero) confirmed this wasn't an L1 artifact: the data-optimal blend
+weight really is ~86-97% market, because xG's own info is already
+priced into Bet365 and adds almost nothing on top of it.
 
-MASTER KILL SWITCH: set MARKET_ODDS_ENABLED = False to fully disable --
-the live pipeline then behaves exactly as it did before this feature
-existed (no API calls made, no behavior change). To remove entirely:
-delete this file and the few call sites in predict_upcoming.py /
-explain_picks.py / calibration.py / model_cache.py that reference it.
+That distinction matters because of WHAT Kalshi/Polymarket turned out
+to be: not an independent market, but one that tracks Bet365 closely
+(measured directly: mean gap 0.88pp, max 2.5pp across 16 live MLS
+fixtures). So a feature that makes our own prediction into "Bet365,
+recalibrated" and then gets compared against Kalshi, which is itself
+"basically Bet365," produces a model that's accurate (the recalibration
+step really did improve Brier/hit-rate) but structurally can't show
+edge -- you can't find a mispriced bet by rediscovering the same price
+you started from. This is also why the earlier profitability backtest
+came back near-breakeven against Bet365 at every threshold: that
+wasn't a data-quality problem, it was this mechanism working exactly
+as the math predicts.
 
-SCOPE: validated across all 13 leagues this project trades (real
-walk-forward test, n=5567 for xG+odds -- see xg_odds_test.py in this
-session's history: Brier 0.2428 -> 0.2397, L1 coef +0.27, clean and
-CONSISTENTLY POSITIVE hit-rate improvement across every percentile
-tier 70th-97.5th, growing larger at the tighter tiers (+2.5pp at 70th
-up to +7.8pp at 97.5th, n=165-332 at the top two tiers -- healthy
-sample size, not the noisy 63-88 an earlier, thinner 3-league-only
-test had). That earlier test's -3.2pp dip at 95th was confirmed as
-pure small-sample noise (two-proportion test, p=0.674) and has fully
-resolved with real data.
+The core/xG tiers (no odds) are less "accurate" by this same measure,
+but that's exactly why they're still useful: their disagreements with
+the market are the actual source of any real tradeable edge, and
+blending in the market number -- at ANY weight, not just this
+architecture's ~95% -- mechanically shrinks that disagreement by
+proportionally that same weight. There's no tuning that keeps both.
+
+WHY Bet365, not Kalshi/Polymarket, as the (former) model input: using
+the same price being traded against as a model INPUT would be
+circular. Bet365 was chosen as an independent, sharper reference --
+correct reasoning, it just turned out Bet365 and Kalshi aren't
+independent of EACH OTHER either.
+
+VALIDATION HISTORY (for reference): adding this feature to
+CORE_CANDIDATES on an early 3-league sample (n=3456) moved Brier
+0.2470 -> 0.2430. Scaled to all 13 leagues (n=5567 for xG+odds): Brier
+0.2428 -> 0.2397, consistent positive hit-rate gains at every
+percentile tier tested (70th-97.5th). All of that was real -- the
+recalibration genuinely improves accuracy. It just doesn't produce
+edge, for the structural reason above, not a validation failure.
+
+MASTER KILL SWITCH: MARKET_ODDS_ENABLED = False fully disables this --
+the live pipeline behaves exactly as it did before this feature
+existed (no API calls made). To remove entirely: delete this file and
+the few call sites in predict_upcoming.py / explain_picks.py /
+calibration.py / model_cache.py that reference it.
 
 Any failure (auth, rate limit, subscription lapsed, no match found, no
 odds posted yet for a fixture that far out) returns None -- treated
@@ -50,7 +75,7 @@ import unicodedata
 import urllib.error
 import urllib.request
 
-MARKET_ODDS_ENABLED = True
+MARKET_ODDS_ENABLED = False
 
 API_BASE = "https://api.thestatsapi.com/api"
 CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cache_statsapi")
