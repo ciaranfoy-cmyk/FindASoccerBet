@@ -139,6 +139,19 @@ KALSHI_SERIES_BY_COMPETITION = {
 # without re-checking.
 UNDER_DISALLOWED_COMPETITIONS = {"LIGAMX"}
 
+# Unlike UNDER_DISALLOWED_COMPETITIONS above, this is NOT a validated
+# performance finding -- it's a plain sample-size gate. The per-league
+# Over-pool breakdown (per_league_over_pool.py) showed these three with
+# far too few historical Over picks to know if their hit rate means
+# anything: JLEAGUE n=4 (only ~7.5 months in the pipeline), ELC n=5,
+# LIGAMX n=10 (all over 4-5 years of history). There isn't enough data
+# to call these "good" or "bad" -- just too thin to trust, so they're
+# excluded from both the live Over pick and the bar/pool calculation
+# itself, the same way UNDER_DISALLOWED_COMPETITIONS is. Revisit once
+# each league accumulates a real sample (tens of picks, not single
+# digits).
+OVER_DISALLOWED_COMPETITIONS = {"JLEAGUE", "ELC", "LIGAMX"}
+
 
 # Above this width, the yes bid-ask spread is illiquid enough that its
 # midpoint isn't a meaningful fair-value estimate -- found empirically:
@@ -313,6 +326,10 @@ def compute_rolling_p95_bar(early_season_only: bool = False, stream: pd.DataFram
     happen here. Omit to build fresh (used by standalone callers/scripts).
     """
     stream = stream if stream is not None else _calibrated_stream()
+    # See OVER_DISALLOWED_COMPETITIONS' docstring -- leagues with too few
+    # historical Over picks to trust shouldn't shape the bar other
+    # leagues' Over picks get measured against either.
+    stream = stream[~stream["competition"].isin(OVER_DISALLOWED_COMPETITIONS)]
     percentile = 95.0
     if early_season_only:
         gis = _games_into_season_lookup()
@@ -404,6 +421,11 @@ def compute_pool_hit_rate(
         stream["under_p"] = 1 - stream["pred_p"]
         stream["under_2_5"] = 1 - stream["over_2_5"]
         value_col, outcome_col = ("under_p", "under_2_5")
+    else:
+        # See OVER_DISALLOWED_COMPETITIONS' docstring -- same reasoning,
+        # Over side: too-thin-to-trust leagues excluded from the pool
+        # number itself, not just from live picks.
+        stream = stream[~stream["competition"].isin(OVER_DISALLOWED_COMPETITIONS)]
 
     percentile = 95.0
     if early_season_only:

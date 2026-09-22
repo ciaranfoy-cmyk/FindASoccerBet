@@ -78,6 +78,7 @@ from calibration import apply_calibration, load_calibrators
 from forward_test_log import (
     EARLY_SEASON_CUTOFF,
     KALSHI_SERIES_BY_COMPETITION,
+    OVER_DISALLOWED_COMPETITIONS,
     UNDER_DISALLOWED_COMPETITIONS,
     _calibrated_stream,
     compute_pool_hit_rate,
@@ -494,6 +495,9 @@ def main() -> int:
     # tier check found LIGAMX's Under picks underperforming the shared
     # pool at every validated tier, despite Over picks tracking it fine.
     live_df.loc[live_df["competition"].isin(UNDER_DISALLOWED_COMPETITIONS), "clears_under_bar"] = False
+    # See OVER_DISALLOWED_COMPETITIONS' docstring -- these leagues simply
+    # don't have enough historical Over picks yet to trust either way.
+    live_df.loc[live_df["competition"].isin(OVER_DISALLOWED_COMPETITIONS), "clears_bar"] = False
 
     # Edge gets priced off the POOL's historical hit rate, not this
     # fixture's own calibrated_p -- see compute_pool_hit_rate()'s
