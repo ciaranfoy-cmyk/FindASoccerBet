@@ -339,6 +339,12 @@ def compute_rolling_p95_under_bar(early_season_only: bool = False, stream: pd.Da
     stream to avoid a redundant retrain.
     """
     stream = (stream if stream is not None else _calibrated_stream()).copy()
+    # A competition permanently barred from ever receiving a live Under
+    # pick (see UNDER_DISALLOWED_COMPETITIONS' docstring) shouldn't help
+    # set the bar other leagues' Under picks get measured against either
+    # -- otherwise its own excluded track record still quietly shapes the
+    # threshold everyone else is held to.
+    stream = stream[~stream["competition"].isin(UNDER_DISALLOWED_COMPETITIONS)]
     stream["under_p"] = 1 - stream["pred_p"]
     if early_season_only:
         gis = _games_into_season_lookup()
@@ -390,6 +396,11 @@ def compute_pool_hit_rate(
     stream = (stream if stream is not None else _calibrated_stream()).copy()
     value_col, outcome_col = ("pred_p", "over_2_5")
     if under:
+        # Same reasoning as compute_rolling_p95_under_bar(): a competition
+        # barred from ever being OFFERED a live Under pick shouldn't have
+        # its own (excluded) history counted into the pool number that
+        # prices every other league's Under edge.
+        stream = stream[~stream["competition"].isin(UNDER_DISALLOWED_COMPETITIONS)]
         stream["under_p"] = 1 - stream["pred_p"]
         stream["under_2_5"] = 1 - stream["over_2_5"]
         value_col, outcome_col = ("under_p", "under_2_5")
