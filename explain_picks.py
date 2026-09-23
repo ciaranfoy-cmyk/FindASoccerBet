@@ -107,7 +107,15 @@ from predict_upcoming import (
     replay_to_current_state,
 )
 from build_dataset_apifootball import fetch_all_fixtures
-from market_odds_features import COVERED_COMPETITIONS, MARKET_ODDS_ENABLED, fetch_market_over25_prob
+from market_odds_features import (
+    COVERED_COMPETITIONS,
+    MARKET_ODDS_ENABLED,
+    StatsApiError,
+    _devig_over,
+    _find_match_id,
+    _get,
+    fetch_market_over25_prob,
+)
 
 warnings.filterwarnings("ignore")
 
@@ -230,6 +238,117 @@ def _describe(feat: str, home: str, away: str) -> str:
     return template.format(home=home, away=away)
 
 
+def _fetch_bet365_fair(competition: str, home: str, away: str, date: str) -> float | None:
+    """Bet365's de-vigged Over-2.5 fair value, for --table's reference
+    column only -- bypasses MARKET_ODDS_ENABLED the same way
+    weekend_overlap.py's retrospective fetch did, since this is a
+    diagnostic display column (is Bet365 seeing something different
+    from Kalshi/Polymarket), not a live model input. _find_match_id
+    needs a plain date, not the full ISO timestamp fetch_upcoming_
+    fixtures() returns -- callers must pass date[:10].
+    """
+    comp_id = COVERED_COMPETITIONS.get(competition)
+    if comp_id is None:
+        return None
+    try:
+        match_id = _find_match_id(comp_id, home, away, date)
+        if match_id is None:
+            return None
+        odds = _get(f"/football/matches/{match_id}/odds")
+        bk = next((b for b in odds["data"]["bookmakers"] if b["bookmaker"] == "Bet365"), None)
+        if bk is None:
+            return None
+        tg = bk["markets"].get("total_goals", {})
+        line = tg.get("2.5", {})
+        return _devig_over(line.get("over", {}).get("last_seen"), line.get("under", {}).get("last_seen"))
+    except StatsApiError:
+        return None
+
+
+def print_picks_table(live_df: pd.DataFrame) -> None:
+    """The standing 'give me picks' format. One row per fixture+side
+    that's actually worth looking at:
+      - a real PICK (clears the bar, priced, positive edge),
+      - a WATCH (model is confident and clears the bar, but no edge --
+        model and market agree), or
+      - a THIN DATA row: a fixture in a league barred from picks for
+        lack of history (OVER_DISALLOWED_COMPETITIONS /
+        UNDER_DISALLOWED_COMPETITIONS) that would otherwise have
+        cleared the bar -- shown so nothing interesting silently
+        disappears, but with no pool hit rate attached since that
+        league doesn't have enough validated history to trust one.
+    Every other fixture (not confident, no signal either side) is
+    left out -- this is meant to be short and skimmable, not a dump
+    of the full slate.
+    """
+    rows = []
+    for _, r in live_df.iterrows():
+        comp = r["competition"]
+        over_disallowed = comp in OVER_DISALLOWED_COMPETITIONS
+        under_disallowed = comp in UNDER_DISALLOWED_COMPETITIONS
+
+        show_over = r["is_pick"] or r["clears_bar"] or (over_disallowed and r["raw_clears_bar"])
+        show_under = r["is_under_pick"] or r["clears_under_bar"] or (under_disallowed and r["raw_clears_under_bar"])
+        if not show_over and not show_under:
+            continue
+
+        bet365 = _fetch_bet365_fair(comp, r["home_team"], r["away_team"], r["date"][:10])
+
+        if show_over:
+            if r["is_pick"]:
+                verdict = "PICK (Over)"
+            elif over_disallowed:
+                verdict = "THIN DATA -- would clear bar, too few historical picks to trust"
+            else:
+                verdict = "WATCH (no edge)"
+            rows.append({
+                "fixture": f"{r['home_team']} vs {r['away_team']}", "comp": comp, "date": r["date"][:10],
+                "side": "Over", "model_pct": r["calibrated_p"] * 100,
+                "bet365_pct": bet365 * 100 if bet365 is not None else None,
+                "kalshi_pct": r["kalshi_fair_p"] * 100 if pd.notna(r["kalshi_fair_p"]) else (r["kalshi_yes_ask"] * 100 if pd.notna(r["kalshi_yes_ask"]) else None),
+                "poly_pct": r["poly_fair_p"] * 100 if pd.notna(r["poly_fair_p"]) else (r["poly_yes_ask"] * 100 if pd.notna(r["poly_yes_ask"]) else None),
+                "pool_hit_pct": None if over_disallowed else r["effective_over_prob"] * 100,
+                "edge_pp": None if over_disallowed else (r["best_edge_over"] * 100 if pd.notna(r["best_edge_over"]) else None),
+                "verdict": verdict,
+            })
+        if show_under:
+            if r["is_under_pick"]:
+                verdict = "PICK (Under)"
+            elif under_disallowed:
+                verdict = "THIN DATA -- would clear bar, too few historical picks to trust"
+            else:
+                verdict = "WATCH (no edge)"
+            rows.append({
+                "fixture": f"{r['home_team']} vs {r['away_team']}", "comp": comp, "date": r["date"][:10],
+                "side": "Under", "model_pct": r["under_p"] * 100,
+                "bet365_pct": (100 - bet365 * 100) if bet365 is not None else None,
+                "kalshi_pct": (100 - r["kalshi_fair_p"] * 100) if pd.notna(r["kalshi_fair_p"]) else (r["kalshi_no_ask"] * 100 if pd.notna(r["kalshi_no_ask"]) else None),
+                "poly_pct": (100 - r["poly_fair_p"] * 100) if pd.notna(r["poly_fair_p"]) else (r["poly_no_ask"] * 100 if pd.notna(r["poly_no_ask"]) else None),
+                "pool_hit_pct": None if under_disallowed else r["effective_under_prob"] * 100,
+                "edge_pp": None if under_disallowed else (r["best_edge_under"] * 100 if pd.notna(r["best_edge_under"]) else None),
+                "verdict": verdict,
+            })
+
+    if not rows:
+        print("Nothing to show: no real picks, no model/market agreement, and no thin-data-league signal in this window.")
+        return
+
+    table = pd.DataFrame(rows)
+    table["sort_key"] = table["edge_pp"].fillna(-999)
+    table = table.sort_values("sort_key", ascending=False).drop(columns="sort_key")
+    for col in ("model_pct", "bet365_pct", "kalshi_pct", "poly_pct", "pool_hit_pct", "edge_pp"):
+        signed = col == "edge_pp"
+        table[col] = table[col].map(lambda v: (f"{v:+.1f}" if signed else f"{v:.1f}") if pd.notna(v) else "--")
+    table = table.rename(columns={
+        "fixture": "Fixture", "comp": "Comp", "date": "Date", "side": "Side",
+        "model_pct": "Model %", "bet365_pct": "Bet365 %", "kalshi_pct": "Kalshi %", "poly_pct": "Poly %",
+        "pool_hit_pct": "Pool hit %", "edge_pp": "Edge (pp)", "verdict": "Verdict",
+    })
+    pd.set_option("display.width", 220)
+    pd.set_option("display.max_colwidth", 60)
+    print(table.to_string(index=False))
+
+
 def explain_row(row: pd.Series, features: list[str], model, scaler: StandardScaler, top_n: int = 8) -> list[tuple]:
     x = scaler.transform(row[features].to_frame().T)[0]
     contributions = [(f, c * x[i]) for i, (f, c) in enumerate(zip(features, model.coef_[0])) if abs(c) > 1e-6]
@@ -246,6 +365,9 @@ def main() -> int:
                          help="Rank confident picks by raw calibrated probability instead of Kalshi edge")
     parser.add_argument("--no-bar", action="store_true",
                          help="Skip the confidence-bar filter -- explore everything, not just real picks")
+    parser.add_argument("--table", action="store_true",
+                         help="Print one compact table (model/Bet365/Kalshi/Polymarket/pool hit rate/edge/verdict) "
+                              "instead of the per-fixture explain report -- this is the standing 'give me picks' format.")
     args = parser.parse_args()
 
     cached = model_cache.load("explain_picks_bundle")
@@ -491,6 +613,12 @@ def main() -> int:
     live_df["clears_bar"] = live_df["calibrated_p"] >= live_df["effective_bar"]
     live_df["under_p"] = 1 - live_df["calibrated_p"]
     live_df["clears_under_bar"] = live_df["under_p"] >= live_df["effective_under_bar"]
+    # Kept BEFORE the disallowed-competition override below so a thin/
+    # excluded league's fixture that would otherwise have cleared the
+    # bar can still be surfaced separately (--table's "thin data" rows)
+    # instead of just disappearing indistinguishably from "not confident".
+    live_df["raw_clears_bar"] = live_df["clears_bar"]
+    live_df["raw_clears_under_bar"] = live_df["clears_under_bar"]
     # See UNDER_DISALLOWED_COMPETITIONS' docstring -- a per-competition
     # tier check found LIGAMX's Under picks underperforming the shared
     # pool at every validated tier, despite Over picks tracking it fine.
@@ -624,6 +752,10 @@ def main() -> int:
         live_df["clears_under_bar"] & live_df["priced"] & (live_df["best_edge_under"] > 0) & (~live_df["is_early_season"])
     )
     live_df["best_edge"] = live_df[["best_edge_over", "best_edge_under"]].apply(pd.to_numeric, errors="coerce").max(axis=1, skipna=True)
+
+    if args.table:
+        print_picks_table(live_df)
+        return 0
 
     pool = live_df if (args.no_bar or args.fixture_id is not None) else live_df[live_df["clears_bar"] | live_df["clears_under_bar"]]
     if pool.empty:
