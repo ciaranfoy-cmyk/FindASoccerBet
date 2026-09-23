@@ -268,18 +268,41 @@ def _fetch_bet365_fair(competition: str, home: str, away: str, date: str) -> flo
 TABLE_MIN_MODEL_P = 0.60
 
 
-def print_picks_table(live_df: pd.DataFrame) -> None:
-    """The standing 'give me picks' format: every fixture+side where
-    the model's own calibrated probability is >= TABLE_MIN_MODEL_P
-    (60%), full stop -- no bar-clearing or league-eligibility gate on
-    which ROWS show up. Model/Kalshi/Bet365/Poly/pool-hit-rate are all
-    shown side by side so the read is "here's everything reasonably
-    confident, and here's where that actually turns into an edge" --
-    the Verdict column is EDGE when best_edge_over/_under is positive,
-    "no edge" otherwise. A fixture in a league excluded from real
+def _xg_odds_prob(r: pd.Series, bet365: float | None, xg_odds_model, xg_odds_scaler, calibrators: dict) -> float | None:
+    """The xG+odds cohort's calibrated Over-2.5 probability for one live
+    fixture, computed on demand regardless of MARKET_ODDS_ENABLED --
+    this is a second, purely informational cohort for --table, not a
+    live pick input. Needs real xG features AND a Bet365 price (the
+    bypass fetch, since the kill switch means live_df's own
+    mkt_over25_prob column is never populated) -- returns None if
+    either is missing, same "fall back to None, never crash" pattern
+    as _fetch_bet365_fair().
+    """
+    if xg_odds_model is None or bet365 is None or not r["has_xg"]:
+        return None
+    row = r[XG_CANDIDATES].to_frame().T.copy()
+    row["mkt_over25_prob"] = bet365
+    raw_p = xg_odds_model.predict_proba(xg_odds_scaler.transform(row[XG_ODDS_CANDIDATES]))[:, 1][0]
+    # "xG+odds" reuses the "xG" calibrator -- same approximation
+    # main()'s calibration_lookup uses for the live scoring path.
+    calibrated = apply_calibration(pd.Series([raw_p]), pd.Series(["xG"]), calibrators)
+    return float(calibrated.iloc[0])
+
+
+def print_picks_table(live_df: pd.DataFrame, xg_odds_model, xg_odds_scaler, calibrators: dict) -> None:
+    """The standing 'give me picks' format: two cohorts side by side --
+    xG+core (the model's own live-scoring number, "Model %") and
+    xG+odds (computed fresh here via the Bet365 bypass, "XG+Odds %",
+    ignoring MARKET_ODDS_ENABLED since this is informational, not a
+    live pick input). A fixture+side gets a row if EITHER cohort is
+    >= TABLE_MIN_MODEL_P (60%) -- no bar-clearing or league-
+    eligibility gate on top of that, so a league excluded from real
     picks (OVER_DISALLOWED_COMPETITIONS/UNDER_DISALLOWED_COMPETITIONS)
-    still gets a row like any other -- just tagged (thin data) since
-    there's no validated pool hit rate to show for it.
+    still shows up like any other, just with no pool hit rate attached
+    (there isn't a validated one for it) and tagged (thin data). The
+    Verdict column is EDGE when best_edge_over/_under (still priced
+    off the xG+core cohort, the one that's actually live) is positive,
+    "no edge" otherwise.
     """
     rows = []
     for _, r in live_df.iterrows():
@@ -287,12 +310,13 @@ def print_picks_table(live_df: pd.DataFrame) -> None:
         over_disallowed = comp in OVER_DISALLOWED_COMPETITIONS
         under_disallowed = comp in UNDER_DISALLOWED_COMPETITIONS
 
-        show_over = r["calibrated_p"] >= TABLE_MIN_MODEL_P
-        show_under = r["under_p"] >= TABLE_MIN_MODEL_P
+        bet365 = _fetch_bet365_fair(comp, r["home_team"], r["away_team"], r["date"][:10])
+        xg_odds_over = _xg_odds_prob(r, bet365, xg_odds_model, xg_odds_scaler, calibrators)
+
+        show_over = r["calibrated_p"] >= TABLE_MIN_MODEL_P or (xg_odds_over is not None and xg_odds_over >= TABLE_MIN_MODEL_P)
+        show_under = r["under_p"] >= TABLE_MIN_MODEL_P or (xg_odds_over is not None and (1 - xg_odds_over) >= TABLE_MIN_MODEL_P)
         if not show_over and not show_under:
             continue
-
-        bet365 = _fetch_bet365_fair(comp, r["home_team"], r["away_team"], r["date"][:10])
 
         if show_over:
             edge = None if over_disallowed else (r["best_edge_over"] * 100 if pd.notna(r["best_edge_over"]) else None)
@@ -302,6 +326,7 @@ def print_picks_table(live_df: pd.DataFrame) -> None:
             rows.append({
                 "fixture": f"{r['home_team']} vs {r['away_team']}", "comp": comp, "date": r["date"][:10],
                 "side": "Over", "model_pct": r["calibrated_p"] * 100,
+                "xg_odds_pct": xg_odds_over * 100 if xg_odds_over is not None else None,
                 "bet365_pct": bet365 * 100 if bet365 is not None else None,
                 "kalshi_pct": r["kalshi_fair_p"] * 100 if pd.notna(r["kalshi_fair_p"]) else (r["kalshi_yes_ask"] * 100 if pd.notna(r["kalshi_yes_ask"]) else None),
                 "poly_pct": r["poly_fair_p"] * 100 if pd.notna(r["poly_fair_p"]) else (r["poly_yes_ask"] * 100 if pd.notna(r["poly_yes_ask"]) else None),
@@ -317,6 +342,7 @@ def print_picks_table(live_df: pd.DataFrame) -> None:
             rows.append({
                 "fixture": f"{r['home_team']} vs {r['away_team']}", "comp": comp, "date": r["date"][:10],
                 "side": "Under", "model_pct": r["under_p"] * 100,
+                "xg_odds_pct": (1 - xg_odds_over) * 100 if xg_odds_over is not None else None,
                 "bet365_pct": (100 - bet365 * 100) if bet365 is not None else None,
                 "kalshi_pct": (100 - r["kalshi_fair_p"] * 100) if pd.notna(r["kalshi_fair_p"]) else (r["kalshi_no_ask"] * 100 if pd.notna(r["kalshi_no_ask"]) else None),
                 "poly_pct": (100 - r["poly_fair_p"] * 100) if pd.notna(r["poly_fair_p"]) else (r["poly_no_ask"] * 100 if pd.notna(r["poly_no_ask"]) else None),
@@ -326,21 +352,22 @@ def print_picks_table(live_df: pd.DataFrame) -> None:
             })
 
     if not rows:
-        print(f"Nothing to show: no fixture+side is at or above {TABLE_MIN_MODEL_P*100:.0f}% model confidence in this window.")
+        print(f"Nothing to show: no fixture+side is at or above {TABLE_MIN_MODEL_P*100:.0f}% confidence on either cohort in this window.")
         return
 
     table = pd.DataFrame(rows)
     table["sort_key"] = table["edge_pp"].fillna(-999)
     table = table.sort_values("sort_key", ascending=False).drop(columns="sort_key")
-    for col in ("model_pct", "bet365_pct", "kalshi_pct", "poly_pct", "pool_hit_pct", "edge_pp"):
+    for col in ("model_pct", "xg_odds_pct", "bet365_pct", "kalshi_pct", "poly_pct", "pool_hit_pct", "edge_pp"):
         signed = col == "edge_pp"
         table[col] = table[col].map(lambda v: (f"{v:+.1f}" if signed else f"{v:.1f}") if pd.notna(v) else "--")
     table = table.rename(columns={
         "fixture": "Fixture", "comp": "Comp", "date": "Date", "side": "Side",
-        "model_pct": "Model %", "bet365_pct": "Bet365 %", "kalshi_pct": "Kalshi %", "poly_pct": "Poly %",
+        "model_pct": "Model % (xG+core)", "xg_odds_pct": "XG+Odds %", "bet365_pct": "Bet365 %",
+        "kalshi_pct": "Kalshi %", "poly_pct": "Poly %",
         "pool_hit_pct": "Pool hit %", "edge_pp": "Edge (pp)", "verdict": "Verdict",
     })
-    pd.set_option("display.width", 220)
+    pd.set_option("display.width", 240)
     pd.set_option("display.max_colwidth", 60)
     print(table.to_string(index=False))
 
@@ -537,6 +564,7 @@ def main() -> int:
         XG_FINISHING_FEATURES + WEIGHTED_XG_RAW_FEATURES + GEO_FEATURES
         + RATINGS_RAW_FEATURES + RATINGS_DERIVED_FEATURES
     ].notna().all(axis=1)
+    live_df["has_xg"] = has_xg
 
     # Odds-augmented tiers: any fixture in a covered competition with a
     # live Bet365 price gets upgraded, whether it would otherwise use
@@ -744,7 +772,7 @@ def main() -> int:
     live_df["best_edge"] = live_df[["best_edge_over", "best_edge_under"]].apply(pd.to_numeric, errors="coerce").max(axis=1, skipna=True)
 
     if args.table:
-        print_picks_table(live_df)
+        print_picks_table(live_df, xg_odds_model, xg_odds_scaler, calibrators)
         return 0
 
     pool = live_df if (args.no_bar or args.fixture_id is not None) else live_df[live_df["clears_bar"] | live_df["clears_under_bar"]]
