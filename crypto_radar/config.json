@@ -6,8 +6,7 @@
   "telegram_channels": [
     "WatcherGuru", "wublockchainenglish", "binance_announcements", "cointelegraph",
     "CHCryptoNews", "CoinDeskGlobal", "CoinMarketCapAnnouncements", "CryptoRankNews",
-    "CoinBureau", "lunarcrush", "ico_analytic", "disclosetv",
-    "cryptoninjas_trading_ann", "binancekillers", "coincodecap", "wolfoftrading"
+    "CoinBureau", "disclosetv", "binancekillers", "coincodecap", "wolfoftrading"
   ],
   "fourchan_board": "biz",
   "fourchan_full_threads": 15,
