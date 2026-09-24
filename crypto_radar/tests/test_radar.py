@@ -29,6 +29,12 @@ class ExtractTest(unittest.TestCase):
         self.assertEqual(keys("#ACU/USDT Take-Profit target 1 ✅, also LINK/BTC"), {"$ACU", "chainlink"})
         self.assertEqual(keys("USDT/USD peg holds"), set())
 
+    def test_joined_trading_pairs(self):
+        self.assertEqual(keys("Buy Limit SOLETH now, and #LINKUSDT long"), {"solana", "chainlink"})
+        self.assertEqual(keys("new listing FOOUSDT"), {"$FOO"})
+        # an unknown word that merely ends in ETH/BTC is not a pair
+        self.assertEqual(keys("MACBETH and WEBTC"), set())
+
     def test_stablecoins_dropped(self):
         self.assertEqual(keys("100,000,000 $USDC minted, swapped USDT for Tether"), set())
 
