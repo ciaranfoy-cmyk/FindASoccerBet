@@ -1,0 +1,33 @@
+name: tmp channel check
+on:
+  push:
+    branches: [claude/crypto-sentiment-monitoring-5tf6ub]
+    paths: [".github/workflows/tmp-channel-check.yml"]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: {python-version: "3.12"}
+      - run: |
+          python - <<'PY'
+          import re, time, urllib.request
+          from crypto_radar.sources import telegram
+          from crypto_radar import net
+          html = net.get_text("https://changehero.io/blog/best-telegram-channels-for-crypto-news/")
+          names = []
+          for n in re.findall(r"(?:https?://)?(?:t\.me|telegram\.me)/(?:s/)?([A-Za-z0-9_]{4,})", html):
+              if n.lower() not in {x.lower() for x in names} and n.lower() not in {"share", "joinchat", "addstickers"}:
+                  names.append(n)
+          print("FOUND", len(names), names)
+          now = time.time()
+          for n in names:
+              try:
+                  posts = telegram.parse_preview(net.get_text(f"https://t.me/s/{n}"), n)
+              except Exception as e:
+                  print(f"CHANNEL {n} ERROR {e}"); continue
+              recent = [p for p in posts if now - p.created_utc < 86400]
+              newest = max((p.created_utc for p in posts), default=0)
+              print(f"CHANNEL {n} page={len(posts)} last24h={len(recent)} newest_h_ago={(now-newest)/3600 if newest else -1:.1f} sample={posts[-1].text[:90]!r}" if posts else f"CHANNEL {n} EMPTY")
+          PY
