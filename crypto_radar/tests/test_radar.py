@@ -25,6 +25,9 @@ class ExtractTest(unittest.TestCase):
     def test_fiat_and_prices_are_not_coins(self):
         self.assertEqual(keys("$USD strength, sold at $100 and $SPY"), set())
 
+    def test_stablecoins_dropped(self):
+        self.assertEqual(keys("100,000,000 $USDC minted, swapped USDT for Tether"), set())
+
     def test_bare_symbols_and_stoplist(self):
         self.assertEqual(keys("LINK and AVAX look strong"), {"chainlink", "avalanche-2"})
         self.assertEqual(keys("THE SEC ETF news is NOT FUD, ONE day"), set())

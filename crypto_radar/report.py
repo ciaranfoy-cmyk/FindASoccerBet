@@ -11,6 +11,7 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 
+from .extract import STABLECOINS
 from .store import Store
 
 SOURCE_LETTER = {"reddit": "R", "telegram": "T", "4chan": "4", "news": "N", "x": "X"}
@@ -111,6 +112,8 @@ def build(store: Store, window_h: float = 6, baseline_h: float = 72,
         s.info = dict(row) if row else {}
         if key.startswith("ca:") and s.info.get("resolved_utc") and not s.info.get("symbol"):
             continue  # DEX Screener checked it: not a traded token
+        if (s.info.get("symbol") or "").upper() in STABLECOINS:
+            continue  # stored before stablecoins were filtered at extraction
         s.label = _label(key, s.info)
         s.voices = len(voices_now[key])
         s.base_voices = len(voices_base[key])

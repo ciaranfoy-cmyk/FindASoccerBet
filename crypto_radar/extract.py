@@ -27,7 +27,14 @@ AMBIGUOUS_SYMBOLS = {
     "LOL", "LOW", "MAX", "ME", "MOON", "NEW", "NFT", "NGMI", "NOT", "NOW", "OK", "OMG",
     "ONE", "OPEN", "OUT", "PUMP", "REAL", "SAFE", "SEC", "SELL", "SUN", "THE", "TIME",
     "TVL", "USA", "USD", "WAGMI", "WAR", "WIN", "WTF", "YOU", "APY", "APR", "ROI",
-    "PNL", "OTC", "RWA", "L1", "L2", "TLDR", "USDT", "USDC",  # stables are noise
+    "PNL", "OTC", "RWA", "L1", "L2", "TLDR",
+}
+
+# Stablecoins: constantly mentioned (whale transfers, "sold to USDT") but never
+# the story. Dropped however they're mentioned.
+STABLECOINS = {
+    "USDT", "USDC", "DAI", "FDUSD", "USDE", "USDS", "RLUSD", "PYUSD", "TUSD", "BUSD",
+    "USD1", "USDD", "GHO", "FRAX", "USDY", "USDX", "EURC", "USD0", "USDG", "USDF",
 }
 
 # Cashtags that aren't coins at all.
@@ -105,6 +112,8 @@ class Extractor:
         found: dict[str, Mention] = {}
 
         def add(m: Mention) -> None:
+            if m.symbol in STABLECOINS:
+                return
             found.setdefault(m.key, m)  # first (most intentional) method wins
 
         for sym in _CASHTAG_RE.findall(text):
