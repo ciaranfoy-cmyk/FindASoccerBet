@@ -41,6 +41,10 @@ class ExtractTest(unittest.TestCase):
         self.assertEqual(keys("Bitcoin Cash is not Bitcoin"), {"bitcoin-cash", "bitcoin"})
         self.assertEqual(keys("bought some dogwifhat"), {"dogwifcoin"})
 
+    def test_hype_the_word_is_not_a_coin(self):
+        self.assertEqual(keys("so much hype around this rally"), set())
+        self.assertEqual(keys("$HYPE and HYPE"), {"hyperliquid"})
+
     def test_common_word_names_ignored(self):
         self.assertEqual(keys("a stellar performance from the render farm"), set())
 

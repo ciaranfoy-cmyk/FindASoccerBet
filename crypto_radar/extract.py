@@ -46,7 +46,7 @@ NON_COIN_CASHTAGS = {
 # Lower-case tickers people commonly type without a $ ("long eth", "sol is ripping").
 LOWERCASE_SYMBOLS = {
     "btc", "eth", "sol", "xrp", "doge", "bnb", "ada", "shib", "pepe", "avax",
-    "ltc", "trx", "sui", "hbar", "xlm", "bonk", "wif", "hype", "kas", "tao",
+    "ltc", "trx", "sui", "hbar", "xlm", "bonk", "wif", "kas", "tao",
 }
 
 # Coin names that are also everyday English words. Only matched via cashtag or symbol.
