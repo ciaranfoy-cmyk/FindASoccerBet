@@ -1,7 +1,9 @@
 {
   "reddit_subreddits": [
-    "CryptoCurrency", "CryptoMoonShots", "SatoshiStreetBets", "CryptoMarkets",
-    "altcoin", "memecoins", "solana", "ethtrader", "Bitcoin", "BaseChain"
+    "CryptoCurrency", "CryptoMarkets", "CryptoCurrencies", "CryptoTechnology", "crypto",
+    "defi", "defiblockchain", "deficryptos", "CryptoMoonShots", "SatoshiStreetBets",
+    "ethereum", "Metamask", "solana", "sui", "altcoin",
+    "memecoins", "ethtrader", "Bitcoin", "BaseChain"
   ],
   "reddit_subreddits_per_run": 4,
   "telegram_channels": [
