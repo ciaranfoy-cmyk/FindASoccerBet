@@ -60,3 +60,9 @@ pip install -r requirements.txt
 python3 build_dataset.py     # writes data/matches.csv (2,700+ matches)
 python3 analyze_dataset.py   # correlation table + model results
 ```
+
+## Crypto Radar (separate project)
+
+`crypto_radar/` is an unrelated side project: it tracks which crypto coins are
+being talked about across Reddit, Telegram, 4chan /biz/, news and X, and flags
+the ones heating up. See [crypto_radar/README.md](crypto_radar/README.md).

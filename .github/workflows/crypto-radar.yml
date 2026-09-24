@@ -1,0 +1,72 @@
+name: Crypto Radar
+
+# Collects crypto chatter every 15 minutes, sends Telegram alerts, and keeps the
+# database on the `radar-data` branch (a single force-pushed snapshot commit,
+# so history doesn't bloat). See crypto_radar/README.md.
+#
+# Note: GitHub only runs `schedule` triggers from the repository's default branch.
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [claude/crypto-sentiment-monitoring-5tf6ub]
+    paths: ["crypto_radar/**", ".github/workflows/crypto-radar.yml"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: crypto-radar
+  cancel-in-progress: false
+
+jobs:
+  radar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATA_DIR: crypto_radar/data
+      CACHE_DIR: crypto_radar/.cache
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Restore database from radar-data branch
+        run: |
+          mkdir -p "$DATA_DIR" "$CACHE_DIR"
+          if git fetch --depth=1 origin radar-data; then
+            git show FETCH_HEAD:radar.sqlite3 > "$DATA_DIR/radar.sqlite3"
+            git show FETCH_HEAD:coingecko_markets.json > "$CACHE_DIR/coingecko_markets.json" || true
+          else
+            echo "No radar-data branch yet; starting fresh."
+          fi
+
+      - name: Collect and alert
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+        run: python -m crypto_radar run
+
+      - name: Write report
+        run: |
+          python -m crypto_radar report --top 25 | tee "$DATA_DIR/latest_report.txt"
+          cat "$DATA_DIR/latest_report.txt" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Save database to radar-data branch
+        run: |
+          snapshot=$(mktemp -d)
+          cp "$DATA_DIR/radar.sqlite3" "$DATA_DIR/latest_report.txt" "$snapshot/"
+          cp "$CACHE_DIR/coingecko_markets.json" "$snapshot/" 2>/dev/null || true
+          cd "$snapshot"
+          git init -q -b radar-data
+          git add .
+          git -c user.name="crypto-radar" -c user.email="crypto-radar@users.noreply.github.com" \
+            commit -qm "Radar snapshot $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" radar-data

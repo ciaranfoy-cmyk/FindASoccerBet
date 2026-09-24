@@ -1,0 +1,32 @@
+{
+  "reddit_subreddits": [
+    "CryptoCurrency", "CryptoMarkets", "CryptoCurrencies", "CryptoTechnology", "crypto",
+    "defi", "defiblockchain", "deficryptos", "CryptoMoonShots", "SatoshiStreetBets",
+    "ethereum", "Metamask", "solana", "sui", "altcoin",
+    "memecoins", "ethtrader", "Bitcoin", "BaseChain"
+  ],
+  "reddit_subreddits_per_run": 4,
+  "telegram_channels": [
+    "WatcherGuru", "wublockchainenglish", "binance_announcements", "cointelegraph",
+    "CHCryptoNews", "CoinDeskGlobal", "CoinMarketCapAnnouncements", "CryptoRankNews",
+    "CoinBureau", "disclosetv", "binancekillers", "coincodecap", "wolfoftrading",
+    "degenpump_crypto_pump_signals"
+  ],
+  "fourchan_board": "biz",
+  "fourchan_full_threads": 15,
+  "news_feeds": [
+    "https://www.coindesk.com/arc/outboundfeeds/rss/",
+    "https://cointelegraph.com/rss",
+    "https://decrypt.co/feed"
+  ],
+  "x_queries": [
+    "has:cashtags lang:en -is:retweet (crypto OR memecoin OR altcoin OR 100x OR gem)"
+  ],
+  "coin_registry_size": 1000,
+  "report_window_hours": 6,
+  "report_baseline_hours": 72,
+  "alert_min_heat": 4.0,
+  "alert_min_voices": 5,
+  "alert_cooldown_hours": 12,
+  "keep_days": 21
+}

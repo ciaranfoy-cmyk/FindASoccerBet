@@ -7,3 +7,4 @@ __pycache__/
 .cache_statsapi/
 secrets/
 .claude/settings.local.json
+crypto_radar/data/
