@@ -1,13 +1,20 @@
 """Reddit: newest posts and comments from a list of subreddits.
 
-Works without credentials via the public .json endpoints (rate-limited, and
-Reddit sometimes blocks anonymous clients). For reliability, create a free
-"script" app at https://www.reddit.com/prefs/apps and set REDDIT_CLIENT_ID /
-REDDIT_CLIENT_SECRET; we then use app-only OAuth (read-only, no user login).
+With REDDIT_CLIENT_ID / REDDIT_CLIENT_SECRET set (a "script" app from
+https://www.reddit.com/prefs/apps, which now needs Reddit's approval) we use
+app-only OAuth: read-only, no user login, 100 items per request.
+
+Without credentials we read the public RSS feeds instead. Reddit blocks the
+anonymous .json endpoints from datacenter IPs (e.g. GitHub Actions); RSS is
+the remaining no-key route.
 """
 
 import base64
+import html
 import json
+import re
+import xml.etree.ElementTree as ET
+from datetime import datetime
 import os
 import time
 import urllib.parse
@@ -34,14 +41,44 @@ def _oauth_token() -> str | None:
     return _token[0]
 
 
-def _listing(path: str) -> list[dict]:
-    token = _oauth_token()
-    if token:
-        url = f"https://oauth.reddit.com{path}"
-        data = net.get_json(url, headers={"Authorization": f"Bearer {token}"})
-    else:
-        data = net.get_json(f"https://www.reddit.com{path}")
+def _listing(path: str, token: str) -> list[dict]:
+    data = net.get_json(f"https://oauth.reddit.com{path}",
+                        headers={"Authorization": f"Bearer {token}"})
     return [child["data"] for child in data.get("data", {}).get("children", [])]
+
+
+_ATOM = "{http://www.w3.org/2005/Atom}"
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def parse_rss(xml_text: str, subreddit: str) -> list[Post]:
+    """Parse a subreddit's Atom feed (/r/<sub>/new/.rss or /r/<sub>/comments/.rss)."""
+    posts = []
+    for entry in ET.fromstring(xml_text).iter(f"{_ATOM}entry"):
+        fullname = entry.findtext(f"{_ATOM}id", "")
+        author = entry.findtext(f"{_ATOM}author/{_ATOM}name", "").removeprefix("/u/")
+        if not fullname or author in ("", "[deleted]", "AutoModerator"):
+            continue
+        body = html.unescape(_TAG_RE.sub(" ", entry.findtext(f"{_ATOM}content", "")))
+        body = body.split("submitted by")[0]  # posts end with "submitted by /u/x [link] [comments]"
+        # Comment titles are "/u/x on <post title>": leave the post's title out so its
+        # coins aren't credited to every commenter.
+        title = "" if fullname.startswith("t1_") else entry.findtext(f"{_ATOM}title", "")
+        text = " ".join(f"{title} {body}".split())
+        link = entry.find(f"{_ATOM}link")
+        when = entry.findtext(f"{_ATOM}published") or entry.findtext(f"{_ATOM}updated", "")
+        if not text:
+            continue
+        posts.append(Post(
+            id=f"reddit:{fullname}",
+            source="reddit",
+            channel=f"r/{subreddit}",
+            author=author,
+            created_utc=datetime.fromisoformat(when).timestamp() if when else 0.0,
+            text=text,
+            url=link.get("href", "") if link is not None else "",
+        ))
+    return posts
 
 
 def parse_listing_item(item: dict, subreddit: str) -> Post | None:
@@ -63,13 +100,25 @@ def parse_listing_item(item: dict, subreddit: str) -> Post | None:
 
 
 def collect(subreddits: list[str], limit: int = 100) -> list[Post]:
+    try:
+        token = _oauth_token()
+    except net.HttpError as exc:
+        print(f"[reddit] OAuth failed, falling back to RSS: {exc}")
+        token = None
     posts: list[Post] = []
     for sub in subreddits:
         for kind in ("new", "comments"):
             try:
-                items = _listing(f"/r/{sub}/{kind}.json?limit={limit}&raw_json=1")
-            except net.HttpError as exc:
-                print(f"[reddit] r/{sub}/{kind}: {exc}")
+                if token:
+                    items = _listing(f"/r/{sub}/{kind}.json?limit={limit}&raw_json=1", token)
+                    got = [p for p in (parse_listing_item(i, sub) for i in items) if p]
+                else:
+                    got = parse_rss(net.get_text(
+                        f"https://www.reddit.com/r/{sub}/{kind}/.rss?limit={limit}"), sub)
+            except (net.HttpError, ET.ParseError) as exc:
+                print(f"[reddit] r/{sub}/{kind}: {str(exc)[:150]}")
                 continue
-            posts.extend(p for p in (parse_listing_item(i, sub) for i in items) if p)
+            posts.extend(got)
+        print(f"[reddit] r/{sub}: {sum(p.channel == f'r/{sub}' for p in posts)} items "
+              f"via {'OAuth' if token else 'RSS'}")
     return posts

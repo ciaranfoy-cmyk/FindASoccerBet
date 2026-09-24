@@ -101,6 +101,24 @@ class SourceParsingTest(unittest.TestCase):
         self.assertEqual((post.id, post.channel, post.author), ("reddit:t1_abc", "r/CryptoCurrency", "bob"))
         self.assertIsNone(reddit.parse_listing_item({"name": "t1_d", "body": "x", "author": "[deleted]"}, "a"))
 
+    def test_reddit_rss(self):
+        xml = """<feed xmlns="http://www.w3.org/2005/Atom">
+          <entry><author><name>/u/alice</name></author>
+            <content type="html">&lt;p&gt;$PEPE looks strong&lt;/p&gt; submitted by /u/alice [link] [comments]</content>
+            <id>t3_aaa</id><link href="https://www.reddit.com/r/x/comments/aaa/t/"/>
+            <published>2026-09-24T03:00:00+00:00</published><title>SOL or ETH?</title></entry>
+          <entry><author><name>/u/bob</name></author>
+            <content type="html">&lt;div&gt;buying DOGE&lt;/div&gt;</content>
+            <id>t1_bbb</id><updated>2026-09-24T03:05:00+00:00</updated>
+            <title>/u/bob on SOL or ETH?</title></entry>
+          <entry><author><name>/u/AutoModerator</name></author><content>rules</content><id>t1_c</id></entry>
+        </feed>"""
+        post, comment = reddit.parse_rss(xml, "CryptoCurrency")
+        self.assertEqual((post.id, post.author), ("reddit:t3_aaa", "alice"))
+        self.assertEqual(post.text, "SOL or ETH? $PEPE looks strong")
+        self.assertEqual(comment.text, "buying DOGE")  # post title not credited to commenter
+        self.assertGreater(comment.created_utc, 0)
+
     def test_fourchan_catalog(self):
         pages = [{"threads": [
             {"no": 1, "sticky": 1, "com": "rules"},
