@@ -63,6 +63,9 @@ COMMON_WORDS = {
 _CASHTAG_RE = re.compile(r"(?<![\w$])\$([A-Za-z][A-Za-z0-9]{1,11})\b")
 # Trading pairs as signal channels write them: "#ACU/USDT", "BTC/USDT", "$SOL/USDC".
 _PAIR_RE = re.compile(r"(?<![\w/])[#$]?([A-Za-z][A-Za-z0-9]{1,11})/(?:USDT|USDC|USD|BUSD|FDUSD|BTC|ETH)\b")
+# The same pairs written without a slash, as some signal channels do: "SOLUSDT", "#BTCETH".
+# Upper-case only; the base must be a known coin unless the quote is a stablecoin.
+_JOINED_PAIR_RE = re.compile(r"(?<![\w$])#?([A-Z][A-Z0-9]{1,9}?)(USDT|USDC|FDUSD|BUSD|BTC|ETH)\b")
 _UPPER_RE = re.compile(r"\b([A-Z][A-Z0-9]{1,9})\b")
 _LOWER_RE = re.compile(r"\b([a-z]{3,5})\b")
 _EVM_RE = re.compile(r"\b0x[a-fA-F0-9]{40}\b")
@@ -142,8 +145,15 @@ class Extractor:
             if _looks_like_solana_address(addr):
                 add(Mention(key=f"ca:{addr}", symbol="", name="", method="contract"))
 
+        for sym, quote in _JOINED_PAIR_RE.findall(text):
+            coin = self.by_symbol.get(sym)
+            if coin:
+                add(self._coin_mention(coin, "cashtag"))
+            elif quote not in ("BTC", "ETH") and sym not in NON_COIN_CASHTAGS:
+                add(Mention(key=f"${sym}", symbol=sym, name="", method="cashtag"))
+
         # Bare tickers/names: skip trading pairs so the quote side ("/BTC") isn't a mention.
-        text = _PAIR_RE.sub(" ", text)
+        text = _JOINED_PAIR_RE.sub(" ", _PAIR_RE.sub(" ", text))
         for sym in _UPPER_RE.findall(text):
             coin = self.by_symbol.get(sym)
             if (coin and sym not in AMBIGUOUS_SYMBOLS and len(sym) >= 3

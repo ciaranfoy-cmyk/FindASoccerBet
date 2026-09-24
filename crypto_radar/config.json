@@ -10,9 +10,8 @@
     "WatcherGuru", "wublockchainenglish", "binance_announcements", "cointelegraph",
     "CHCryptoNews", "CoinDeskGlobal", "CoinMarketCapAnnouncements", "CryptoRankNews",
     "CoinBureau", "disclosetv", "binancekillers", "coincodecap", "wolfoftrading",
-    "degenpump_crypto_pump_signals", "altfins", "WhaleBotAlerts", "coin_listing",
-    "icodrops", "cryptoinnercircle", "bitcoinbullets", "cryptosignals0rg",
-    "daytrader_signals_EN"
+    "degenpump_crypto_pump_signals", "WhaleBotAlerts", "coin_listing",
+    "bitcoinbullets", "cryptosignals0rg"
   ],
   "fourchan_board": "biz",
   "fourchan_full_threads": 15,
