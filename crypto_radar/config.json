@@ -3,6 +3,7 @@
     "CryptoCurrency", "CryptoMoonShots", "SatoshiStreetBets", "CryptoMarkets",
     "altcoin", "memecoins", "solana", "ethtrader", "Bitcoin", "BaseChain"
   ],
+  "reddit_subreddits_per_run": 4,
   "telegram_channels": [
     "WatcherGuru", "wublockchainenglish", "binance_announcements", "cointelegraph",
     "CHCryptoNews", "CoinDeskGlobal", "CoinMarketCapAnnouncements", "CryptoRankNews",

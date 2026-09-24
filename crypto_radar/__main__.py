@@ -31,7 +31,14 @@ def collect(store: Store, cfg: dict, sources: tuple[str, ...]) -> int:
 
     posts = []
     if "reddit" in sources:
-        posts += reddit.collect(cfg.get("reddit_subreddits", []))
+        subs = cfg.get("reddit_subreddits", [])
+        per_run = cfg.get("reddit_subreddits_per_run") or len(subs)
+        if subs and per_run < len(subs):
+            # Rotate through the list across runs to stay under Reddit's rate limit.
+            start = store.get_state("reddit_offset", 0) % len(subs)
+            subs = (subs + subs)[start:start + per_run]
+            store.set_state("reddit_offset", start + per_run)
+        posts += reddit.collect(subs)
     if "telegram" in sources:
         posts += telegram.collect(cfg.get("telegram_channels", []))
     if "4chan" in sources and cfg.get("fourchan_board"):
