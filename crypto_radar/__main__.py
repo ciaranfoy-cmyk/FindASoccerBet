@@ -143,6 +143,7 @@ def main() -> None:
         while True:
             collect(store, cfg, sources)
             check_alerts(store, cfg)
+            store.prune(cfg.get("keep_days", 21))
             if not args.every:
                 break
             time.sleep(args.every * 60)

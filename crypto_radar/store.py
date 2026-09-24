@@ -84,6 +84,19 @@ class Store:
     def commit(self) -> None:
         self.db.commit()
 
+    def prune(self, keep_days: float) -> int:
+        """Drop posts (and their mentions) older than keep_days. Coin first-seen
+        dates only look back that far afterwards, so keep it well above the baseline."""
+        cutoff = time.time() - keep_days * 86400
+        self.db.execute("DELETE FROM mentions WHERE post_id IN "
+                        "(SELECT id FROM posts WHERE created_utc < ?)", (cutoff,))
+        deleted = self.db.execute("DELETE FROM posts WHERE created_utc < ?", (cutoff,)).rowcount
+        self.db.execute("DELETE FROM alerts WHERE sent_utc < ?", (cutoff,))
+        self.db.commit()
+        if deleted:
+            self.db.execute("VACUUM")
+        return deleted
+
     # --- contract-address resolution -------------------------------------------------
 
     def unresolved_contracts(self, since_utc: float, max_age_s: float = 3600) -> list[str]:

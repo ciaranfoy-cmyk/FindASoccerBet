@@ -72,12 +72,22 @@ def _fetch_markets(top_n: int) -> list[dict]:
     return rows[:top_n]
 
 
+def _read_cache() -> tuple[float, list[Coin]] | None:
+    """(fetched_at, coins). The timestamp lives in the file, not its mtime, so the
+    cache survives being copied around (e.g. between CI runs)."""
+    try:
+        with open(REGISTRY_CACHE) as f:
+            data = json.load(f)
+        return data["fetched_at"], [Coin(**c) for c in data["coins"]]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
 def load_registry(top_n: int = 1000, refresh: bool = False) -> list[Coin]:
     """Return the top_n coins, from cache if fresh, else CoinGecko, else fallback."""
-    if not refresh and os.path.exists(REGISTRY_CACHE):
-        if time.time() - os.path.getmtime(REGISTRY_CACHE) < REGISTRY_TTL:
-            with open(REGISTRY_CACHE) as f:
-                return [Coin(**c) for c in json.load(f)]
+    cached = _read_cache()
+    if not refresh and cached and time.time() - cached[0] < REGISTRY_TTL:
+        return cached[1]
     try:
         rows = _fetch_markets(top_n)
         coins = [
@@ -86,15 +96,13 @@ def load_registry(top_n: int = 1000, refresh: bool = False) -> list[Coin]:
             for r in rows
         ]
     except net.HttpError as exc:
-        print(f"[coins] CoinGecko unavailable ({exc}); using built-in list")
-        if os.path.exists(REGISTRY_CACHE):  # stale cache beats the tiny fallback
-            with open(REGISTRY_CACHE) as f:
-                return [Coin(**c) for c in json.load(f)]
-        return fallback_registry()
+        print(f"[coins] CoinGecko unavailable ({exc}); using "
+              f"{'stale cache' if cached else 'built-in list'}")
+        return cached[1] if cached else fallback_registry()  # stale cache beats the tiny fallback
 
     os.makedirs(CACHE_DIR, exist_ok=True)
     with open(REGISTRY_CACHE, "w") as f:
-        json.dump([c.__dict__ for c in coins], f)
+        json.dump({"fetched_at": time.time(), "coins": [c.__dict__ for c in coins]}, f)
     return coins
 
 

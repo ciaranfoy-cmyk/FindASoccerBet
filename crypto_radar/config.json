@@ -22,5 +22,6 @@
   "report_baseline_hours": 72,
   "alert_min_heat": 4.0,
   "alert_min_voices": 5,
-  "alert_cooldown_hours": 12
+  "alert_cooldown_hours": 12,
+  "keep_days": 21
 }
