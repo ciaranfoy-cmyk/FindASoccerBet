@@ -4,8 +4,10 @@
     "altcoin", "memecoins", "solana", "ethtrader", "Bitcoin", "BaseChain"
   ],
   "telegram_channels": [
-    "WatcherGuru", "whale_alert_io", "wublockchainenglish", "binance_announcements",
-    "cointelegraph"
+    "WatcherGuru", "wublockchainenglish", "binance_announcements", "cointelegraph",
+    "CHCryptoNews", "CoinDeskGlobal", "CoinMarketCapAnnouncements", "CryptoRankNews",
+    "CoinBureau", "lunarcrush", "ico_analytic", "disclosetv",
+    "cryptoninjas_trading_ann", "binancekillers", "coincodecap", "wolfoftrading"
   ],
   "fourchan_board": "biz",
   "fourchan_full_threads": 15,

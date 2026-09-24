@@ -86,6 +86,7 @@ def collect(channels: list[str], max_age_hours: float = 24, max_pages: int = 5) 
     for channel in channels:
         channel = channel.lstrip("@").removeprefix("https://t.me/").strip("/")
         url = f"https://t.me/s/{channel}"
+        before = len(posts)
         for _ in range(max_pages):
             try:
                 page = parse_preview(net.get_text(url), channel)
@@ -93,12 +94,13 @@ def collect(channels: list[str], max_age_hours: float = 24, max_pages: int = 5) 
                 print(f"[telegram] {channel}: {exc}")
                 break
             if not page:
-                if not posts or posts[-1].channel != f"t.me/{channel}":
-                    print(f"[telegram] {channel}: no messages (not a public channel?)")
                 break
             posts.extend(p for p in page if p.created_utc >= cutoff)
             oldest = min(page, key=lambda p: p.created_utc)
             if oldest.created_utc < cutoff:
                 break
             url = f"https://t.me/s/{channel}?before={_message_number(oldest)}"
+        got = len(posts) - before
+        print(f"[telegram] {channel}: {got} posts in last {max_age_hours:g}h"
+              + ("  <- empty: not a public channel, private, or inactive" if not got else ""))
     return posts
