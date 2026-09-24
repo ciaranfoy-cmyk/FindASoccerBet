@@ -15,7 +15,13 @@ jobs:
           import re, time, urllib.request
           from crypto_radar.sources import telegram
           from crypto_radar import net
-          html = net.get_text("https://changehero.io/blog/best-telegram-channels-for-crypto-news/")
+          page = "https://changehero.io/blog/best-telegram-channels-for-crypto-news/"
+          html = ""
+          for url in (f"https://web.archive.org/web/2026id_/{page}", f"https://web.archive.org/web/2025id_/{page}", page):
+              try:
+                  html = net.get_text(url); print("GOT", url, len(html)); break
+              except Exception as e:
+                  print("FAIL", url, str(e)[:120])
           names = []
           for n in re.findall(r"(?:https?://)?(?:t\.me|telegram\.me)/(?:s/)?([A-Za-z0-9_]{4,})", html):
               if n.lower() not in {x.lower() for x in names} and n.lower() not in {"share", "joinchat", "addstickers"}:
