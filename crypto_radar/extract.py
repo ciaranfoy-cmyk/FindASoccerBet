@@ -61,6 +61,8 @@ COMMON_WORDS = {
 }
 
 _CASHTAG_RE = re.compile(r"(?<![\w$])\$([A-Za-z][A-Za-z0-9]{1,11})\b")
+# Trading pairs as signal channels write them: "#ACU/USDT", "BTC/USDT", "$SOL/USDC".
+_PAIR_RE = re.compile(r"(?<![\w/])[#$]?([A-Za-z][A-Za-z0-9]{1,11})/(?:USDT|USDC|USD|BUSD|FDUSD|BTC|ETH)\b")
 _UPPER_RE = re.compile(r"\b([A-Z][A-Z0-9]{1,9})\b")
 _LOWER_RE = re.compile(r"\b([a-z]{3,5})\b")
 _EVM_RE = re.compile(r"\b0x[a-fA-F0-9]{40}\b")
@@ -126,12 +128,22 @@ class Extractor:
             else:
                 add(Mention(key=f"${sym}", symbol=sym, name="", method="cashtag"))
 
+        for sym in _PAIR_RE.findall(text):  # explicit trading pair: as intentional as a cashtag
+            sym = sym.upper()
+            coin = self.by_symbol.get(sym)
+            if coin:
+                add(self._coin_mention(coin, "cashtag"))
+            elif sym not in NON_COIN_CASHTAGS:
+                add(Mention(key=f"${sym}", symbol=sym, name="", method="cashtag"))
+
         for addr in _EVM_RE.findall(text):
             add(Mention(key=f"ca:{addr.lower()}", symbol="", name="", method="contract"))
         for addr in _SOL_RE.findall(text):
             if _looks_like_solana_address(addr):
                 add(Mention(key=f"ca:{addr}", symbol="", name="", method="contract"))
 
+        # Bare tickers/names: skip trading pairs so the quote side ("/BTC") isn't a mention.
+        text = _PAIR_RE.sub(" ", text)
         for sym in _UPPER_RE.findall(text):
             coin = self.by_symbol.get(sym)
             if (coin and sym not in AMBIGUOUS_SYMBOLS and len(sym) >= 3

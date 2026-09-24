@@ -25,6 +25,10 @@ class ExtractTest(unittest.TestCase):
     def test_fiat_and_prices_are_not_coins(self):
         self.assertEqual(keys("$USD strength, sold at $100 and $SPY"), set())
 
+    def test_trading_pairs(self):
+        self.assertEqual(keys("#ACU/USDT Take-Profit target 1 ✅, also LINK/BTC"), {"$ACU", "chainlink"})
+        self.assertEqual(keys("USDT/USD peg holds"), set())
+
     def test_stablecoins_dropped(self):
         self.assertEqual(keys("100,000,000 $USDC minted, swapped USDT for Tether"), set())
 
