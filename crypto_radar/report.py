@@ -50,9 +50,27 @@ class SearchInfo:
     cg_since: float | None = None       # when its current streak on the list began
     cg_since_is_floor: bool = False     # streak goes back past our lookback
     google: list = field(default_factory=list)  # [(fetched_utc, source, detail)] in last 24h
+    rank_before: int | None = None      # rank ~2h ago (None = wasn't on the list)
+    price: float | None = None
+    change_1h: float | None = None      # percent
+    change_24h: float | None = None     # percent
+    change_since_entry: float | None = None  # percent since its current streak began
+    early: bool = False                 # climbing in searches and price hasn't run yet
+    already_pumped: bool = False        # searched because it already moved
 
     def entered_since(self, t: float) -> bool:
         return self.cg_rank is not None and not self.cg_since_is_floor and self.cg_since >= t
+
+    @property
+    def climb(self) -> int:
+        """Places gained in ~2h; entering the list counts as coming from #16."""
+        if self.cg_rank is None:
+            return 0
+        return (self.rank_before or 16) - self.cg_rank
+
+# A coin climbing the search list is "early" while its 24h move is below this;
+# at or above it, the searches are most likely people reacting to the pump.
+PUMPED_PCT = 15.0
 
 
 def search_status(store: Store, now: float, lookback_h: float = 48,
@@ -80,6 +98,25 @@ def search_status(store: Store, now: float, lookback_h: float = 48,
                 since = t
             info = out[key]
             info.cg_rank, info.cg_since, info.cg_since_is_floor = rank, since, floor
+            earlier = [t for t in times if t <= times[-1] - 2 * 3600]
+            info.rank_before = snapshots[earlier[-1]].get(key) if earlier else None
+
+        prices: dict[str, list] = defaultdict(list)
+        for r in store.price_rows(now - lookback_h * 3600):
+            prices[r["coin_key"]].append(r)
+        for key in latest:
+            info, hist = out[key], prices.get(key)
+            if not hist:
+                continue
+            last = hist[-1]
+            info.price, info.change_1h, info.change_24h = last["price"], last["change_1h"], last["change_24h"]
+            at_entry = next((r for r in hist if r["fetched_utc"] >= info.cg_since), None)
+            if at_entry and at_entry["price"] and not info.cg_since_is_floor:
+                info.change_since_entry = (last["price"] / at_entry["price"] - 1) * 100
+            info.already_pumped = info.change_24h is not None and info.change_24h >= PUMPED_PCT
+            fresh = info.entered_since(now - 3 * 3600)
+            info.early = (info.change_24h is not None and not info.already_pumped
+                          and info.cg_rank <= 10 and (fresh or info.climb >= 5))
     return dict(out)
 
 
@@ -94,6 +131,11 @@ class Report:
     def most_talked(self, n: int = 20) -> list[CoinStats]:
         talked = [s for s in self.stats if s.voices]
         return sorted(talked, key=lambda s: (-s.voices, -s.mentions))[:n]
+
+    def search_signals(self) -> list[CoinStats]:
+        """Climbing the search list while the price hasn't run yet."""
+        return sorted((s for s in self.stats if s.search and s.search.early),
+                      key=lambda s: s.search.cg_rank)
 
     def search_interest(self) -> list[CoinStats]:
         """Coins on CoinGecko trending now, then any that hit Google Trends in 24h."""
@@ -221,6 +263,8 @@ def _search_tags(s: CoinStats, window_start: float) -> list[str]:
         tags.append(f"CG#{s.search.cg_rank}" + ("↑new" if s.search.entered_since(window_start) else ""))
     if s.search and s.search.google:
         tags.append("GOOGLE-TRENDING")
+    if s.search and s.search.early:
+        tags.append("EARLY?")
     return tags
 
 
@@ -271,6 +315,18 @@ def render_text(report: Report, top: int = 20) -> str:
         lines.append("  " + ", ".join(f"{s.label.split(' · ')[0]} ({s.mentions})" for s in pumped[:40]))
         lines.append("")
 
+    signals = report.search_signals()
+    lines.append("== EARLY SEARCH SIGNALS (climbing CoinGecko searches, price not run yet) ==")
+    if signals:
+        for s in signals:
+            si = s.search
+            came = f"from #{si.rank_before}" if si.rank_before else "new to list"
+            lines.append(f"{s.label[:28]:<28} #{si.cg_rank} ({came})  price 24h {si.change_24h:+.0f}%"
+                         f"  chatter: {s.voices} voices")
+    else:
+        lines.append("  (none right now)")
+    lines.append("")
+
     lines.append("== SEARCH INTEREST (CoinGecko trending now + Google Trends, 24h) ==")
     searched = report.search_interest()
     if not searched:
@@ -283,11 +339,36 @@ def render_text(report: Report, top: int = 20) -> str:
             where = f"CoinGecko #{si.cg_rank:<2} on list {since:>6}"
         else:
             where = f"{'':<28}"
-        buzz = f"{s.voices} voices" + (f", {s.velocity:.1f}x usual" if s.voices else " (no chatter yet)")
+        move = ""
+        if si.rank_before is not None and si.cg_rank is not None and si.rank_before != si.cg_rank:
+            move = f" (was #{si.rank_before} 2h ago)"
+        elif si.cg_rank is not None and si.rank_before is None and si.entered_since(report.now - 2 * 3600):
+            move = " (new in 2h)"
+        price = ""
+        if si.change_24h is not None:
+            price = f"  price 24h {si.change_24h:+.0f}%"
+            if si.change_1h is not None:
+                price += f", 1h {si.change_1h:+.1f}%"
+            if si.change_since_entry is not None:
+                price += f", since listed {si.change_since_entry:+.0f}%"
+        flag = "  <- EARLY? climbing, price not run yet" if si.early else (
+            "  (searched after a pump)" if si.already_pumped else "")
+        buzz = f"{s.voices} voices" + (f", {s.velocity:.1f}x usual" if s.voices else " (no chatter)")
         google = "  GOOGLE: " + "; ".join(d for _, _, d in si.google[-2:]) if si.google else ""
-        lines.append(f"{s.label[:34]:<34} {where}  {buzz}{google}")
+        lines.append(f"{s.label[:28]:<28} {where}{move}  {buzz}{price}{flag}{google}")
     lines.append("")
     return "\n".join(lines)
+
+
+def render_search_alert(s: CoinStats) -> str:
+    si = s.search
+    came = f"from #{si.rank_before}" if si.rank_before else "new to the list"
+    parts = [f"🔎 {s.label} climbing in searches",
+             f"#{si.cg_rank} on CoinGecko trending ({came}, ~2h)",
+             f"price 24h {si.change_24h:+.1f}%" + (f", 1h {si.change_1h:+.1f}%" if si.change_1h is not None else ""),
+             f"chatter: {s.voices} voices" + (f" in {', '.join(sorted(s.sources))}" if s.sources else " (none in our sources)"),
+             "Search-only interest can be a pump organised elsewhere: look, don't leap."]
+    return "\n".join(parts)
 
 
 def render_alert(s: CoinStats) -> str:

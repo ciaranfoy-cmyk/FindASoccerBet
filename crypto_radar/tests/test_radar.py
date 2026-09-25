@@ -189,6 +189,15 @@ GOOGLE_RSS = """<?xml version="1.0"?>
 
 
 class SearchTest(unittest.TestCase):
+    def test_markets_prices(self):
+        rows = [{"id": "phala", "current_price": 0.1, "price_change_percentage_1h_in_currency": 1.5,
+                 "price_change_percentage_24h_in_currency": 53.0, "market_cap": 1e8}]
+        self.assertEqual(search.parse_markets(rows)["phala"]["change_24h"], 53.0)
+        trending = search.parse_coingecko_trending({"coins": [{"item": {
+            "id": "phala", "symbol": "pha", "name": "Phala",
+            "data": {"price": "$0.1", "price_change_percentage_24h": {"usd": 12.5}}}}]})
+        self.assertEqual((trending[0]["price"], trending[0]["change_24h"]), (0.1, 12.5))
+
     def test_coingecko_trending(self):
         data = {"coins": [{"item": {"id": "pepe", "symbol": "pepe", "name": "Pepe", "market_cap_rank": 30}},
                           {"item": {"id": "tether", "symbol": "usdt", "name": "Tether"}},
@@ -276,6 +285,41 @@ class ReportTest(unittest.TestCase):
         self.assertIn("SEARCH INTEREST", text)
         self.assertIn("CG#1↑new", text)
         self.assertIn("GOOGLE", text)
+
+    def test_early_search_signal_like_phala(self):
+        h = 3600
+        snaps = [(4 * h, {"bitcoin": 1, "pepe": 2}), (2.5 * h, {"bitcoin": 1, "pepe": 2}),
+                 (1 * h, {"bitcoin": 1, "pepe": 2, "phala": 12}),
+                 (0.2 * h, {"phala": 3, "bitcoin": 1, "pepe": 2})]
+        for t_ago, ranks in snaps:
+            for key, rank in ranks.items():
+                self.store.add_search_trend(self.now - t_ago, "coingecko", key, rank, key.upper(), key)
+        # PHALA: price flat when it appeared, starting to move now -> early
+        self.store.add_price(self.now - 1 * h, "phala", 0.10, 0.5, 3.0, 1e8)
+        self.store.add_price(self.now - 0.2 * h, "phala", 0.104, 2.0, 6.0, 1e8)
+        # PEPE: climbing? no (flat at #2) ; already pumped 40%
+        self.store.add_price(self.now - 0.2 * h, "pepe", 1.0, 1.0, 40.0, 1e9)
+
+        rep = report.build(self.store, now=self.now)
+        by_key = {s.key: s for s in rep.stats}
+        ph = by_key["phala"].search
+        self.assertEqual((ph.cg_rank, ph.rank_before, ph.climb), (3, None, 13))
+        self.assertTrue(ph.early)
+        self.assertAlmostEqual(ph.change_since_entry, 4.0, places=3)
+        self.assertTrue(by_key["pepe"].search.already_pumped)
+        self.assertFalse(by_key["pepe"].search.early)
+        self.assertFalse(by_key["bitcoin"].search.early)  # no price data -> never "early"
+        self.assertEqual([s.key for s in rep.search_signals()], ["phala"])
+
+        text = report.render_text(rep)
+        self.assertIn("EARLY SEARCH SIGNALS", text)
+        self.assertIn("EARLY? climbing", text)
+        self.assertIn("searched after a pump", text)
+        self.assertIn("climbing in searches", report.render_search_alert(by_key["phala"]))
+
+    def test_no_search_data_is_fine(self):
+        rep = report.build(self.store, now=self.now)
+        self.assertIn("(none right now)", report.render_text(rep))
 
     def test_pump_only_and_purge(self):
         for i in range(4):

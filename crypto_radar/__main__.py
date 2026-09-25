@@ -97,6 +97,13 @@ def check_alerts(store: Store, cfg: dict) -> None:
             continue
         alerts.send(report.render_alert(s))
         store.record_alert(s.key)
+    for s in rep.search_signals():
+        key = f"search:{s.key}"
+        last = store.last_alert(key)
+        if last and time.time() - last < cooldown:
+            continue
+        alerts.send(report.render_search_alert(s))
+        store.record_alert(key)
     store.commit()
 
 
