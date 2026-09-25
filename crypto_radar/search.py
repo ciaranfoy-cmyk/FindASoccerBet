@@ -109,6 +109,7 @@ def collect(store, registry: list[Coin], geos: list[str]) -> int:
         except (net.HttpError, ET.ParseError) as exc:
             print(f"[search] Google Trends {geo}: {str(exc)[:150]}")
             continue
+        print(f"[search] Google Trends {geo}: {len(trends)} trending searches read")
         for i, t in enumerate(trends, start=1):
             coin = matcher.match(t["query"], t["news"])
             if coin:
