@@ -13,7 +13,7 @@ import time
 from datetime import datetime, timezone
 
 from . import alerts, coins, dexscreener, report, search, sentiment
-from .extract import Extractor
+from .extract import EXTRACTOR_VERSION, Extractor
 from .sources import fourchan, news, reddit, telegram, x
 from .store import DEFAULT_DB, Store
 
@@ -29,6 +29,11 @@ def load_config(path: str) -> dict:
 def collect(store: Store, cfg: dict, sources: tuple[str, ...]) -> int:
     registry = coins.load_registry(cfg.get("coin_registry_size", 1000))
     extractor = Extractor(registry)
+    if store.get_state("extractor_version") != EXTRACTOR_VERSION:
+        n = store.reextract(extractor.extract)
+        store.set_state("extractor_version", EXTRACTOR_VERSION)
+        store.commit()
+        print(f"[collect] extraction rules changed: re-scanned {n} stored posts")
 
     posts = []
     if "reddit" in sources:
@@ -76,8 +81,13 @@ def collect(store: Store, cfg: dict, sources: tuple[str, ...]) -> int:
     return new
 
 
+def pump_channels(cfg: dict) -> frozenset:
+    return frozenset(f"t.me/{c}" for c in cfg.get("pump_channels", []))
+
+
 def check_alerts(store: Store, cfg: dict) -> None:
-    rep = report.build(store, cfg["report_window_hours"], cfg["report_baseline_hours"])
+    rep = report.build(store, cfg["report_window_hours"], cfg["report_baseline_hours"],
+                       pump_channels=pump_channels(cfg))
     cooldown = cfg.get("alert_cooldown_hours", 12) * 3600
     for s in rep.heating_up(min_voices=cfg.get("alert_min_voices", 5)):
         if s.heat < cfg.get("alert_min_heat", 4.0):
@@ -127,7 +137,8 @@ def main() -> None:
 
     elif args.cmd == "report":
         rep = report.build(store, args.window or cfg["report_window_hours"],
-                           args.baseline or cfg["report_baseline_hours"])
+                           args.baseline or cfg["report_baseline_hours"],
+                           pump_channels=pump_channels(cfg))
         text = report.render_text(rep, args.top)
         print(text)
         if args.send:
@@ -154,6 +165,7 @@ def main() -> None:
             collect(store, cfg, sources)
             check_alerts(store, cfg)
             store.prune(cfg.get("keep_days", 21))
+            store.purge_channels([f"t.me/{c}" for c in cfg.get("purge_channels", [])])
             if not args.every:
                 break
             time.sleep(args.every * 60)

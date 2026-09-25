@@ -13,6 +13,11 @@
     "degenpump_crypto_pump_signals", "WhaleBotAlerts", "coin_listing",
     "bitcoinbullets", "cryptosignals0rg"
   ],
+  "pump_channels": [
+    "degenpump_crypto_pump_signals", "binancekillers", "coincodecap", "cryptosignals0rg",
+    "wolfoftrading"
+  ],
+  "purge_channels": ["altFINS_Signals_Official", "ianCryptoTrades"],
   "fourchan_board": "biz",
   "fourchan_full_threads": 15,
   "news_feeds": [

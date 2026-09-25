@@ -20,6 +20,7 @@ from .coins import Coin
 # acronyms or crypto slang. Bare-symbol matches on these are ignored (a
 # cashtag like "$ONE" still counts).
 AMBIGUOUS_SYMBOLS = {
+    "NEAR", "STRK",  # "DAMN NEAR"; STRK is also Strategy's preferred stock
     "A", "AI", "ALL", "AND", "ANY", "API", "ARE", "ATH", "ATL", "BAD", "BEST", "BIG",
     "BTFD", "BUY", "CAT", "CEO", "CEX", "CPI", "DAO", "DCA", "DEX", "DOG", "EDGE",
     "ETF", "EUR", "FED", "FOMO", "FOR", "FUD", "FUN", "GAS", "GBP", "GDP", "GET", "GM",
@@ -59,6 +60,10 @@ COMMON_WORDS = {
     "echelon", "gold", "silver", "pi", "mask",
     "amp", "dusk", "saga", "ark", "wax", "velo", "wink", "pax", "usual", "plume",
 }
+
+# Bump when extraction rules change: stored posts are then re-scanned so old
+# false positives (or misses) don't linger in the rankings.
+EXTRACTOR_VERSION = 2
 
 _CASHTAG_RE = re.compile(r"(?<![\w$])\$([A-Za-z][A-Za-z0-9]{1,11})\b")
 # Trading pairs as signal channels write them: "#ACU/USDT", "BTC/USDT", "$SOL/USDC".
@@ -154,7 +159,9 @@ class Extractor:
 
         # Bare tickers/names: skip trading pairs so the quote side ("/BTC") isn't a mention.
         text = _JOINED_PAIR_RE.sub(" ", _PAIR_RE.sub(" ", text))
-        for sym in _UPPER_RE.findall(text):
+        letters = [c for c in text if c.isalpha()]
+        shouting = len(letters) >= 20 and sum(c.isupper() for c in letters) > 0.7 * len(letters)
+        for sym in ([] if shouting else _UPPER_RE.findall(text)):  # ALL-CAPS posts: every word looks like a ticker
             coin = self.by_symbol.get(sym)
             if (coin and sym not in AMBIGUOUS_SYMBOLS and len(sym) >= 3
                     and coin.rank <= self.bare_symbol_max_rank):
