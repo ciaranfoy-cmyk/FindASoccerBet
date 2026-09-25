@@ -46,7 +46,9 @@ threshold (at most once per coin per 12h).
 | 4chan /biz/ | catalog + busiest threads | nothing |
 | News | RSS (CoinDesk, Cointelegraph, Decrypt) | nothing |
 | X / Twitter | v2 recent search | `X_BEARER_TOKEN` (paid API); skipped if unset |
-| CoinGecko | coin list (top 1000) + "trending" flag | nothing |
+| CoinGecko trending | top ~15 coins people are *searching* for, snapshotted every run | nothing |
+| Google Trends | UK + US "trending now" searches; flags any coin that goes mainstream | nothing |
+| CoinGecko | coin list (top 1000) | nothing |
 | DEX Screener | turns posted contract addresses into token / chain / liquidity / 24h % | nothing |
 
 Edit **`config.json`** to change subreddits, Telegram channels, feeds and X
@@ -69,8 +71,12 @@ early chatter is in smaller "calls"/alpha channels, so add the ones you find
 - **New on the radar** = first time the coin has ever been mentioned in the DB.
 - **Sentiment** = a crypto-slang lexicon (moon, rug, ngmi, 🚀, 💀 …), averaged
   over posts, from −1 to +1. It's noisy per post and more useful as an average.
-- `CG-trending` marks coins already on CoinGecko's trending list, i.e. the
-  crowd already knows.
+- **Search interest**: `CG#3` = #3 on CoinGecko's trending searches, `↑new` = it
+  entered the list within the window, `GOOGLE-TRENDING` = it hit Google's
+  trending searches in the last 24h. Coins entering the search list, or hitting
+  Google, get a boost in "heating up" because search confirming chatter is a
+  stronger signal than either alone. The report's last section lists everything
+  people are searching for, including coins nobody is talking about yet.
 
 ## Alerts to your phone
 

@@ -12,13 +12,13 @@ import os
 import time
 from datetime import datetime, timezone
 
-from . import alerts, coins, dexscreener, report, sentiment
+from . import alerts, coins, dexscreener, report, search, sentiment
 from .extract import Extractor
 from .sources import fourchan, news, reddit, telegram, x
 from .store import DEFAULT_DB, Store
 
 DEFAULT_CONFIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
-ALL_SOURCES = ("reddit", "telegram", "4chan", "news", "x")
+ALL_SOURCES = ("reddit", "telegram", "4chan", "news", "x", "search")
 
 
 def load_config(path: str) -> dict:
@@ -27,7 +27,8 @@ def load_config(path: str) -> dict:
 
 
 def collect(store: Store, cfg: dict, sources: tuple[str, ...]) -> int:
-    extractor = Extractor(coins.load_registry(cfg.get("coin_registry_size", 1000)))
+    registry = coins.load_registry(cfg.get("coin_registry_size", 1000))
+    extractor = Extractor(registry)
 
     posts = []
     if "reddit" in sources:
@@ -49,6 +50,9 @@ def collect(store: Store, cfg: dict, sources: tuple[str, ...]) -> int:
         since_ids = store.get_state("x_since_ids", {})
         posts += x.collect(cfg.get("x_queries", []), since_ids)
         store.set_state("x_since_ids", since_ids)
+
+    if "search" in sources:
+        search.collect(store, registry, cfg.get("google_trends_geos", ["GB", "US"]))
 
     new = 0
     by_source: dict[str, int] = {}
@@ -124,7 +128,6 @@ def main() -> None:
     elif args.cmd == "report":
         rep = report.build(store, args.window or cfg["report_window_hours"],
                            args.baseline or cfg["report_baseline_hours"])
-        rep.trending_ids = coins.coingecko_trending()
         text = report.render_text(rep, args.top)
         print(text)
         if args.send:

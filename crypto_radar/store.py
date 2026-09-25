@@ -44,6 +44,18 @@ CREATE TABLE IF NOT EXISTS coins (
     resolved_utc REAL
 );
 
+-- One row per coin per search-trend snapshot (CoinGecko trending, Google Trends).
+CREATE TABLE IF NOT EXISTS search_trends (
+    fetched_utc REAL NOT NULL,
+    source TEXT NOT NULL,          -- coingecko | google-GB | google-US
+    coin_key TEXT NOT NULL,
+    rank INTEGER NOT NULL,         -- position on the list, 1 = top
+    symbol TEXT,
+    name TEXT,
+    detail TEXT
+);
+CREATE INDEX IF NOT EXISTS search_trends_time ON search_trends(fetched_utc);
+
 CREATE TABLE IF NOT EXISTS alerts (
     coin_key TEXT NOT NULL,
     sent_utc REAL NOT NULL
@@ -92,10 +104,26 @@ class Store:
                         "(SELECT id FROM posts WHERE created_utc < ?)", (cutoff,))
         deleted = self.db.execute("DELETE FROM posts WHERE created_utc < ?", (cutoff,)).rowcount
         self.db.execute("DELETE FROM alerts WHERE sent_utc < ?", (cutoff,))
+        self.db.execute("DELETE FROM search_trends WHERE fetched_utc < ?", (cutoff,))
         self.db.commit()
         if deleted:
             self.db.execute("VACUUM")
         return deleted
+
+    # --- search interest ------------------------------------------------------------
+
+    def add_search_trend(self, fetched_utc: float, source: str, coin_key: str, rank: int,
+                         symbol: str, name: str, detail: str = "") -> None:
+        self.db.execute("INSERT INTO search_trends VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        (fetched_utc, source, coin_key, rank, symbol, name, detail))
+        self.db.execute("INSERT OR IGNORE INTO coins (key, symbol, name) VALUES (?, ?, ?)",
+                        (coin_key, symbol, name))
+
+    def search_rows(self, since_utc: float) -> list[sqlite3.Row]:
+        return self.db.execute(
+            "SELECT * FROM search_trends WHERE fetched_utc >= ? ORDER BY fetched_utc",
+            (since_utc,),
+        ).fetchall()
 
     # --- contract-address resolution -------------------------------------------------
 
