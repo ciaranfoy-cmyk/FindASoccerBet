@@ -57,6 +57,7 @@ class SearchInfo:
     change_since_entry: float | None = None  # percent since its current streak began
     early: bool = False                 # climbing in searches and price hasn't run yet
     already_pumped: bool = False        # searched because it already moved
+    moving_now: bool = False            # big 1h move: mid-spike, too late to call early
 
     def entered_since(self, t: float) -> bool:
         return self.cg_rank is not None and not self.cg_since_is_floor and self.cg_since >= t
@@ -71,6 +72,9 @@ class SearchInfo:
 # A coin climbing the search list is "early" while its 24h move is below this;
 # at or above it, the searches are most likely people reacting to the pump.
 PUMPED_PCT = 15.0
+# A 1h move this big (either way) means the coin is mid-spike right now, even if
+# its 24h change looks flat or negative (e.g. -33% 24h but +138% in the last hour).
+MOVING_1H_PCT = 10.0
 
 
 def search_status(store: Store, now: float, lookback_h: float = 48,
@@ -114,8 +118,10 @@ def search_status(store: Store, now: float, lookback_h: float = 48,
             if at_entry and at_entry["price"] and not info.cg_since_is_floor:
                 info.change_since_entry = (last["price"] / at_entry["price"] - 1) * 100
             info.already_pumped = info.change_24h is not None and info.change_24h >= PUMPED_PCT
+            info.moving_now = info.change_1h is not None and abs(info.change_1h) >= MOVING_1H_PCT
             fresh = info.entered_since(now - 3 * 3600)
             info.early = (info.change_24h is not None and not info.already_pumped
+                          and not info.moving_now
                           and info.cg_rank <= 10 and (fresh or info.climb >= 5))
     return dict(out)
 
@@ -352,7 +358,8 @@ def render_text(report: Report, top: int = 20) -> str:
             if si.change_since_entry is not None:
                 price += f", since listed {si.change_since_entry:+.0f}%"
         flag = "  <- EARLY? climbing, price not run yet" if si.early else (
-            "  (searched after a pump)" if si.already_pumped else "")
+            "  (searched after a pump)" if si.already_pumped else
+            f"  (moving now: 1h {si.change_1h:+.0f}%)" if si.moving_now else "")
         buzz = f"{s.voices} voices" + (f", {s.velocity:.1f}x usual" if s.voices else " (no chatter)")
         google = "  GOOGLE: " + "; ".join(d for _, _, d in si.google[-2:]) if si.google else ""
         lines.append(f"{s.label[:28]:<28} {where}{move}  {buzz}{price}{flag}{google}")
