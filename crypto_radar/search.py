@@ -21,6 +21,8 @@ from .coins import Coin
 from .extract import COMMON_WORDS, STABLECOINS
 
 COINGECKO_TRENDING = "https://api.coingecko.com/api/v3/search/trending"
+COINGECKO_MARKETS = ("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids={ids}"
+                     "&price_change_percentage=1h,24h")
 GOOGLE_TRENDS_RSS = "https://trends.google.com/trending/rss?geo={geo}"
 
 # Words that suggest a trending Google query is about crypto, for tickers/names
@@ -38,9 +40,30 @@ def parse_coingecko_trending(data: dict) -> list[dict]:
         symbol = (item.get("symbol") or "").upper()
         if symbol in STABLECOINS:
             continue
+        data = item.get("data") or {}
+        change = data.get("price_change_percentage_24h") or {}
         out.append({"coin_key": item["id"], "symbol": symbol, "name": item.get("name", ""),
-                    "rank": i, "detail": f"mcap rank {item.get('market_cap_rank') or '?'}"})
+                    "rank": i, "detail": f"mcap rank {item.get('market_cap_rank') or '?'}",
+                    # fallback price info, used if the markets call fails
+                    "price": _num(data.get("price")), "change_24h": _num(change.get("usd"))})
     return out
+
+
+def _num(x):
+    try:
+        return float(str(x).replace("$", "").replace(",", ""))
+    except (TypeError, ValueError):
+        return None
+
+
+def parse_markets(rows: list[dict]) -> dict[str, dict]:
+    """coin id -> {price, change_1h, change_24h, market_cap} from /coins/markets."""
+    return {r["id"]: {"price": r.get("current_price"),
+                      "change_1h": r.get("price_change_percentage_1h_in_currency"),
+                      "change_24h": r.get("price_change_percentage_24h_in_currency",
+                                          r.get("price_change_percentage_24h")),
+                      "market_cap": r.get("market_cap")}
+            for r in rows if r.get("id")}
 
 
 def _local(tag: str) -> str:
@@ -95,12 +118,29 @@ def collect(store, registry: list[Coin], geos: list[str]) -> int:
     now = time.time()
     rows = 0
     try:
-        for r in parse_coingecko_trending(net.get_json(COINGECKO_TRENDING)):
-            store.add_search_trend(now, "coingecko", r["coin_key"], r["rank"],
-                                   r["symbol"], r["name"], r["detail"])
-            rows += 1
+        trending = parse_coingecko_trending(net.get_json(COINGECKO_TRENDING))
     except net.HttpError as exc:
         print(f"[search] CoinGecko trending: {exc}")
+        trending = []
+    for r in trending:
+        store.add_search_trend(now, "coingecko", r["coin_key"], r["rank"],
+                               r["symbol"], r["name"], r["detail"])
+        rows += 1
+
+    # Prices for everything being searched for, so we can tell "searched before it
+    # moved" (early) from "searched because it already pumped" (late).
+    if trending:
+        try:
+            markets = parse_markets(net.get_json(COINGECKO_MARKETS.format(
+                ids=",".join(r["coin_key"] for r in trending))))
+        except net.HttpError as exc:
+            print(f"[search] CoinGecko prices: {exc}; using trending-list prices")
+            markets = {}
+        for r in trending:
+            m = markets.get(r["coin_key"]) or {"price": r["price"], "change_24h": r["change_24h"]}
+            if m.get("price") is not None:
+                store.add_price(now, r["coin_key"], m.get("price"), m.get("change_1h"),
+                                m.get("change_24h"), m.get("market_cap"))
 
     matcher = GoogleMatcher(registry)
     for geo in geos:

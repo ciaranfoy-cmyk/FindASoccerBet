@@ -71,6 +71,13 @@ early chatter is in smaller "calls"/alpha channels, so add the ones you find
 - **New on the radar** = first time the coin has ever been mentioned in the DB.
 - **Sentiment** = a crypto-slang lexicon (moon, rug, ngmi, 🚀, 💀 …), averaged
   over posts, from −1 to +1. It's noisy per post and more useful as an average.
+- **Early search signals**: every run also records price, 1h and 24h change
+  for everything on CoinGecko's trending list. A coin in the top 10 that is new
+  to the list (last 3h) or has climbed 5+ places in ~2h, while its 24h price
+  move is still under +15%, is flagged `EARLY?`, listed under "EARLY SEARCH
+  SIGNALS" and sent as a 🔎 Telegram alert (once per coin per 12h). Coins that
+  have already moved 15%+ are marked "searched after a pump". Search-only
+  interest can mean a pump organised elsewhere, so treat these as "go and look".
 - **Signal/pump channels** (`pump_channels` in `config.json`): coins mentioned
   *only* by these are kept out of "heating up", "new" and alerts, and listed on
   one line under "ONLY IN SIGNAL/PUMP CHANNELS". A coin that real people also

@@ -56,6 +56,16 @@ CREATE TABLE IF NOT EXISTS search_trends (
 );
 CREATE INDEX IF NOT EXISTS search_trends_time ON search_trends(fetched_utc);
 
+CREATE TABLE IF NOT EXISTS prices (
+    fetched_utc REAL NOT NULL,
+    coin_key TEXT NOT NULL,
+    price REAL,
+    change_1h REAL,               -- percent
+    change_24h REAL,              -- percent
+    market_cap REAL
+);
+CREATE INDEX IF NOT EXISTS prices_coin_time ON prices(coin_key, fetched_utc);
+
 CREATE TABLE IF NOT EXISTS alerts (
     coin_key TEXT NOT NULL,
     sent_utc REAL NOT NULL
@@ -129,6 +139,7 @@ class Store:
         deleted = self.db.execute("DELETE FROM posts WHERE created_utc < ?", (cutoff,)).rowcount
         self.db.execute("DELETE FROM alerts WHERE sent_utc < ?", (cutoff,))
         self.db.execute("DELETE FROM search_trends WHERE fetched_utc < ?", (cutoff,))
+        self.db.execute("DELETE FROM prices WHERE fetched_utc < ?", (cutoff,))
         self.db.commit()
         if deleted:
             self.db.execute("VACUUM")
@@ -142,6 +153,16 @@ class Store:
                         (fetched_utc, source, coin_key, rank, symbol, name, detail))
         self.db.execute("INSERT OR IGNORE INTO coins (key, symbol, name) VALUES (?, ?, ?)",
                         (coin_key, symbol, name))
+
+    def add_price(self, fetched_utc: float, coin_key: str, price, change_1h, change_24h,
+                  market_cap) -> None:
+        self.db.execute("INSERT INTO prices VALUES (?, ?, ?, ?, ?, ?)",
+                        (fetched_utc, coin_key, price, change_1h, change_24h, market_cap))
+
+    def price_rows(self, since_utc: float) -> list[sqlite3.Row]:
+        return self.db.execute(
+            "SELECT * FROM prices WHERE fetched_utc >= ? ORDER BY fetched_utc", (since_utc,)
+        ).fetchall()
 
     def search_rows(self, since_utc: float) -> list[sqlite3.Row]:
         return self.db.execute(
