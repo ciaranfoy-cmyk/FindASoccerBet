@@ -6,7 +6,7 @@
 import time
 import unittest
 
-from crypto_radar import coins, dexscreener, report, sentiment
+from crypto_radar import coins, dexscreener, report, search, sentiment
 from crypto_radar.extract import Extractor
 from crypto_radar.sources import Post, fourchan, news, reddit, telegram, x
 from crypto_radar.store import Store
@@ -171,6 +171,34 @@ class SourceParsingTest(unittest.TestCase):
         self.assertEqual((info["symbol"], info["url"], info["price_change_24h"]), ("FOO", "u2", 120))
 
 
+GOOGLE_RSS = """<?xml version="1.0"?>
+<rss xmlns:ht="https://trends.google.com/trending/rss" version="2.0"><channel>
+ <item><title>solana price</title><ht:approx_traffic>2000+</ht:approx_traffic>
+   <ht:news_item><ht:news_item_title>Solana jumps 12%</ht:news_item_title></ht:news_item></item>
+ <item><title>dogecoin</title><ht:approx_traffic>5000+</ht:approx_traffic></item>
+ <item><title>link</title><ht:approx_traffic>1000+</ht:approx_traffic>
+   <ht:news_item><ht:news_item_title>Zelda sequel trailer</ht:news_item_title></ht:news_item></item>
+ <item><title>premier league</title><ht:approx_traffic>50000+</ht:approx_traffic></item>
+</channel></rss>"""
+
+
+class SearchTest(unittest.TestCase):
+    def test_coingecko_trending(self):
+        data = {"coins": [{"item": {"id": "pepe", "symbol": "pepe", "name": "Pepe", "market_cap_rank": 30}},
+                          {"item": {"id": "tether", "symbol": "usdt", "name": "Tether"}},
+                          {"item": {"id": "newcoin", "symbol": "new", "name": "NewCoin"}}]}
+        rows = search.parse_coingecko_trending(data)
+        self.assertEqual([(r["coin_key"], r["rank"]) for r in rows], [("pepe", 1), ("newcoin", 3)])
+
+    def test_google_trends_matching(self):
+        trends = search.parse_google_trends(GOOGLE_RSS)
+        self.assertEqual(trends[0]["traffic"], "2000+")
+        m = search.GoogleMatcher(coins.fallback_registry())
+        matched = [getattr(m.match(t["query"], t["news"]), "id", None) for t in trends]
+        # distinctive name matches alone; bare "link" with no crypto context does not
+        self.assertEqual(matched, ["solana", "dogecoin", None, None])
+
+
 class ReportTest(unittest.TestCase):
     def setUp(self):
         self.store = Store(":memory:")
@@ -216,6 +244,32 @@ class ReportTest(unittest.TestCase):
         text = report.render_text(rep)
         self.assertIn("HEATING UP", text)
         self.assertIn("PEPE", text)
+
+    def test_search_interest(self):
+        h = 3600
+        # PEPE: on CoinGecko trending for the last 3 snapshots only (entered ~1h ago)
+        for t_ago, keys in [(5 * h, ["bitcoin"]), (2 * h, ["bitcoin"]),
+                            (1 * h, ["bitcoin", "pepe"]), (0.2 * h, ["pepe", "bitcoin"])]:
+            for rank, key in enumerate(keys, 1):
+                self.store.add_search_trend(self.now - t_ago, "coingecko", key, rank, key.upper(), key)
+        self.store.add_search_trend(self.now - 3 * h, "google-GB", "dogecoin", 4, "DOGE", "Dogecoin",
+                                    '"dogecoin" 5000+')
+        for i in range(6):
+            self.post("$PEPE ripping", f"p{i}", 0.5)
+
+        rep = report.build(self.store, window_h=6, baseline_h=72, now=self.now)
+        by_key = {s.key: s for s in rep.stats}
+        self.assertEqual(by_key["pepe"].search.cg_rank, 1)
+        self.assertTrue(by_key["pepe"].search.entered_since(self.now - 6 * h))
+        self.assertFalse(by_key["bitcoin"].search.entered_since(self.now - 6 * h))  # on list 5h+ (floor)
+        self.assertEqual(by_key["dogecoin"].voices, 0)  # searched but not talked about
+        self.assertNotIn("dogecoin", [s.key for s in rep.most_talked()])
+        self.assertEqual([s.key for s in rep.search_interest()], ["pepe", "bitcoin", "dogecoin"])
+
+        text = report.render_text(rep)
+        self.assertIn("SEARCH INTEREST", text)
+        self.assertIn("CG#1↑new", text)
+        self.assertIn("GOOGLE", text)
 
     def test_duplicate_posts_ignored_and_dead_contracts_hidden(self):
         p = Post(id="dup", source="x", channel="c", author="a", created_utc=self.now, text="$SOL")

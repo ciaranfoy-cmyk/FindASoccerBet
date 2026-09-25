@@ -109,12 +109,3 @@ def load_registry(top_n: int = 1000, refresh: bool = False) -> list[Coin]:
 def fallback_registry() -> list[Coin]:
     return [Coin(id=i, symbol=s, name=n, rank=r)
             for r, (i, s, n) in enumerate(_FALLBACK, start=1)]
-
-
-def coingecko_trending() -> set[str]:
-    """CoinGecko ids currently on its 'trending' list: a marker for 'the crowd already knows'."""
-    try:
-        data = net.get_json(f"{COINGECKO}/search/trending")
-    except net.HttpError:
-        return set()
-    return {c["item"]["id"] for c in data.get("coins", [])}
