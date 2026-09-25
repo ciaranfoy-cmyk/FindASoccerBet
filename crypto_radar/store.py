@@ -96,6 +96,30 @@ class Store:
     def commit(self) -> None:
         self.db.commit()
 
+    def reextract(self, extract) -> int:
+        """Re-run coin extraction over every stored post (extract: text -> [Mention])."""
+        rows = self.db.execute("SELECT id, text FROM posts").fetchall()
+        self.db.execute("DELETE FROM mentions")
+        for post_id, text in rows:
+            for m in extract(text):
+                self.db.execute("INSERT OR IGNORE INTO mentions VALUES (?, ?, ?)",
+                                (post_id, m.key, m.method))
+                if m.symbol or m.name:
+                    self.db.execute("INSERT OR IGNORE INTO coins (key, symbol, name) VALUES (?, ?, ?)",
+                                    (m.key, m.symbol, m.name))
+        self.db.commit()
+        return len(rows)
+
+    def purge_channels(self, channels: list[str]) -> int:
+        """Delete everything collected from channels we've dropped (e.g. found to be scams)."""
+        deleted = 0
+        for ch in channels:
+            self.db.execute("DELETE FROM mentions WHERE post_id IN "
+                            "(SELECT id FROM posts WHERE channel = ?)", (ch,))
+            deleted += self.db.execute("DELETE FROM posts WHERE channel = ?", (ch,)).rowcount
+        self.db.commit()
+        return deleted
+
     def prune(self, keep_days: float) -> int:
         """Drop posts (and their mentions) older than keep_days. Coin first-seen
         dates only look back that far afterwards, so keep it well above the baseline."""

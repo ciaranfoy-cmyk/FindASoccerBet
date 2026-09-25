@@ -33,6 +33,7 @@ class CoinStats:
     is_new: bool = False
     info: dict = field(default_factory=dict)
     search: "SearchInfo | None" = None
+    pump_only: bool = False    # every mention in the window came from signal/pump channels
 
     @property
     def sentiment(self) -> float:
@@ -101,12 +102,16 @@ class Report:
         return sorted(on_cg, key=lambda s: s.search.cg_rank) + on_google
 
     def heating_up(self, n: int = 15, min_voices: int = 3) -> list[CoinStats]:
-        rising = [s for s in self.stats if s.voices >= min_voices and s.velocity > 1.5]
+        rising = [s for s in self.stats
+                  if s.voices >= min_voices and s.velocity > 1.5 and not s.pump_only]
         return sorted(rising, key=lambda s: -s.heat)[:n]
 
     def new_on_radar(self, n: int = 15, min_voices: int = 2) -> list[CoinStats]:
-        fresh = [s for s in self.stats if s.is_new and s.voices >= min_voices]
+        fresh = [s for s in self.stats if s.is_new and s.voices >= min_voices and not s.pump_only]
         return sorted(fresh, key=lambda s: -s.voices)[:n]
+
+    def pump_only_coins(self) -> list[CoinStats]:
+        return sorted((s for s in self.stats if s.pump_only), key=lambda s: -s.mentions)
 
 
 def _label(key: str, info: dict) -> str:
@@ -121,7 +126,9 @@ def _label(key: str, info: dict) -> str:
 
 
 def build(store: Store, window_h: float = 6, baseline_h: float = 72,
-          now: float | None = None) -> Report:
+          now: float | None = None, pump_channels: set[str] | frozenset = frozenset()) -> Report:
+    """pump_channels: channel names (e.g. "t.me/degenpump_crypto_pump_signals") whose posts
+    are paid signals/pump calls. Coins only they mention are listed separately, not ranked."""
     now = now or time.time()
     window_start = now - window_h * 3600
     base_start = window_start - baseline_h * 3600
@@ -173,6 +180,7 @@ def build(store: Store, window_h: float = 6, baseline_h: float = 72,
         s.velocity = rate_now / rate_base
         s.heat = math.log2(max(s.velocity, 1.0)) * math.sqrt(s.voices) * (1 + 0.25 * (len(s.sources) - 1))
         s.is_new = first_seen.get(key, 0) >= window_start and history_h > window_h * 2
+        s.pump_only = bool(s.channels) and all(c in pump_channels for c in s.channels)
         s.search = search.get(key)
         if s.search:
             # Search interest confirming social buzz is a stronger signal than either alone.
@@ -218,7 +226,7 @@ def _search_tags(s: CoinStats, window_start: float) -> list[str]:
 
 def _row(s: CoinStats, window_start: float) -> str:
     srcs = "".join(SOURCE_LETTER[k] for k in SOURCE_LETTER if k in s.sources)
-    extra = _search_tags(s, window_start)
+    extra = _search_tags(s, window_start) + (["[pump/signal only]"] if s.pump_only else [])
     if s.key.startswith("ca:") and s.info.get("symbol"):
         extra.append(f"liq {_money(s.info.get('liquidity_usd'))}")
         if s.info.get("price_change_24h") is not None:
@@ -255,6 +263,12 @@ def render_text(report: Report, top: int = 20) -> str:
             lines.extend(_row(s, window_start) for s in rows)
         else:
             lines.append("  (nothing yet)")
+        lines.append("")
+
+    pumped = report.pump_only_coins()
+    if pumped:
+        lines.append("== ONLY IN SIGNAL/PUMP CHANNELS (not ranked above) ==")
+        lines.append("  " + ", ".join(f"{s.label.split(' · ')[0]} ({s.mentions})" for s in pumped[:40]))
         lines.append("")
 
     lines.append("== SEARCH INTEREST (CoinGecko trending now + Google Trends, 24h) ==")

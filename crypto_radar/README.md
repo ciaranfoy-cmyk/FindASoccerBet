@@ -71,6 +71,15 @@ early chatter is in smaller "calls"/alpha channels, so add the ones you find
 - **New on the radar** = first time the coin has ever been mentioned in the DB.
 - **Sentiment** = a crypto-slang lexicon (moon, rug, ngmi, 🚀, 💀 …), averaged
   over posts, from −1 to +1. It's noisy per post and more useful as an average.
+- **Signal/pump channels** (`pump_channels` in `config.json`): coins mentioned
+  *only* by these are kept out of "heating up", "new" and alerts, and listed on
+  one line under "ONLY IN SIGNAL/PUMP CHANNELS". A coin that real people also
+  talk about is ranked normally.
+- **Dropping a channel for good** (e.g. a scam): remove it from
+  `telegram_channels` and add it to `purge_channels`; its stored posts are
+  deleted on the next run.
+- Changing the extraction rules? Bump `EXTRACTOR_VERSION` in `extract.py` and
+  every stored post is re-scanned on the next run (takes about a second).
 - **Search interest**: `CG#3` = #3 on CoinGecko's trending searches, `↑new` = it
   entered the list within the window, `GOOGLE-TRENDING` = it hit Google's
   trending searches in the last 24h. Coins entering the search list, or hitting

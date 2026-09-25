@@ -7,7 +7,7 @@ import time
 import unittest
 
 from crypto_radar import coins, dexscreener, report, search, sentiment
-from crypto_radar.extract import Extractor
+from crypto_radar.extract import Extractor, Mention
 from crypto_radar.sources import Post, fourchan, news, reddit, telegram, x
 from crypto_radar.store import Store
 
@@ -34,6 +34,12 @@ class ExtractTest(unittest.TestCase):
         self.assertEqual(keys("new listing FOOUSDT"), {"$FOO"})
         # an unknown word that merely ends in ETH/BTC is not a pair
         self.assertEqual(keys("MACBETH and WEBTC"), set())
+
+    def test_shouting_and_lookalike_tickers(self):
+        self.assertEqual(keys("MUMU MAY NOT BE HUMAN BUT HES SHOWING SOMETHING DAMN NEAR HEART"), set())
+        self.assertEqual(keys("I'M ALL IN ON $SOL RIGHT NOW BOYS LETS GO"), {"solana"})  # cashtags still count
+        self.assertEqual(keys("dividends on STRF, STRC, STRK and STRD"), set())
+        self.assertEqual(keys("LINK and AVAX look strong"), {"chainlink", "avalanche-2"})
 
     def test_stablecoins_dropped(self):
         self.assertEqual(keys("100,000,000 $USDC minted, swapped USDT for Tether"), set())
@@ -270,6 +276,31 @@ class ReportTest(unittest.TestCase):
         self.assertIn("SEARCH INTEREST", text)
         self.assertIn("CG#1↑new", text)
         self.assertIn("GOOGLE", text)
+
+    def test_pump_only_and_purge(self):
+        for i in range(4):
+            self.post("#FOO/USDT target 1 ✅", "degen", 0.5 + i, source="telegram",
+                      channel="t.me/degenpump_crypto_pump_signals")
+            self.post("$BAR looks good", f"r{i}", 0.5 + i)
+            self.post("$BAR target hit", "degen", 0.5 + i, source="telegram",
+                      channel="t.me/degenpump_crypto_pump_signals")
+        pumps = frozenset({"t.me/degenpump_crypto_pump_signals"})
+        rep = report.build(self.store, now=self.now, pump_channels=pumps)
+        by_key = {s.key: s for s in rep.stats}
+        self.assertTrue(by_key["$FOO"].pump_only)
+        self.assertFalse(by_key["$BAR"].pump_only)  # also real people on Reddit
+        self.assertNotIn("$FOO", [s.key for s in rep.heating_up() + rep.new_on_radar()])
+        self.assertIn("ONLY IN SIGNAL/PUMP CHANNELS", report.render_text(rep))
+
+        self.assertEqual(self.store.purge_channels(["t.me/degenpump_crypto_pump_signals"]), 8)
+        self.assertNotIn("$FOO", [s.key for s in report.build(self.store, now=self.now).stats])
+
+    def test_reextract_fixes_old_mentions(self):
+        p = Post(id="old", source="4chan", channel="/biz/", author="a",
+                 created_utc=self.now, text="DAMN NEAR HEART")
+        self.store.add_post(p, 0, [Mention(key="near", symbol="NEAR", name="NEAR", method="symbol")])
+        self.assertEqual(self.store.reextract(EXTRACTOR.extract), 1)
+        self.assertEqual(self.store.mention_rows(0), [])
 
     def test_duplicate_posts_ignored_and_dead_contracts_hidden(self):
         p = Post(id="dup", source="x", channel="c", author="a", created_utc=self.now, text="$SOL")
