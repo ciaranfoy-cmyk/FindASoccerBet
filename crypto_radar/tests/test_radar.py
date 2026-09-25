@@ -317,6 +317,19 @@ class ReportTest(unittest.TestCase):
         self.assertIn("searched after a pump", text)
         self.assertIn("climbing in searches", report.render_search_alert(by_key["phala"]))
 
+    def test_mid_spike_is_not_early_like_astro(self):
+        h = 3600
+        self.store.add_search_trend(self.now - 3 * h, "coingecko", "bitcoin", 1, "BTC", "Bitcoin")
+        self.store.add_search_trend(self.now - 0.2 * h, "coingecko", "astro", 1, "ASTRO", "Astro")
+        # Down 33% on the day but +138% in the last hour: mid-spike, not early.
+        self.store.add_price(self.now - 0.2 * h, "astro", 0.05, 137.8, -33.0, 1e7)
+        rep = report.build(self.store, now=self.now)
+        astro = {s.key: s for s in rep.stats}["astro"].search
+        self.assertTrue(astro.moving_now)
+        self.assertFalse(astro.early)
+        self.assertEqual(rep.search_signals(), [])
+        self.assertIn("moving now: 1h +138%", report.render_text(rep))
+
     def test_no_search_data_is_fine(self):
         rep = report.build(self.store, now=self.now)
         self.assertIn("(none right now)", report.render_text(rep))

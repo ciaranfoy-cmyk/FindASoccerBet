@@ -74,9 +74,11 @@ early chatter is in smaller "calls"/alpha channels, so add the ones you find
 - **Early search signals**: every run also records price, 1h and 24h change
   for everything on CoinGecko's trending list. A coin in the top 10 that is new
   to the list (last 3h) or has climbed 5+ places in ~2h, while its 24h price
-  move is still under +15%, is flagged `EARLY?`, listed under "EARLY SEARCH
+  move is still under +15% and it hasn't moved 10%+ either way in the last
+  hour (i.e. it isn't mid-spike), is flagged `EARLY?`, listed under "EARLY SEARCH
   SIGNALS" and sent as a 🔎 Telegram alert (once per coin per 12h). Coins that
-  have already moved 15%+ are marked "searched after a pump". Search-only
+  have already moved 15%+ are marked "searched after a pump", and ones swinging
+10%+ in the hour "moving now". Search-only
   interest can mean a pump organised elsewhere, so treat these as "go and look".
 - **Signal/pump channels** (`pump_channels` in `config.json`): coins mentioned
   *only* by these are kept out of "heating up", "new" and alerts, and listed on
