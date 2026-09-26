@@ -4,7 +4,9 @@ name: Crypto Radar
 # database on the `radar-data` branch (a single force-pushed snapshot commit,
 # so history doesn't bloat). See crypto_radar/README.md.
 #
-# Note: GitHub only runs `schedule` triggers from the repository's default branch.
+# Note: GitHub only runs `schedule` triggers from the repository's default branch,
+# and on quiet repos it delays/drops them (sometimes 4-5h apart). A Claude routine
+# also starts this workflow via workflow_dispatch every hour as a backstop.
 
 on:
   schedule:
