@@ -330,6 +330,15 @@ class ReportTest(unittest.TestCase):
         self.assertEqual(rep.search_signals(), [])
         self.assertIn("moving now: 1h +138%", report.render_text(rep))
 
+    def test_mega_caps_are_never_early(self):
+        h = 3600
+        self.store.add_search_trend(self.now - 3 * h, "coingecko", "pepe", 1, "PEPE", "Pepe")
+        self.store.add_search_trend(self.now - 0.2 * h, "coingecko", "bitcoin", 7, "BTC", "Bitcoin")
+        self.store.add_price(self.now - 0.2 * h, "bitcoin", 100000.0, 0.0, 0.3, 2e12)
+        rep = report.build(self.store, now=self.now)
+        self.assertFalse({s.key: s for s in rep.stats}["bitcoin"].search.early)
+        self.assertEqual(rep.search_signals(), [])
+
     def test_no_search_data_is_fine(self):
         rep = report.build(self.store, now=self.now)
         self.assertIn("(none right now)", report.render_text(rep))

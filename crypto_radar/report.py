@@ -58,6 +58,7 @@ class SearchInfo:
     early: bool = False                 # climbing in searches and price hasn't run yet
     already_pumped: bool = False        # searched because it already moved
     moving_now: bool = False            # big 1h move: mid-spike, too late to call early
+    market_cap: float | None = None     # USD
 
     def entered_since(self, t: float) -> bool:
         return self.cg_rank is not None and not self.cg_since_is_floor and self.cg_since >= t
@@ -75,6 +76,9 @@ PUMPED_PCT = 15.0
 # A 1h move this big (either way) means the coin is mid-spike right now, even if
 # its 24h change looks flat or negative (e.g. -33% 24h but +138% in the last hour).
 MOVING_1H_PCT = 10.0
+# Coins this big (BTC, ETH, XRP...) drift on and off the trending list all the
+# time; that's never "early hype", so they aren't flagged.
+MEGA_CAP_USD = 20e9
 
 
 def search_status(store: Store, now: float, lookback_h: float = 48,
@@ -114,6 +118,7 @@ def search_status(store: Store, now: float, lookback_h: float = 48,
                 continue
             last = hist[-1]
             info.price, info.change_1h, info.change_24h = last["price"], last["change_1h"], last["change_24h"]
+            info.market_cap = last["market_cap"]
             at_entry = next((r for r in hist if r["fetched_utc"] >= info.cg_since), None)
             if at_entry and at_entry["price"] and not info.cg_since_is_floor:
                 info.change_since_entry = (last["price"] / at_entry["price"] - 1) * 100
@@ -122,6 +127,7 @@ def search_status(store: Store, now: float, lookback_h: float = 48,
             fresh = info.entered_since(now - 3 * 3600)
             info.early = (info.change_24h is not None and not info.already_pumped
                           and not info.moving_now
+                          and not (info.market_cap or 0) >= MEGA_CAP_USD
                           and info.cg_rank <= 10 and (fresh or info.climb >= 5))
     return dict(out)
 
