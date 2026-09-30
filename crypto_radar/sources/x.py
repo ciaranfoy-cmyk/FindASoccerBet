@@ -33,14 +33,18 @@ def parse_response(data: dict, query: str) -> list[Post]:
     return posts
 
 
-def collect(queries: list[str], since_ids: dict[str, str], max_pages: int = 3) -> list[Post]:
-    """since_ids is updated in place with the newest tweet id per query."""
+def collect(queries: list[str], since_ids: dict[str, str], max_posts: int = 100) -> list[Post]:
+    """since_ids is updated in place with the newest tweet id per query.
+
+    X bills per post read, so `max_posts` caps what one query can pull per run."""
     token = os.environ.get("X_BEARER_TOKEN")
     if not token:
         return []
     posts: list[Post] = []
     for query in queries:
-        params = {"query": query, "max_results": "100",
+        page_size = max(10, min(100, max_posts))  # API allows 10-100
+        max_pages = max(1, -(-max_posts // page_size))
+        params = {"query": query, "max_results": str(page_size),
                   "tweet.fields": "created_at,author_id", "expansions": "author_id"}
         if since_ids.get(query):
             params["since_id"] = since_ids[query]
