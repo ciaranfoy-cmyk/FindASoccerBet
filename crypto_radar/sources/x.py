@@ -6,6 +6,7 @@ tweet id seen last time, so you only pay for new tweets.
 """
 
 import os
+import re
 import urllib.parse
 from datetime import datetime
 
@@ -14,11 +15,17 @@ from . import Post
 
 API = "https://api.twitter.com/2/tweets/search/recent"
 
+# Airdrop/giveaway posts are almost all spam bots. Excluded in the search itself
+# (so they aren't billed) and again here in case X's matching lets one through.
+SPAM_TERMS = ("airdrop", "giveaway")
+SPAM_FILTER = " ".join(f"-{t}" for t in SPAM_TERMS)
+_SPAM_RE = re.compile("|".join(SPAM_TERMS), re.I)
+
 
 def account_queries(accounts: list[str], max_len: int = 512) -> list[str]:
     """Search queries covering the given accounts: "(from:a OR from:b ...) -is:retweet
     -is:reply", split so each stays within X's query length limit."""
-    suffix = ") -is:retweet -is:reply"
+    suffix = f") -is:retweet -is:reply {SPAM_FILTER}"
     queries, current = [], []
     for name in (a.strip().lstrip("@") for a in accounts):
         if not name:
@@ -38,6 +45,8 @@ def parse_response(data: dict, query: str) -> list[Post]:
     watched = "from:" in query
     posts = []
     for tweet in data.get("data", []):
+        if _SPAM_RE.search(tweet.get("text", "")):
+            continue
         author = users.get(tweet.get("author_id"), tweet.get("author_id", "unknown"))
         created = datetime.fromisoformat(tweet["created_at"].replace("Z", "+00:00")).timestamp()
         posts.append(Post(
