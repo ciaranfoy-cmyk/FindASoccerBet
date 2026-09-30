@@ -1,6 +1,7 @@
 """Tiny stdlib HTTP helper: per-host throttling, a browser-ish User-Agent, JSON/text GET."""
 
 import json
+import os
 import time
 import urllib.error
 import urllib.parse
@@ -34,10 +35,20 @@ def _throttle(host: str) -> None:
     _last_request_at[host] = time.monotonic()
 
 
+def _auth_headers(host: str) -> dict:
+    """Free CoinGecko "Demo" key (COINGECKO_API_KEY): keyed requests aren't lumped in
+    with anonymous cloud traffic, which CoinGecko's firewall sometimes blocks."""
+    key = os.environ.get("COINGECKO_API_KEY", "").strip()
+    if host == "api.coingecko.com" and key:
+        return {"x-cg-demo-api-key": key}
+    return {}
+
+
 def request(url: str, headers: dict | None = None, data: bytes | None = None,
             timeout: float = 20, retries: int = 2) -> bytes:
     host = urllib.parse.urlparse(url).netloc
     all_headers = {"User-Agent": USER_AGENT}
+    all_headers.update(_auth_headers(host))
     all_headers.update(headers or {})
     for attempt in range(retries + 1):
         _throttle(host)

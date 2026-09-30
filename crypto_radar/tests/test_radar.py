@@ -4,6 +4,7 @@
 """
 
 import time
+import os
 import unittest
 
 from crypto_radar import coins, dexscreener, report, search, sentiment
@@ -186,6 +187,21 @@ GOOGLE_RSS = """<?xml version="1.0"?>
    <ht:news_item><ht:news_item_title>Zelda sequel trailer</ht:news_item_title></ht:news_item></item>
  <item><title>premier league</title><ht:approx_traffic>50000+</ht:approx_traffic></item>
 </channel></rss>"""
+
+
+class NetTest(unittest.TestCase):
+    def test_coingecko_key_header_only_for_coingecko(self):
+        from crypto_radar import net
+        old = os.environ.get("COINGECKO_API_KEY")
+        try:
+            os.environ["COINGECKO_API_KEY"] = "demo-key"
+            self.assertEqual(net._auth_headers("api.coingecko.com"), {"x-cg-demo-api-key": "demo-key"})
+            self.assertEqual(net._auth_headers("t.me"), {})
+            del os.environ["COINGECKO_API_KEY"]
+            self.assertEqual(net._auth_headers("api.coingecko.com"), {})
+        finally:
+            if old is not None:
+                os.environ["COINGECKO_API_KEY"] = old
 
 
 class SearchTest(unittest.TestCase):

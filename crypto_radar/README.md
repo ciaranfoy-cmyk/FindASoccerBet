@@ -48,7 +48,7 @@ threshold (at most once per coin per 12h).
 | X / Twitter | v2 recent search | `X_BEARER_TOKEN` (paid API); skipped if unset |
 | CoinGecko trending | top ~15 coins people are *searching* for, snapshotted every run | nothing |
 | Google Trends | UK + US "trending now" searches; flags any coin that goes mainstream | nothing |
-| CoinGecko | coin list (top 1000) | nothing |
+| CoinGecko | coin list (top 1000) | nothing (optional free "Demo" key as `COINGECKO_API_KEY`: avoids occasional 403 blocks from shared cloud IPs) |
 | DEX Screener | turns posted contract addresses into token / chain / liquidity / 24h % | nothing |
 
 Edit **`config.json`** to change subreddits, Telegram channels, feeds and X
