@@ -195,7 +195,7 @@ class XAccountsTest(unittest.TestCase):
         queries = x.account_queries(accounts)
         self.assertGreater(len(queries), 1)
         self.assertTrue(all(len(q) <= 512 for q in queries))
-        self.assertTrue(all(q.endswith(") -is:retweet -is:reply -airdrop -giveaway") for q in queries))
+        self.assertTrue(all(q.endswith(") -is:retweet -is:reply -airdrop -giveaway -referral") for q in queries))
         self.assertEqual(sum(q.count("from:") for q in queries), 40)
         self.assertIn("(from:account_number_0 OR from:account_number_1 ", queries[0])
 
@@ -204,12 +204,14 @@ class XAccountsTest(unittest.TestCase):
                           "text": "Buying more $BTC"}],
                 "includes": {"users": [{"id": "9", "username": "Saylor"}]}}
         self.assertEqual(x.parse_response(data, "(from:saylor) -is:retweet")[0].channel, "x:@saylor")
-        self.assertEqual(x.parse_response(data, "has:cashtags")[0].channel, "x:has:cashtags")
+        self.assertEqual(x.parse_response(data, "has:cashtags")[0].channel, "x:search")
+        self.assertEqual(x.search_query("has:cashtags"), "has:cashtags -airdrop -giveaway -referral")
 
     def test_airdrop_and_giveaway_posts_dropped(self):
         data = {"data": [{"id": str(i), "author_id": "9", "created_at": "2026-09-30T12:00:00Z",
                           "text": t} for i, t in enumerate(
-                    ["Join the #AIRDROP now $BILLI", "GIVEAWAY: 100 $SOL", "Buying more $BTC"])],
+                    ["Join the #AIRDROP now $BILLI", "GIVEAWAY: 100 $SOL",
+                     "Earn $MID free, use my Referral link", "Buying more $BTC"])],
                 "includes": {"users": [{"id": "9", "username": "someone"}]}}
         self.assertEqual([p.text for p in x.parse_response(data, "has:cashtags")], ["Buying more $BTC"])
 
@@ -233,6 +235,17 @@ class XTrendsTest(unittest.TestCase):
         self.assertIn('X: "$DOGE" 9,000 posts', text)
         doge = {s.key: s for s in rep.stats}["dogecoin"]
         self.assertIn("X-TRENDING", report._search_tags(doge, now - 6 * 3600))
+
+
+class XCleanupTest(unittest.TestCase):
+    def test_cleanup_relabels_and_removes_spam(self):
+        store = Store(":memory:")
+        for i, text in enumerate(["Earn $MID with my referral", "Holding $BTC"]):
+            store.add_post(Post(id=f"x:{i}", source="x", channel="x:has:cashtags lang:en", author="a",
+                                created_utc=time.time(), text=text, url=""), 0.0, [])
+        self.assertEqual(store.cleanup_x(x.is_spam), 1)
+        rows = store.db.execute("SELECT channel, text FROM posts").fetchall()
+        self.assertEqual([tuple(r) for r in rows], [("x:search", "Holding $BTC")])
 
 
 class XBudgetTest(unittest.TestCase):

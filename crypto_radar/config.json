@@ -26,7 +26,7 @@
     "https://decrypt.co/feed"
   ],
   "x_queries": [
-    "has:cashtags lang:en -is:retweet -is:reply -airdrop -giveaway (crypto OR memecoin OR altcoin OR 100x OR gem)"
+    "has:cashtags lang:en -is:retweet -is:reply (crypto OR memecoin OR altcoin OR 100x OR gem)"
   ],
   "x_accounts": [
     "binance", "coinbase", "krakenfx", "kucoincom", "cryptocom", "coingecko",

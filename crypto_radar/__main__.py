@@ -51,6 +51,12 @@ def collect(store: Store, cfg: dict, sources: tuple[str, ...]) -> int:
         posts += fourchan.collect(cfg["fourchan_board"], cfg.get("fourchan_full_threads", 15))
     if "news" in sources:
         posts += news.collect(cfg.get("news_feeds", []))
+    if store.get_state("x_cleanup") != 1:
+        # One-off: relabel old general-search posts and drop spam stored before the filter.
+        n = store.cleanup_x(x.is_spam)
+        store.set_state("x_cleanup", 1)
+        store.commit()
+        print(f"[x] cleanup: {n} spam posts removed")
     if "x" in sources and os.environ.get("X_BEARER_TOKEN"):
         posts += collect_x(store, cfg, registry)
 
@@ -95,7 +101,7 @@ def collect_x(store: Store, cfg: dict, registry) -> list:
     since_ids = store.get_state("x_since_ids", {})
     watched = cfg.get("x_accounts", []) + cfg.get("x_signal_accounts", [])
     plan = [(q, cfg.get("x_max_posts_per_run", 100)) for q in x.account_queries(watched)]
-    plan += [(q, cfg.get("x_sample_posts_per_run", 20)) for q in cfg.get("x_queries", [])]
+    plan += [(x.search_query(q), cfg.get("x_sample_posts_per_run", 20)) for q in cfg.get("x_queries", [])]
     got = []
     for query, cap in plan:
         cap = min(cap, budget - used)

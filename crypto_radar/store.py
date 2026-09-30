@@ -130,6 +130,17 @@ class Store:
         self.db.commit()
         return deleted
 
+    def cleanup_x(self, is_spam) -> int:
+        """Relabel general X search posts as "x:search" and delete stored X spam."""
+        self.db.execute("UPDATE posts SET channel = 'x:search' "
+                        "WHERE source = 'x' AND channel NOT LIKE 'x:@%'")
+        spam = [r[0] for r in self.db.execute("SELECT id, text FROM posts WHERE source = 'x'")
+                if is_spam(r[1])]
+        for post_id in spam:
+            self.db.execute("DELETE FROM mentions WHERE post_id = ?", (post_id,))
+            self.db.execute("DELETE FROM posts WHERE id = ?", (post_id,))
+        return len(spam)
+
     def prune(self, keep_days: float) -> int:
         """Drop posts (and their mentions) older than keep_days. Coin first-seen
         dates only look back that far afterwards, so keep it well above the baseline."""
