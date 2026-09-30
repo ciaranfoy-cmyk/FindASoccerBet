@@ -195,7 +195,7 @@ class XAccountsTest(unittest.TestCase):
         queries = x.account_queries(accounts)
         self.assertGreater(len(queries), 1)
         self.assertTrue(all(len(q) <= 512 for q in queries))
-        self.assertTrue(all(q.endswith(") -is:retweet -is:reply") for q in queries))
+        self.assertTrue(all(q.endswith(") -is:retweet -is:reply -airdrop -giveaway") for q in queries))
         self.assertEqual(sum(q.count("from:") for q in queries), 40)
         self.assertIn("(from:account_number_0 OR from:account_number_1 ", queries[0])
 
@@ -205,6 +205,13 @@ class XAccountsTest(unittest.TestCase):
                 "includes": {"users": [{"id": "9", "username": "Saylor"}]}}
         self.assertEqual(x.parse_response(data, "(from:saylor) -is:retweet")[0].channel, "x:@saylor")
         self.assertEqual(x.parse_response(data, "has:cashtags")[0].channel, "x:has:cashtags")
+
+    def test_airdrop_and_giveaway_posts_dropped(self):
+        data = {"data": [{"id": str(i), "author_id": "9", "created_at": "2026-09-30T12:00:00Z",
+                          "text": t} for i, t in enumerate(
+                    ["Join the #AIRDROP now $BILLI", "GIVEAWAY: 100 $SOL", "Buying more $BTC"])],
+                "includes": {"users": [{"id": "9", "username": "someone"}]}}
+        self.assertEqual([p.text for p in x.parse_response(data, "has:cashtags")], ["Buying more $BTC"])
 
 
 class XCapTest(unittest.TestCase):
