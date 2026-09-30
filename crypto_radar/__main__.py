@@ -52,18 +52,7 @@ def collect(store: Store, cfg: dict, sources: tuple[str, ...]) -> int:
     if "news" in sources:
         posts += news.collect(cfg.get("news_feeds", []))
     if "x" in sources and os.environ.get("X_BEARER_TOKEN"):
-        # X bills per post read: only check every few hours, with a cap per run.
-        every = cfg.get("x_every_hours", 3) * 3600
-        last = store.get_state("x_last_run", 0)
-        if time.time() - last >= every - 300:
-            since_ids = store.get_state("x_since_ids", {})
-            watched = cfg.get("x_accounts", []) + cfg.get("x_signal_accounts", [])
-            queries = cfg.get("x_queries", []) + x.account_queries(watched)
-            got = x.collect(queries, since_ids, cfg.get("x_max_posts_per_run", 100))
-            posts += got
-            store.set_state("x_since_ids", since_ids)
-            store.set_state("x_last_run", time.time())
-            print(f"[x] {len(got)} posts read (cap {cfg.get('x_max_posts_per_run', 100)} per query)")
+        posts += collect_x(store, cfg, registry)
 
     if "search" in sources:
         search.collect(store, registry, cfg.get("google_trends_geos", ["GB", "US"]))
@@ -88,6 +77,38 @@ def collect(store: Store, cfg: dict, sources: tuple[str, ...]) -> int:
     print(f"[collect] {len(posts)} fetched, {new} new ({summary}); "
           f"{len(pending)} contract addresses looked up")
     return new
+
+
+def collect_x(store: Store, cfg: dict, registry) -> list:
+    """X bills per post read, so: only every few hours, watched accounts first, a small
+    general sample after, and a hard daily cap on posts read across everything."""
+    every = cfg.get("x_every_hours", 3) * 3600
+    if time.time() - store.get_state("x_last_run", 0) < every - 300:
+        return []
+    store.set_state("x_last_run", time.time())
+
+    search.collect_x_trends(store, registry, cfg.get("x_trend_locations", ["WORLD", "UK", "US"]))
+
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    used = store.get_state("x_posts_read", {}).get(today, 0)
+    budget = cfg.get("x_daily_post_budget", 250)
+    since_ids = store.get_state("x_since_ids", {})
+    watched = cfg.get("x_accounts", []) + cfg.get("x_signal_accounts", [])
+    plan = [(q, cfg.get("x_max_posts_per_run", 100)) for q in x.account_queries(watched)]
+    plan += [(q, cfg.get("x_sample_posts_per_run", 20)) for q in cfg.get("x_queries", [])]
+    got = []
+    for query, cap in plan:
+        cap = min(cap, budget - used)
+        if cap < 10:  # the API's minimum page is 10
+            print(f"[x] daily budget reached ({used}/{budget} posts read today); skipping the rest")
+            break
+        kept, read = x.collect([query], since_ids, cap)
+        got += kept
+        used += read
+    store.set_state("x_since_ids", since_ids)
+    store.set_state("x_posts_read", {today: used})
+    print(f"[x] {len(got)} posts kept; {used}/{budget} posts read today")
+    return got
 
 
 def pump_channels(cfg: dict) -> frozenset:

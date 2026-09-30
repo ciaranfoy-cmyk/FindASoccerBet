@@ -214,6 +214,45 @@ class XAccountsTest(unittest.TestCase):
         self.assertEqual([p.text for p in x.parse_response(data, "has:cashtags")], ["Buying more $BTC"])
 
 
+class XTrendsTest(unittest.TestCase):
+    def test_x_trends_matched_to_coins(self):
+        trends = x.parse_trends({"data": [
+            {"trend_name": "#Bitcoin", "tweet_count": 52000}, {"trend_name": "Premier League"},
+            {"trend_name": "$DOGE", "tweet_count": 9000}, {"trend_name": "$ZORK"}, {"trend_name": "Link"}]})
+        m = search.GoogleMatcher(coins.fallback_registry())
+        keys = [(search.match_x_trend(m, t["name"]) or [None])[0] for t in trends]
+        # distinctive name and cashtags match; plain words ("Link") don't
+        self.assertEqual(keys, ["bitcoin", None, "dogecoin", "$ZORK", None])
+
+    def test_x_trend_shows_in_report(self):
+        store = Store(":memory:")
+        now = time.time()
+        store.add_search_trend(now - 600, "x-UK", "dogecoin", 3, "DOGE", "Dogecoin", '"$DOGE" 9,000 posts')
+        rep = report.build(store, now=now)
+        text = report.render_text(rep)
+        self.assertIn('X: "$DOGE" 9,000 posts', text)
+        doge = {s.key: s for s in rep.stats}["dogecoin"]
+        self.assertIn("X-TRENDING", report._search_tags(doge, now - 6 * 3600))
+
+
+class XBudgetTest(unittest.TestCase):
+    def test_daily_budget_stops_reading(self):
+        from unittest import mock
+        from crypto_radar import __main__ as cli
+        store = Store(":memory:")
+        today = time.strftime("%Y-%m-%d", time.gmtime())
+        store.set_state("x_posts_read", {today: 245})     # 5 left: below one page
+        cfg = {"x_accounts": ["saylor"], "x_queries": ["q"], "x_daily_post_budget": 250,
+               "x_trend_locations": []}
+        with mock.patch.dict(os.environ, {"X_BEARER_TOKEN": "t"}), \
+                mock.patch.object(cli.x, "collect") as collect:
+            cli.collect_x(store, cfg, [])
+        collect.assert_not_called()
+        # and it won't run again until x_every_hours has passed
+        with mock.patch.object(cli.x, "collect") as collect:
+            self.assertEqual(cli.collect_x(store, cfg, []), [])
+
+
 class XCapTest(unittest.TestCase):
     def test_x_reads_are_capped_per_run(self):
         from unittest import mock
@@ -226,7 +265,7 @@ class XCapTest(unittest.TestCase):
         with mock.patch.dict(os.environ, {"X_BEARER_TOKEN": "t"}), \
                 mock.patch.object(x.net, "get_json", fake_get_json):
             since = {}
-            x.collect(["q"], since, max_posts=100)
+            kept, read = x.collect(["q"], since, max_posts=100)
         self.assertEqual(len(calls), 1)            # one page of 100, even if more exist
         self.assertIn("max_results=100", calls[0])
         self.assertEqual(since, {"q": "5"})

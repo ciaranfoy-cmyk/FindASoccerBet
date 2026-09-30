@@ -19,6 +19,7 @@ import xml.etree.ElementTree as ET
 from . import net
 from .coins import Coin
 from .extract import COMMON_WORDS, STABLECOINS
+from .sources import x as xsource
 
 COINGECKO_TRENDING = "https://api.coingecko.com/api/v3/search/trending"
 COINGECKO_MARKETS = ("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids={ids}"
@@ -161,4 +162,39 @@ def collect(store, registry: list[Coin], geos: list[str]) -> int:
                                        f'"{t["query"]}" {t["traffic"]}'.strip())
                 rows += 1
     print(f"[search] {rows} trending entries saved")
+    return rows
+
+
+def match_x_trend(matcher: GoogleMatcher, name: str) -> tuple[str, str, str] | None:
+    """(coin_key, symbol, name) for an X trend like "#Bitcoin", "$PEPE" or "Solana"."""
+    word = name.lstrip("#$").strip()
+    cashtag = name.startswith("$")
+    coin = matcher.match(word + (" crypto" if cashtag else ""), [])
+    if coin:
+        return coin.id, coin.symbol, coin.name
+    if cashtag and re.fullmatch(r"[A-Za-z][A-Za-z0-9]{1,9}", word) and word.upper() not in STABLECOINS:
+        return f"${word.upper()}", word.upper(), ""
+    return None
+
+
+def collect_x_trends(store, registry: list[Coin], locations: list[str]) -> int:
+    """Snapshot X's trending topics (one request per location) and keep the crypto ones."""
+    now = time.time()
+    matcher = GoogleMatcher(registry)
+    rows = 0
+    for loc in locations:
+        try:
+            trends = xsource.trends(loc)
+        except net.HttpError as exc:
+            print(f"[x] trends {loc}: {str(exc)[:150]}")
+            continue
+        hits = 0
+        for i, t in enumerate(trends, start=1):
+            m = match_x_trend(matcher, t["name"])
+            if m:
+                posts = f" {t['posts']:,} posts" if t.get("posts") else ""
+                store.add_search_trend(now, f"x-{loc}", m[0], i, m[1], m[2], f'"{t["name"]}"{posts}')
+                rows += 1
+                hits += 1
+        print(f"[x] trends {loc}: {len(trends)} read, {hits} crypto")
     return rows

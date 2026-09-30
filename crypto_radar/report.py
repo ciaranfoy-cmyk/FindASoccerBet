@@ -49,7 +49,8 @@ class SearchInfo:
     cg_rank: int | None = None          # position on CoinGecko trending right now
     cg_since: float | None = None       # when its current streak on the list began
     cg_since_is_floor: bool = False     # streak goes back past our lookback
-    google: list = field(default_factory=list)  # [(fetched_utc, source, detail)] in last 24h
+    google: list = field(default_factory=list)  # [(fetched_utc, source, detail)] in last 24h:
+                                                # Google Trends ("google-GB") and X Trends ("x-UK")
     rank_before: int | None = None      # rank ~2h ago (None = wasn't on the list)
     price: float | None = None
     change_1h: float | None = None      # percent
@@ -285,12 +286,17 @@ def _money(x) -> str:
     return f"${x:.0f}"
 
 
+def _trend_where(source: str) -> str:
+    return "X" if source.startswith("x-") else "GOOGLE"
+
+
 def _search_tags(s: CoinStats, window_start: float) -> list[str]:
     tags = []
     if s.search and s.search.cg_rank is not None:
         tags.append(f"CG#{s.search.cg_rank}" + ("↑new" if s.search.entered_since(window_start) else ""))
     if s.search and s.search.google:
-        tags.append("GOOGLE-TRENDING")
+        for where in sorted({_trend_where(src) for _, src, _ in s.search.google}):
+            tags.append(f"{where}-TRENDING")
     if s.search and s.search.early:
         tags.append("EARLY?")
     return tags
@@ -355,7 +361,7 @@ def render_text(report: Report, top: int = 20) -> str:
         lines.append("  (none right now)")
     lines.append("")
 
-    lines.append("== SEARCH INTEREST (CoinGecko trending now + Google Trends, 24h) ==")
+    lines.append("== SEARCH INTEREST (CoinGecko trending now + Google & X Trends, 24h) ==")
     searched = report.search_interest()
     if not searched:
         lines.append("  (no search data yet)")
@@ -383,7 +389,7 @@ def render_text(report: Report, top: int = 20) -> str:
             "  (searched after a pump)" if si.already_pumped else
             f"  (moving now: 1h {si.change_1h:+.0f}%)" if si.moving_now else "")
         buzz = f"{s.voices} voices" + (f", {s.velocity:.1f}x usual" if s.voices else " (no chatter)")
-        google = "  GOOGLE: " + "; ".join(d for _, _, d in si.google[-2:]) if si.google else ""
+        google = "  " + "; ".join(f"{_trend_where(src)}: {d}" for _, src, d in si.google[-2:]) if si.google else ""
         lines.append(f"{s.label[:28]:<28} {where}{move}  {buzz}{price}{flag}{google}")
     lines.append("")
     return "\n".join(lines)
@@ -409,7 +415,8 @@ def render_alert(s: CoinStats) -> str:
     if s.search and s.search.cg_rank is not None:
         parts.append(f"searches: #{s.search.cg_rank} on CoinGecko trending")
     if s.search and s.search.google:
-        parts.append(f"on Google Trends: {s.search.google[-1][2]}")
+        _, src, detail = s.search.google[-1]
+        parts.append(f"trending on {'X' if _trend_where(src) == 'X' else 'Google'}: {detail}")
     if s.info.get("url"):
         parts.append(f"liq {_money(s.info.get('liquidity_usd'))} · {s.info['url']}")
     return "\n".join(parts)
