@@ -12,6 +12,11 @@ on:
   schedule:
     - cron: "*/15 * * * *"
   workflow_dispatch:
+    inputs:
+      force_x:
+        description: "Check X now, ignoring x_every_hours (daily budget still applies)"
+        type: boolean
+        default: false
   push:
     branches: [claude/crypto-sentiment-monitoring-5tf6ub]
     paths: ["crypto_radar/**", ".github/workflows/crypto-radar.yml"]
@@ -55,6 +60,7 @@ jobs:
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
           COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+          X_FORCE: ${{ inputs.force_x && '1' || '' }}
         run: python -m crypto_radar run
 
       - name: Write report

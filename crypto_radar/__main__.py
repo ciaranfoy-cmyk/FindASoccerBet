@@ -89,7 +89,8 @@ def collect_x(store: Store, cfg: dict, registry) -> list:
     """X bills per post read, so: only every few hours, watched accounts first, a small
     general sample after, and a hard daily cap on posts read across everything."""
     every = cfg.get("x_every_hours", 3) * 3600
-    if time.time() - store.get_state("x_last_run", 0) < every - 300:
+    forced = os.environ.get("X_FORCE") == "1"  # manual "check X now" run
+    if not forced and time.time() - store.get_state("x_last_run", 0) < every - 300:
         return []
     store.set_state("x_last_run", time.time())
 
