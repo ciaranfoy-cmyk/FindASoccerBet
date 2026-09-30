@@ -28,6 +28,16 @@
   "x_queries": [
     "has:cashtags lang:en -is:retweet (crypto OR memecoin OR altcoin OR 100x OR gem)"
   ],
+  "x_accounts": [
+    "binance", "coinbase", "krakenfx", "kucoincom", "cryptocom", "coingecko",
+    "realDonaldTrump", "saylor", "tyler", "IOHK_Charles", "Cardano", "TapTools",
+    "ZssBecker", "MMCrypto", "CryptoGodJohn", "CryptoTony__", "fiction_finance",
+    "CryptoCapo_", "ChiefraFba", "profit8lue", "Sheldino_D", "CryptoMichNL",
+    "DrProfitCrypto", "eliz883", "HTX_Global", "DavidSacks", "benjamincowen",
+    "TomCrown", "cryptorover", "SoulzBTC", "chain_broker"
+  ],
+  "x_signal_accounts": ["Whale_Pump_", "aicryptopattern", "cryptohunterapp", "TerminalX123",
+                        "xcryptotracker", "360_trader"],
   "x_max_posts_per_run": 100,
   "x_every_hours": 3,
   "google_trends_geos": ["GB", "US"],

@@ -189,6 +189,24 @@ GOOGLE_RSS = """<?xml version="1.0"?>
 </channel></rss>"""
 
 
+class XAccountsTest(unittest.TestCase):
+    def test_account_queries_split_under_limit(self):
+        accounts = [f"@account_number_{i}" for i in range(40)]
+        queries = x.account_queries(accounts)
+        self.assertGreater(len(queries), 1)
+        self.assertTrue(all(len(q) <= 512 for q in queries))
+        self.assertTrue(all(q.endswith(") -is:retweet -is:reply") for q in queries))
+        self.assertEqual(sum(q.count("from:") for q in queries), 40)
+        self.assertIn("(from:account_number_0 OR from:account_number_1 ", queries[0])
+
+    def test_watched_posts_labelled_per_account(self):
+        data = {"data": [{"id": "1", "author_id": "9", "created_at": "2026-09-30T12:00:00Z",
+                          "text": "Buying more $BTC"}],
+                "includes": {"users": [{"id": "9", "username": "Saylor"}]}}
+        self.assertEqual(x.parse_response(data, "(from:saylor) -is:retweet")[0].channel, "x:@saylor")
+        self.assertEqual(x.parse_response(data, "has:cashtags")[0].channel, "x:has:cashtags")
+
+
 class XCapTest(unittest.TestCase):
     def test_x_reads_are_capped_per_run(self):
         from unittest import mock
