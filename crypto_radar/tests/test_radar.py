@@ -195,8 +195,10 @@ class SearchTest(unittest.TestCase):
         self.assertEqual(search.parse_markets(rows)["phala"]["change_24h"], 53.0)
         trending = search.parse_coingecko_trending({"coins": [{"item": {
             "id": "phala", "symbol": "pha", "name": "Phala",
-            "data": {"price": "$0.1", "price_change_percentage_24h": {"usd": 12.5}}}}]})
-        self.assertEqual((trending[0]["price"], trending[0]["change_24h"]), (0.1, 12.5))
+            "data": {"price": "$0.1", "price_change_percentage_24h": {"usd": 12.5},
+                     "market_cap": "$123,456,789"}}}]})
+        self.assertEqual((trending[0]["price"], trending[0]["change_24h"], trending[0]["market_cap"]),
+                         (0.1, 12.5, 123456789.0))
 
     def test_coingecko_trending(self):
         data = {"coins": [{"item": {"id": "pepe", "symbol": "pepe", "name": "Pepe", "market_cap_rank": 30}},
@@ -329,6 +331,19 @@ class ReportTest(unittest.TestCase):
         self.assertFalse(astro.early)
         self.assertEqual(rep.search_signals(), [])
         self.assertIn("moving now: 1h +138%", report.render_text(rep))
+
+    def test_1h_move_from_own_snapshots_when_coingecko_blocks_it(self):
+        h = 3600
+        self.store.add_search_trend(self.now - 3 * h, "coingecko", "bitcoin", 1, "BTC", "Bitcoin")
+        self.store.add_search_trend(self.now - 0.2 * h, "coingecko", "astro", 1, "ASTRO", "Astro")
+        # Markets call failed: no 1h figure stored, only prices an hour apart.
+        self.store.add_price(self.now - 1.2 * h, "astro", 0.020, None, -40.0, None)
+        self.store.add_price(self.now - 0.2 * h, "astro", 0.050, None, -33.0, None)
+        rep = report.build(self.store, now=self.now)
+        astro = {s.key: s for s in rep.stats}["astro"].search
+        self.assertAlmostEqual(astro.change_1h, 150.0, places=3)
+        self.assertTrue(astro.moving_now)
+        self.assertFalse(astro.early)
 
     def test_mega_caps_are_never_early(self):
         h = 3600

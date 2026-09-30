@@ -81,6 +81,20 @@ MOVING_1H_PCT = 10.0
 MEGA_CAP_USD = 20e9
 
 
+def _change_over(hist: list, seconds: float) -> float | None:
+    """Percent change from our own snapshots: latest price vs the one taken closest
+    to `seconds` earlier (40-160% of that interval ago). Used when CoinGecko's 1h figure
+    is unavailable."""
+    last = hist[-1]
+    target = last["fetched_utc"] - seconds
+    candidates = [r for r in hist[:-1] if r["price"]
+                  and 0.4 * seconds <= last["fetched_utc"] - r["fetched_utc"] <= 1.6 * seconds]
+    if not candidates or not last["price"]:
+        return None
+    base = min(candidates, key=lambda r: abs(r["fetched_utc"] - target))
+    return (last["price"] / base["price"] - 1) * 100
+
+
 def search_status(store: Store, now: float, lookback_h: float = 48,
                   stale_after_h: float = 2) -> dict[str, SearchInfo]:
     """Who is on CoinGecko trending now (and since when), and who hit Google Trends."""
@@ -119,6 +133,8 @@ def search_status(store: Store, now: float, lookback_h: float = 48,
             last = hist[-1]
             info.price, info.change_1h, info.change_24h = last["price"], last["change_1h"], last["change_24h"]
             info.market_cap = last["market_cap"]
+            if info.change_1h is None:
+                info.change_1h = _change_over(hist, 3600)
             at_entry = next((r for r in hist if r["fetched_utc"] >= info.cg_since), None)
             if at_entry and at_entry["price"] and not info.cg_since_is_floor:
                 info.change_since_entry = (last["price"] / at_entry["price"] - 1) * 100

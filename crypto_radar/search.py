@@ -45,7 +45,8 @@ def parse_coingecko_trending(data: dict) -> list[dict]:
         out.append({"coin_key": item["id"], "symbol": symbol, "name": item.get("name", ""),
                     "rank": i, "detail": f"mcap rank {item.get('market_cap_rank') or '?'}",
                     # fallback price info, used if the markets call fails
-                    "price": _num(data.get("price")), "change_24h": _num(change.get("usd"))})
+                    "price": _num(data.get("price")), "change_24h": _num(change.get("usd")),
+                    "market_cap": _num(data.get("market_cap"))})
     return out
 
 
@@ -137,7 +138,10 @@ def collect(store, registry: list[Coin], geos: list[str]) -> int:
             print(f"[search] CoinGecko prices: {exc}; using trending-list prices")
             markets = {}
         for r in trending:
-            m = markets.get(r["coin_key"]) or {"price": r["price"], "change_24h": r["change_24h"]}
+            # No 1h change in the fallback; the report works it out from our own
+            # hourly snapshots instead.
+            m = markets.get(r["coin_key"]) or {"price": r["price"], "change_24h": r["change_24h"],
+                                                "market_cap": r["market_cap"]}
             if m.get("price") is not None:
                 store.add_price(now, r["coin_key"], m.get("price"), m.get("change_1h"),
                                 m.get("change_24h"), m.get("market_cap"))
