@@ -14,6 +14,9 @@ from .. import net
 from . import Post
 
 API = "https://api.twitter.com/2/tweets/search/recent"
+TRENDS_API = "https://api.twitter.com/2/trends/by/woeid/{woeid}"
+# Yahoo "where on earth" ids X uses for trend locations.
+WOEIDS = {"WORLD": 1, "UK": 23424975, "US": 23424977}
 
 # Airdrop/giveaway posts are almost all spam bots. Excluded in the search itself
 # (so they aren't billed) and again here in case X's matching lets one through.
@@ -63,14 +66,31 @@ def parse_response(data: dict, query: str) -> list[Post]:
     return posts
 
 
-def collect(queries: list[str], since_ids: dict[str, str], max_posts: int = 100) -> list[Post]:
-    """since_ids is updated in place with the newest tweet id per query.
-
-    X bills per post read, so `max_posts` caps what one query can pull per run."""
+def trends(location: str) -> list[dict]:
+    """X's trending topics for a location: [{"name", "posts"}] (one request, not per post)."""
     token = os.environ.get("X_BEARER_TOKEN")
     if not token:
         return []
+    url = TRENDS_API.format(woeid=WOEIDS[location]) + "?max_trends=50&trend.fields=trend_name,tweet_count"
+    data = net.get_json(url, headers={"Authorization": f"Bearer {token}"})
+    return parse_trends(data)
+
+
+def parse_trends(data: dict) -> list[dict]:
+    return [{"name": t.get("trend_name", ""), "posts": t.get("tweet_count")}
+            for t in data.get("data", []) if t.get("trend_name")]
+
+
+def collect(queries: list[str], since_ids: dict[str, str], max_posts: int = 100) -> tuple[list[Post], int]:
+    """since_ids is updated in place with the newest tweet id per query.
+
+    X bills per post read, so `max_posts` caps what one query can pull per run.
+    Returns (posts kept, posts read) - the read count includes spam we dropped."""
+    token = os.environ.get("X_BEARER_TOKEN")
+    if not token or max_posts <= 0:
+        return [], 0
     posts: list[Post] = []
+    read = 0
     for query in queries:
         page_size = max(10, min(100, max_posts))  # API allows 10-100
         max_pages = max(1, -(-max_posts // page_size))
@@ -87,6 +107,7 @@ def collect(queries: list[str], since_ids: dict[str, str], max_posts: int = 100)
                 print(f"[x] {query!r}: {exc}")
                 break
             posts.extend(parse_response(data, query))
+            read += len(data.get("data", []))
             meta = data.get("meta", {})
             newest = newest or meta.get("newest_id")
             if not meta.get("next_token"):
@@ -94,4 +115,4 @@ def collect(queries: list[str], since_ids: dict[str, str], max_posts: int = 100)
             params["next_token"] = meta["next_token"]
         if newest:
             since_ids[query] = newest
-    return posts
+    return posts, read

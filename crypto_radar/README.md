@@ -45,7 +45,7 @@ threshold (at most once per coin per 12h).
 | Telegram | public channel web previews (`t.me/s/<channel>`) | nothing (public **channels** only, not groups) |
 | 4chan /biz/ | catalog + busiest threads | nothing |
 | News | RSS (CoinDesk, Cointelegraph, Decrypt) | nothing |
-| X / Twitter | v2 recent search, at most `x_max_posts_per_run` posts every `x_every_hours` (X bills per post read) | `X_BEARER_TOKEN` (paid API); skipped if unset |
+| X / Twitter | every `x_every_hours`: X Trends for `x_trend_locations` (one request each), new posts from `x_accounts`, then a small general sample (`x_sample_posts_per_run`); hard cap of `x_daily_post_budget` posts read per day (X bills per post read) | `X_BEARER_TOKEN` (paid API); skipped if unset |
 | CoinGecko trending | top ~15 coins people are *searching* for, snapshotted every run | nothing |
 | Google Trends | UK + US "trending now" searches; flags any coin that goes mainstream | nothing |
 | CoinGecko | coin list (top 1000) | nothing (optional free "Demo" key as `COINGECKO_API_KEY`: avoids occasional 403 blocks from shared cloud IPs) |
