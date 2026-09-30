@@ -57,8 +57,9 @@ def collect(store: Store, cfg: dict, sources: tuple[str, ...]) -> int:
         last = store.get_state("x_last_run", 0)
         if time.time() - last >= every - 300:
             since_ids = store.get_state("x_since_ids", {})
-            got = x.collect(cfg.get("x_queries", []), since_ids,
-                            cfg.get("x_max_posts_per_run", 100))
+            watched = cfg.get("x_accounts", []) + cfg.get("x_signal_accounts", [])
+            queries = cfg.get("x_queries", []) + x.account_queries(watched)
+            got = x.collect(queries, since_ids, cfg.get("x_max_posts_per_run", 100))
             posts += got
             store.set_state("x_since_ids", since_ids)
             store.set_state("x_last_run", time.time())
@@ -90,7 +91,8 @@ def collect(store: Store, cfg: dict, sources: tuple[str, ...]) -> int:
 
 
 def pump_channels(cfg: dict) -> frozenset:
-    return frozenset(f"t.me/{c}" for c in cfg.get("pump_channels", []))
+    return frozenset([f"t.me/{c}" for c in cfg.get("pump_channels", [])]
+                     + [f"x:@{a.strip().lstrip('@').lower()}" for a in cfg.get("x_signal_accounts", [])])
 
 
 def check_alerts(store: Store, cfg: dict) -> None:

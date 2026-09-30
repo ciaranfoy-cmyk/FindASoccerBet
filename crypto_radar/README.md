@@ -52,7 +52,8 @@ threshold (at most once per coin per 12h).
 | DEX Screener | turns posted contract addresses into token / chain / liquidity / 24h % | nothing |
 
 Edit **`config.json`** to change subreddits, Telegram channels, feeds and X
-queries. The Telegram list is only a starter set of big news channels. The
+queries. `x_accounts` lists X accounts to follow (their posts show as `x:@name`);
+`x_signal_accounts` are followed too but treated like pump/signal channels. The Telegram list is only a starter set of big news channels. The
 early chatter is in smaller "calls"/alpha channels, so add the ones you find
 (any public channel username works).
 

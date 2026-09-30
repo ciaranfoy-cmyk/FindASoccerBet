@@ -15,8 +15,27 @@ from . import Post
 API = "https://api.twitter.com/2/tweets/search/recent"
 
 
+def account_queries(accounts: list[str], max_len: int = 512) -> list[str]:
+    """Search queries covering the given accounts: "(from:a OR from:b ...) -is:retweet
+    -is:reply", split so each stays within X's query length limit."""
+    suffix = ") -is:retweet -is:reply"
+    queries, current = [], []
+    for name in (a.strip().lstrip("@") for a in accounts):
+        if not name:
+            continue
+        candidate = current + [f"from:{name}"]
+        if current and len("(" + " OR ".join(candidate) + suffix) > max_len:
+            queries.append("(" + " OR ".join(current) + suffix)
+            candidate = [f"from:{name}"]
+        current = candidate
+    if current:
+        queries.append("(" + " OR ".join(current) + suffix)
+    return queries
+
+
 def parse_response(data: dict, query: str) -> list[Post]:
     users = {u["id"]: u["username"] for u in data.get("includes", {}).get("users", [])}
+    watched = "from:" in query
     posts = []
     for tweet in data.get("data", []):
         author = users.get(tweet.get("author_id"), tweet.get("author_id", "unknown"))
@@ -24,7 +43,9 @@ def parse_response(data: dict, query: str) -> list[Post]:
         posts.append(Post(
             id=f"x:{tweet['id']}",
             source="x",
-            channel=f"x:{query}",
+            # Watched accounts are labelled per account (x:@saylor) so they can be
+            # told apart in reports and marked as signal accounts.
+            channel=f"x:@{author.lower()}" if watched else f"x:{query}",
             author=author,
             created_utc=created,
             text=tweet["text"],
