@@ -51,10 +51,18 @@ def collect(store: Store, cfg: dict, sources: tuple[str, ...]) -> int:
         posts += fourchan.collect(cfg["fourchan_board"], cfg.get("fourchan_full_threads", 15))
     if "news" in sources:
         posts += news.collect(cfg.get("news_feeds", []))
-    if "x" in sources:
-        since_ids = store.get_state("x_since_ids", {})
-        posts += x.collect(cfg.get("x_queries", []), since_ids)
-        store.set_state("x_since_ids", since_ids)
+    if "x" in sources and os.environ.get("X_BEARER_TOKEN"):
+        # X bills per post read: only check every few hours, with a cap per run.
+        every = cfg.get("x_every_hours", 3) * 3600
+        last = store.get_state("x_last_run", 0)
+        if time.time() - last >= every - 300:
+            since_ids = store.get_state("x_since_ids", {})
+            got = x.collect(cfg.get("x_queries", []), since_ids,
+                            cfg.get("x_max_posts_per_run", 100))
+            posts += got
+            store.set_state("x_since_ids", since_ids)
+            store.set_state("x_last_run", time.time())
+            print(f"[x] {len(got)} posts read (cap {cfg.get('x_max_posts_per_run', 100)} per query)")
 
     if "search" in sources:
         search.collect(store, registry, cfg.get("google_trends_geos", ["GB", "US"]))

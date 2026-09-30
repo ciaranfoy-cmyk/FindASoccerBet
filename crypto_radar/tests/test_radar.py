@@ -189,6 +189,24 @@ GOOGLE_RSS = """<?xml version="1.0"?>
 </channel></rss>"""
 
 
+class XCapTest(unittest.TestCase):
+    def test_x_reads_are_capped_per_run(self):
+        from unittest import mock
+        calls = []
+
+        def fake_get_json(url, headers=None):
+            calls.append(url)
+            return {"data": [], "meta": {"newest_id": "5", "next_token": "more"}}
+
+        with mock.patch.dict(os.environ, {"X_BEARER_TOKEN": "t"}), \
+                mock.patch.object(x.net, "get_json", fake_get_json):
+            since = {}
+            x.collect(["q"], since, max_posts=100)
+        self.assertEqual(len(calls), 1)            # one page of 100, even if more exist
+        self.assertIn("max_results=100", calls[0])
+        self.assertEqual(since, {"q": "5"})
+
+
 class NetTest(unittest.TestCase):
     def test_coingecko_key_header_only_for_coingecko(self):
         from crypto_radar import net
