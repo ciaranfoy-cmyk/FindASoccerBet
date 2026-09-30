@@ -18,11 +18,20 @@ TRENDS_API = "https://api.twitter.com/2/trends/by/woeid/{woeid}"
 # Yahoo "where on earth" ids X uses for trend locations.
 WOEIDS = {"WORLD": 1, "UK": 23424975, "US": 23424977}
 
-# Airdrop/giveaway posts are almost all spam bots. Excluded in the search itself
-# (so they aren't billed) and again here in case X's matching lets one through.
-SPAM_TERMS = ("airdrop", "giveaway")
+# Airdrop/giveaway/referral posts are almost all spam bots. Excluded in the search
+# itself (so they aren't billed) and again here in case X's matching lets one through.
+SPAM_TERMS = ("airdrop", "giveaway", "referral")
 SPAM_FILTER = " ".join(f"-{t}" for t in SPAM_TERMS)
 _SPAM_RE = re.compile("|".join(SPAM_TERMS), re.I)
+
+
+def search_query(base: str) -> str:
+    """A general search with the spam exclusions added."""
+    return base if SPAM_FILTER in base else f"{base} {SPAM_FILTER}"
+
+
+def is_spam(text: str) -> bool:
+    return bool(_SPAM_RE.search(text or ""))
 
 
 def account_queries(accounts: list[str], max_len: int = 512) -> list[str]:
@@ -48,7 +57,7 @@ def parse_response(data: dict, query: str) -> list[Post]:
     watched = "from:" in query
     posts = []
     for tweet in data.get("data", []):
-        if _SPAM_RE.search(tweet.get("text", "")):
+        if is_spam(tweet.get("text", "")):
             continue
         author = users.get(tweet.get("author_id"), tweet.get("author_id", "unknown"))
         created = datetime.fromisoformat(tweet["created_at"].replace("Z", "+00:00")).timestamp()
@@ -57,7 +66,7 @@ def parse_response(data: dict, query: str) -> list[Post]:
             source="x",
             # Watched accounts are labelled per account (x:@saylor) so they can be
             # told apart in reports and marked as signal accounts.
-            channel=f"x:@{author.lower()}" if watched else f"x:{query}",
+            channel=f"x:@{author.lower()}" if watched else "x:search",
             author=author,
             created_utc=created,
             text=tweet["text"],
