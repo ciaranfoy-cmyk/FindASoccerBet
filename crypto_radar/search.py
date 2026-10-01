@@ -229,3 +229,23 @@ def collect_lunarcrush(store, registry: list[Coin], limit: int = 200) -> int:
                                coin.name if coin else c["name"], lunarcrush.detail(c))
     print(f"[lunarcrush] {len(coins)} coins by interactions saved")
     return len(coins)
+
+
+def fetch_prices(store, ids: list[str], chunk: int = 100) -> int:
+    """Price/1h/24h/market cap for arbitrary CoinGecko ids (signal candidates, open calls)."""
+    now = time.time()
+    saved = 0
+    for i in range(0, len(ids), chunk):
+        part = ids[i:i + chunk]
+        try:
+            markets = parse_markets(net.get_json(COINGECKO_MARKETS.format(ids=",".join(part))))
+        except net.HttpError as exc:
+            print(f"[signals] CoinGecko prices: {str(exc)[:150]}")
+            continue
+        for key, m in markets.items():
+            if m.get("price") is not None:
+                store.add_price(now, key, m["price"], m.get("change_1h"), m.get("change_24h"),
+                                m.get("market_cap"))
+                saved += 1
+    store.commit()
+    return saved

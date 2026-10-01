@@ -100,6 +100,28 @@ early chatter is in smaller "calls"/alpha channels, so add the ones you find
   stronger signal than either alone. The report's last section lists everything
   people are searching for, including coins nobody is talking about yet.
 
+## Calls: early / watch / late / pushed
+
+`python -m crypto_radar digest` turns everything into one screen. Each coin gets a score
+from **independent** evidence (rising chatter, breadth across platforms, your followed X
+accounts and YouTubers, coin-specific news, CoinGecko search climb, Google/X trends,
+LunarCrush social growth) and is put in a bucket:
+
+- 🟢 **early & confirmed**: score 6+ from 3+ kinds of evidence, price not up 15%+ (or 10% in
+  an hour), not falling 8%+, no bad news (hack/exploit/lawsuit/delisting...)
+- 🟡 **watch**: score 3+
+- 🔴 **late**: already moved; don't chase
+- ⚫ **likely pushed**: pump channels or shill comments only, top searches with nobody real
+  talking (small caps), unknown cashtags, or tiny DEX liquidity
+
+Every 🟢/🟡 call is logged with its price; the digest's **track record** line shows how
+calls did after 1, 3 and 7 days. `python -m crypto_radar signals` lists every coin's score
+and evidence. Exchange/brand accounts (`brand_accounts`) don't count as experts; Telegram
+`news_channels` count as news.
+
+On Telegram: an instant 🟢 alert when a coin first turns green, and the digest at
+`digest_hours` (UK time). The old raw "heating up" alerts are off (`raw_alerts`).
+
 ## Alerts to your phone
 
 ```bash
