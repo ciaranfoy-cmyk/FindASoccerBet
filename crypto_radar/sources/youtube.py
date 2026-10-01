@@ -5,8 +5,8 @@ view/like/comment counts for those videos, and top comments on fresh videos (eac
 commenter counts as a separate voice). Costs ~1 quota unit per request; the free
 allowance is 10,000 units a day.
 
-A video is "taking off" when it is gaining views much faster than that channel's
-other recent uploads did (views per hour since upload).
+A video is "taking off" when, within its first day or two, it has already passed the
+total views of that channel's typical (3+ day old) upload.
 """
 
 import os
@@ -68,11 +68,13 @@ def parse_videos(playlist: dict, stats: dict, handle: str, now: float) -> list[d
                     "views": views, "likes": int(st.get("likeCount", 0) or 0),
                     "comments": int(st.get("commentCount", 0) or 0),
                     "views_per_hour": views / hours})
-    # Channel norm: median views/hour of its other recent uploads.
+    # Channel norm: median total views of its other uploads that are 3+ days old (their
+    # views have mostly settled). vs_norm >= 1 within a day = already beaten a typical video.
     for v in out:
-        others = [o["views_per_hour"] for o in out if o is not v]
+        settled = [o["views"] for o in out if o is not v and now - o["published"] >= 3 * 86400]
+        others = settled or [o["views"] for o in out if o is not v]
         norm = statistics.median(others) if others else 0
-        v["vs_norm"] = v["views_per_hour"] / norm if norm else None
+        v["vs_norm"] = v["views"] / norm if norm else None
     return out
 
 
