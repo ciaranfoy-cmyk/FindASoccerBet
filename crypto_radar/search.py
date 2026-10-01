@@ -215,8 +215,8 @@ def collect_x_trends(store, registry: list[Coin], locations: list[str]) -> int:
     return rows
 
 
-def collect_lunarcrush(store, registry: list[Coin], limit: int = 50) -> int:
-    """Snapshot LunarCrush's top coins by AltRank (one request)."""
+def collect_lunarcrush(store, registry: list[Coin], limit: int = 200) -> int:
+    """Snapshot LunarCrush's most-discussed coins (one request)."""
     coins = lunarcrush.fetch(limit)
     if not coins:
         return 0
@@ -227,5 +227,5 @@ def collect_lunarcrush(store, registry: list[Coin], limit: int = 50) -> int:
         key = coin.id if coin else f"${c['symbol']}"
         store.add_search_trend(now, "lunarcrush", key, i, c["symbol"],
                                coin.name if coin else c["name"], lunarcrush.detail(c))
-    print(f"[lunarcrush] {len(coins)} coins by AltRank saved")
+    print(f"[lunarcrush] {len(coins)} coins by interactions saved")
     return len(coins)

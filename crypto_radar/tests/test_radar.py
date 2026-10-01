@@ -4,6 +4,7 @@
 """
 
 import time
+import json
 import os
 import unittest
 
@@ -348,6 +349,26 @@ class LunarCrushTest(unittest.TestCase):
         self.assertIn("== LUNARCRUSH", text)
         self.assertIn("5,400,000 interactions", text)
         self.assertIn("81% positive", text)
+
+
+class LunarGrowthTest(unittest.TestCase):
+    def test_rising_ranks_by_growth_vs_a_day_ago(self):
+        store = Store(":memory:")
+        now = time.time()
+        h = 3600
+        snaps = {24: {"solana": 1_000_000, "dogecoin": 100_000},
+                 0.1: {"solana": 1_100_000, "dogecoin": 400_000}}
+        for ago, vals in snaps.items():
+            for i, (k, v) in enumerate(sorted(vals.items(), key=lambda kv: -kv[1]), start=1):
+                store.add_search_trend(now - ago * h, "lunarcrush", k, i, k.upper(), k,
+                                       json.dumps({"interactions_24h": v, "sentiment": 80}))
+        rep = report.build(store, now=now)
+        doge = {s.key: s for s in rep.stats}["dogecoin"].search
+        self.assertAlmostEqual(doge.lunar_growth, 4.0)
+        text = report.render_text(rep)
+        self.assertIn("== LUNARCRUSH RISING", text)
+        self.assertLess(text.index("DOGECOIN "), text.index("SOLANA "))   # 4x ranks above 1.1x
+        self.assertIn("4.0x interactions vs 24h ago", text)
 
 
 class XCapTest(unittest.TestCase):
