@@ -80,6 +80,18 @@ CREATE TABLE IF NOT EXISTS youtube_videos (
     fetched_utc REAL
 );
 
+-- Every time a coin is called early (green) or watch (yellow), for the track record.
+CREATE TABLE IF NOT EXISTS signal_log (
+    coin_key TEXT NOT NULL,
+    label TEXT,
+    bucket TEXT NOT NULL,       -- green | yellow
+    score REAL,
+    logged_utc REAL NOT NULL,
+    price REAL,                 -- price when called (None if unknown)
+    why TEXT
+);
+CREATE INDEX IF NOT EXISTS signal_log_time ON signal_log(logged_utc);
+
 CREATE TABLE IF NOT EXISTS alerts (
     coin_key TEXT NOT NULL,
     sent_utc REAL NOT NULL
@@ -166,6 +178,7 @@ class Store:
         self.db.execute("DELETE FROM search_trends WHERE fetched_utc < ?", (cutoff,))
         self.db.execute("DELETE FROM prices WHERE fetched_utc < ?", (cutoff,))
         self.db.execute("DELETE FROM youtube_videos WHERE published_utc < ?", (cutoff,))
+        self.db.execute("DELETE FROM signal_log WHERE logged_utc < ?", (cutoff,))
         self.db.commit()
         if deleted:
             self.db.execute("VACUUM")
@@ -184,6 +197,37 @@ class Store:
                   market_cap) -> None:
         self.db.execute("INSERT INTO prices VALUES (?, ?, ?, ?, ?, ?)",
                         (fetched_utc, coin_key, price, change_1h, change_24h, market_cap))
+
+    def latest_prices(self, keys: list[str], since_utc: float) -> dict[str, sqlite3.Row]:
+        """Most recent price row per coin since `since_utc`."""
+        if not keys:
+            return {}
+        q = ",".join("?" * len(keys))
+        rows = self.db.execute(
+            f"""SELECT * FROM prices WHERE coin_key IN ({q}) AND fetched_utc >= ?
+                ORDER BY fetched_utc""", (*keys, since_utc)).fetchall()
+        return {r["coin_key"]: r for r in rows}
+
+    def price_near(self, key: str, t: float, tolerance_s: float = 6 * 3600) -> float | None:
+        """Price of `key` recorded closest to time t (within tolerance)."""
+        r = self.db.execute(
+            """SELECT price FROM prices WHERE coin_key = ? AND price IS NOT NULL
+               AND fetched_utc BETWEEN ? AND ? ORDER BY ABS(fetched_utc - ?) LIMIT 1""",
+            (key, t - tolerance_s, t + tolerance_s, t)).fetchone()
+        return r[0] if r else None
+
+    def log_signal(self, key: str, label: str, bucket: str, score: float, t: float,
+                   price: float | None, why: str) -> None:
+        self.db.execute("INSERT INTO signal_log VALUES (?,?,?,?,?,?,?)",
+                        (key, label, bucket, score, t, price, why))
+
+    def last_signal(self, key: str) -> sqlite3.Row | None:
+        return self.db.execute("SELECT * FROM signal_log WHERE coin_key = ? "
+                               "ORDER BY logged_utc DESC LIMIT 1", (key,)).fetchone()
+
+    def signals_since(self, since_utc: float) -> list[sqlite3.Row]:
+        return self.db.execute("SELECT * FROM signal_log WHERE logged_utc >= ? ORDER BY logged_utc",
+                               (since_utc,)).fetchall()
 
     def price_rows(self, since_utc: float) -> list[sqlite3.Row]:
         return self.db.execute(
@@ -240,7 +284,7 @@ class Store:
     def mention_rows(self, since_utc: float) -> list[sqlite3.Row]:
         return self.db.execute(
             """SELECT m.coin_key, m.method, p.id, p.source, p.channel, p.author,
-                      p.created_utc, p.sentiment
+                      p.created_utc, p.sentiment, p.text, p.url
                FROM mentions m JOIN posts p ON p.id = m.post_id
                WHERE p.created_utc >= ?""",
             (since_utc,),

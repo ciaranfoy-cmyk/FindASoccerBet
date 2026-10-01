@@ -17,6 +17,9 @@
     "degenpump_crypto_pump_signals", "binancekillers", "coincodecap", "cryptosignals0rg",
     "wolfoftrading"
   ],
+  "news_channels": ["WatcherGuru", "wublockchainenglish", "binance_announcements", "cointelegraph",
+                    "CHCryptoNews", "CoinDeskGlobal", "CoinMarketCapAnnouncements", "CryptoRankNews",
+                    "CoinBureau", "coin_listing"],
   "purge_channels": ["altFINS_Signals_Official", "ianCryptoTrades"],
   "fourchan_board": "biz",
   "fourchan_full_threads": 15,
@@ -36,6 +39,8 @@
     "DrProfitCrypto", "eliz883", "HTX_Global", "DavidSacks", "benjamincowen",
     "TomCrown", "SoulzBTC", "chain_broker"
   ],
+  "brand_accounts": ["binance", "coinbase", "krakenfx", "kucoincom", "cryptocom", "coingecko",
+                     "HTX_Global", "Cardano", "TapTools"],
   "x_signal_accounts": ["Whale_Pump_", "aicryptopattern", "cryptohunterapp", "TerminalX123",
                         "xcryptotracker", "360_trader"],
   "x_max_posts_per_run": 100,
@@ -54,6 +59,9 @@
   "coin_registry_size": 1000,
   "report_window_hours": 6,
   "report_baseline_hours": 72,
+  "digest_hours": [8, 14],
+  "digest_timezone": "Europe/London",
+  "raw_alerts": false,
   "alert_min_heat": 4.0,
   "alert_min_voices": 5,
   "alert_cooldown_hours": 12,

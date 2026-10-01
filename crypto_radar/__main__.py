@@ -11,8 +11,9 @@ import json
 import os
 import time
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
-from . import alerts, coins, dexscreener, report, search, sentiment
+from . import alerts, coins, dexscreener, report, search, sentiment, signals
 from .extract import EXTRACTOR_VERSION, Extractor
 from .sources import fourchan, news, reddit, telegram, x, youtube
 from .store import DEFAULT_DB, Store
@@ -127,30 +128,69 @@ def collect_x(store: Store, cfg: dict, registry) -> list:
     return got
 
 
+def news_channels(cfg: dict) -> frozenset:
+    return frozenset(f"t.me/{c}" for c in cfg.get("news_channels", []))
+
+
 def pump_channels(cfg: dict) -> frozenset:
     return frozenset([f"t.me/{c}" for c in cfg.get("pump_channels", [])]
                      + [f"x:@{a.strip().lstrip('@').lower()}" for a in cfg.get("x_signal_accounts", [])])
 
 
+def build_report(store: Store, cfg: dict, window: float | None = None,
+                 baseline: float | None = None) -> report.Report:
+    return report.build(store, window or cfg["report_window_hours"],
+                        baseline or cfg["report_baseline_hours"],
+                        pump_channels=pump_channels(cfg), news_channels=news_channels(cfg),
+                        brand_channels=frozenset(f"x:@{a.lower()}" for a in cfg.get("brand_accounts", [])))
+
+
+def digest_due(store: Store, cfg: dict, now: float) -> bool:
+    """True once per scheduled hour (UK time) for the Telegram digest."""
+    local = datetime.fromtimestamp(now, ZoneInfo(cfg.get("digest_timezone", "Europe/London")))
+    if local.hour not in cfg.get("digest_hours", [8, 14]):
+        return False
+    slot = local.strftime("%Y-%m-%d %H")
+    if store.get_state("digest_sent") == slot:
+        return False
+    store.set_state("digest_sent", slot)
+    return True
+
+
 def check_alerts(store: Store, cfg: dict) -> None:
-    rep = report.build(store, cfg["report_window_hours"], cfg["report_baseline_hours"],
-                       pump_channels=pump_channels(cfg))
+    now = time.time()
+    rep = build_report(store, cfg)
     cooldown = cfg.get("alert_cooldown_hours", 12) * 3600
-    for s in rep.heating_up(min_voices=cfg.get("alert_min_voices", 5)):
-        if s.heat < cfg.get("alert_min_heat", 4.0):
-            continue
-        last = store.last_alert(s.key)
-        if last and time.time() - last < cooldown:
-            continue
-        alerts.send(report.render_alert(s))
-        store.record_alert(s.key)
-    for s in rep.search_signals():
-        key = f"search:{s.key}"
+
+    # Prices for anything with a signal (and open calls), then score and log the calls.
+    registry_ids = {c.id for c in coins.load_registry(cfg.get("coin_registry_size", 1000))}
+    ids = signals.price_candidates(rep, registry_ids, signals.open_call_ids(store, registry_ids, now))
+    search.fetch_prices(store, ids)
+    rep = build_report(store, cfg)
+    sigs = signals.build_signals(rep, store, now)
+    for g in signals.record(store, sigs, now):
+        key = f"green:{g.key}"
         last = store.last_alert(key)
-        if last and time.time() - last < cooldown:
+        if last and now - last < cooldown:
             continue
-        alerts.send(report.render_search_alert(s))
+        alerts.send(signals.render_green_alert(g))
         store.record_alert(key)
+
+    if digest_due(store, cfg, now):
+        previous = store.get_state("digest_buckets", {})
+        alerts.send(signals.render_digest(rep, sigs, store, now, previous))
+        store.set_state("digest_buckets", {g.key: g.bucket for g in sigs if g.bucket in ("green", "yellow")})
+
+    # Raw heating-up / search alerts only if asked for (the green alerts replace them).
+    if cfg.get("raw_alerts", False):
+        for s in rep.heating_up(min_voices=cfg.get("alert_min_voices", 5)):
+            if s.heat < cfg.get("alert_min_heat", 4.0):
+                continue
+            last = store.last_alert(s.key)
+            if last and now - last < cooldown:
+                continue
+            alerts.send(report.render_alert(s))
+            store.record_alert(s.key)
     store.commit()
 
 
@@ -171,6 +211,11 @@ def main() -> None:
     p.add_argument("--top", type=int, default=20)
     p.add_argument("--send", action="store_true", help="also send the report to Telegram")
 
+    p = sub.add_parser("digest", help="one-screen digest: early/watch/late/pushed calls")
+    p.add_argument("--send", action="store_true", help="also send it to Telegram")
+
+    p = sub.add_parser("signals", help="every coin's score, bucket and evidence")
+
     p = sub.add_parser("posts", help="show recent posts mentioning a coin")
     p.add_argument("coin", help="ticker, name, $CASHTAG, CoinGecko id or contract address")
     p.add_argument("--hours", type=float, default=24)
@@ -190,15 +235,31 @@ def main() -> None:
         collect(store, cfg, tuple(args.sources.split(",")))
 
     elif args.cmd == "report":
-        rep = report.build(store, args.window or cfg["report_window_hours"],
-                           args.baseline or cfg["report_baseline_hours"],
-                           pump_channels=pump_channels(cfg))
+        rep = build_report(store, cfg, args.window, args.baseline)
         text = report.render_text(rep, args.top)
         print(text)
         if args.send:
             alerts.send("\n".join(
                 f"{i}. {s.label} — {s.voices} voices, {s.velocity:.1f}x, sent {s.sentiment:+.2f}"
                 for i, s in enumerate(rep.most_talked(15), 1)))
+
+    elif args.cmd == "digest":
+        rep = build_report(store, cfg)
+        sigs = signals.build_signals(rep, store)
+        text = signals.render_digest(rep, sigs, store, previous=store.get_state("digest_buckets", {}))
+        print(text)
+        if args.send:
+            alerts.send(text)
+
+    elif args.cmd == "signals":
+        rep = build_report(store, cfg)
+        for g in signals.build_signals(rep, store):
+            print(f"{signals.ICON[g.bucket]} {g.score:4.1f} {g.label[:30]:<30} kinds={','.join(sorted(g.kinds))} "
+                  f"24h={g.change_24h if g.change_24h is None else round(g.change_24h, 1)}")
+            for w in g.why:
+                print(f"      + {w}")
+            for r in g.risks:
+                print(f"      - {r}")
 
     elif args.cmd == "posts":
         keys = store.find_keys(args.coin)

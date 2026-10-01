@@ -8,7 +8,7 @@ import json
 import os
 import unittest
 
-from crypto_radar import coins, dexscreener, report, search, sentiment
+from crypto_radar import coins, dexscreener, report, search, sentiment, signals
 from crypto_radar.extract import Extractor, Mention
 from crypto_radar.sources import Post, fourchan, lunarcrush, news, reddit, telegram, x, youtube
 from crypto_radar.store import Store
@@ -369,6 +369,76 @@ class LunarGrowthTest(unittest.TestCase):
         self.assertIn("== LUNARCRUSH RISING", text)
         self.assertLess(text.index("DOGECOIN "), text.index("SOLANA "))   # 4x ranks above 1.1x
         self.assertIn("4.0x interactions vs 24h ago", text)
+
+
+class SignalsTest(unittest.TestCase):
+    def _stats(self, key="solana", label="SOL · Solana", **kw):
+        s = report.CoinStats(key=key, label=label)
+        for k, v in kw.items():
+            setattr(s, k, v)
+        return s
+
+    def test_green_needs_independent_evidence_and_flat_price(self):
+        si = report.SearchInfo(cg_rank=4, cg_since=time.time(), rank_before=None, price=100.0,
+                               change_24h=2.0, change_1h=0.5)
+        s = self._stats(voices=6, velocity=3.0, mentions=8, sources={"reddit", "x", "youtube"},
+                        experts={"x:@cryptomichnl"}, search=si)
+        g = signals.score(s, {})
+        self.assertEqual(g.bucket, "green")
+        self.assertIn("price holds above $100", g.confirm)
+        self.assertIn("$90", g.invalidate)
+
+    def test_late_falling_bad_news_and_pushed(self):
+        late = signals.score(self._stats(voices=6, velocity=3.0, mentions=8, sources={"reddit", "x", "4chan"},
+                                         experts={"x:@a"}, search=report.SearchInfo(price=1.0, change_24h=40.0)), {})
+        self.assertEqual(late.bucket, "red")
+        falling = signals.score(self._stats(voices=6, velocity=3.0, mentions=8, sources={"reddit", "x", "4chan"},
+                                            experts={"x:@a"}, search=report.SearchInfo(
+                                                cg_rank=3, cg_since=time.time(), price=1.0, change_24h=-12.0)), {})
+        self.assertEqual(falling.bucket, "yellow")
+        self.assertTrue(any("falling" in r for r in falling.risks))
+        hacked = signals.score(self._stats(voices=6, velocity=3.0, mentions=8, sources={"reddit", "x", "4chan"},
+                                           experts={"x:@a"}, news=[(time.time(), "NEAR hit by an exploit, $3.8M drained",
+                                                                    "", -0.5, 4)],
+                                           search=report.SearchInfo(cg_rank=3, cg_since=time.time(), price=5.0,
+                                                                    change_24h=1.0)), {})
+        self.assertNotEqual(hacked.bucket, "green")
+        self.assertTrue(any("bad news" in r for r in hacked.risks))
+        # EDEL pattern: top searches, small cap, nobody real talking about it
+        edel = signals.score(self._stats(key="edel", label="EDEL", search=report.SearchInfo(
+            cg_rank=1, cg_since=time.time(), price=0.027, change_24h=5.0, market_cap=18e6)), {})
+        self.assertEqual(edel.bucket, "black")
+
+    def test_track_record_and_digest(self):
+        store = Store(":memory:")
+        now = time.time()
+        g = signals.Signal(key="solana", label="SOL · Solana", bucket="green", score=7, price=100.0,
+                           why=["chatter 3x"], confirm="c", invalidate="i")
+        fresh = signals.record(store, [g], now - 2 * 86400)
+        self.assertEqual([x.key for x in fresh], ["solana"])
+        self.assertEqual(signals.record(store, [g], now - 2 * 86400 + 3600), [])   # cooldown
+        store.add_price(now - 86400, "solana", 110.0, None, None, None)           # +10% after 1 day
+        card = signals.scorecard(store, now)
+        self.assertEqual(card["green"][1][:2], (1, 1))
+        self.assertAlmostEqual(card["green"][1][2], 10.0)
+        self.assertIn("🟢 1d: 1/1 up, avg +10.0%", signals.render_scorecard(card))
+        rep = report.build(store, now=now)
+        text = signals.render_digest(rep, [g, signals.Signal(key="edel", label="EDEL", bucket="black")],
+                                     store, now, previous={})
+        for part in ("EARLY & CONFIRMED", "SOL · Solana", "Confirms if: c", "LIKELY PUSHED (avoid): EDEL",
+                     "Track record:"):
+            self.assertIn(part, text)
+
+    def test_digest_due_once_per_slot(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        from crypto_radar import __main__ as cli
+        store = Store(":memory:")
+        cfg = {"digest_hours": [8, 14]}
+        eight = datetime(2026, 10, 2, 8, 5, tzinfo=ZoneInfo("Europe/London")).timestamp()
+        self.assertTrue(cli.digest_due(store, cfg, eight))
+        self.assertFalse(cli.digest_due(store, cfg, eight + 600))
+        self.assertFalse(cli.digest_due(store, cfg, eight + 2 * 3600))
 
 
 class XCapTest(unittest.TestCase):

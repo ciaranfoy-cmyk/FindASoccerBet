@@ -37,6 +37,8 @@ class CoinStats:
     info: dict = field(default_factory=dict)
     search: "SearchInfo | None" = None
     pump_only: bool = False    # every mention in the window came from signal/pump channels
+    experts: set = field(default_factory=set)      # followed X accounts / YouTubers (own posts)
+    news: list = field(default_factory=list)       # [(created_utc, headline, url, sentiment, n_coins)]
 
     @property
     def sentiment(self) -> float:
@@ -234,7 +236,9 @@ def _label(key: str, info: dict) -> str:
 
 
 def build(store: Store, window_h: float = 6, baseline_h: float = 72,
-          now: float | None = None, pump_channels: set[str] | frozenset = frozenset()) -> Report:
+          now: float | None = None, pump_channels: set[str] | frozenset = frozenset(),
+          news_channels: set[str] | frozenset = frozenset(),
+          brand_channels: set[str] | frozenset = frozenset()) -> Report:
     """pump_channels: channel names (e.g. "t.me/degenpump_crypto_pump_signals") whose posts
     are paid signals/pump calls. Coins only they mention are listed separately, not ranked."""
     now = now or time.time()
@@ -246,7 +250,12 @@ def build(store: Store, window_h: float = 6, baseline_h: float = 72,
     voices_base: dict[str, set] = defaultdict(set)
     non_comment: dict[str, int] = defaultdict(int)   # mentions not from YouTube comments
 
-    for row in store.mention_rows(base_start):
+    mention_rows = store.mention_rows(base_start)
+    coins_per_post: dict[str, int] = defaultdict(int)
+    for row in mention_rows:
+        coins_per_post[row["id"]] += 1
+
+    for row in mention_rows:
         key = row["coin_key"]
         hour = int(row["created_utc"] // 3600)
         voice = (row["author"], hour)
@@ -262,6 +271,13 @@ def build(store: Store, window_h: float = 6, baseline_h: float = 72,
         s.sentiment_sum += row["sentiment"]
         if not row["id"].startswith("yt:c:"):
             non_comment[key] += 1
+            ch = row["channel"]
+            if ch.startswith(("x:@", "yt:@")) and ch not in pump_channels and ch not in brand_channels:
+                s.experts.add(ch)
+        # News about this coin specifically (roundups naming many coins don't count).
+        if (row["source"] == "news" or row["channel"] in news_channels) and coins_per_post[row["id"]] <= 5:
+            s.news.append((row["created_utc"], " ".join((row["text"] or "").split())[:140], row["url"],
+                           row["sentiment"], coins_per_post[row["id"]]))
 
     search = search_status(store, now)
     for key in search:
