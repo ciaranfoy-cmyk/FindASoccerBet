@@ -98,7 +98,7 @@ def parse_comments(data: dict, handle: str, video_id: str) -> list[Post]:
 
 
 def collect(handles: list[str], cache: dict, now: float, videos_per_channel: int = 10,
-            comment_hours: float = 48, comments_per_video: int = 20) -> tuple[list[Post], list[dict]]:
+            comment_hours: float = 48, comments_per_video: int = 20, max_age_days: float = 14) -> tuple[list[Post], list[dict]]:
     """Returns (posts, videos). `cache` (channel lookups) is updated in place."""
     key = os.environ.get("YOUTUBE_API_KEY")
     if not key:
@@ -119,7 +119,9 @@ def collect(handles: list[str], cache: dict, now: float, videos_per_channel: int
         except net.HttpError as exc:
             print(f"[youtube] @{handle}: {str(exc)[:150]}")
             continue
-        vids = parse_videos(playlist, stats, handle, now)
+        # Old uploads still set the channel's usual pace, but only recent ones are kept.
+        vids = [v for v in parse_videos(playlist, stats, handle, now)
+                if now - v["published"] <= max_age_days * 86400]
         videos += vids
         posts += [video_post(v) for v in vids]
         for v in vids:
