@@ -19,6 +19,7 @@ import xml.etree.ElementTree as ET
 from . import net
 from .coins import Coin
 from .extract import COMMON_WORDS, STABLECOINS
+from .sources import lunarcrush
 from .sources import x as xsource
 
 COINGECKO_TRENDING = "https://api.coingecko.com/api/v3/search/trending"
@@ -212,3 +213,19 @@ def collect_x_trends(store, registry: list[Coin], locations: list[str]) -> int:
                 hits += 1
         print(f"[x] trends {loc}: {len(trends)} read, {hits} crypto")
     return rows
+
+
+def collect_lunarcrush(store, registry: list[Coin], limit: int = 50) -> int:
+    """Snapshot LunarCrush's top coins by AltRank (one request)."""
+    coins = lunarcrush.fetch(limit)
+    if not coins:
+        return 0
+    now = time.time()
+    symbols = symbol_index(registry)
+    for i, c in enumerate(coins, start=1):
+        coin = symbols.get(c["symbol"])
+        key = coin.id if coin else f"${c['symbol']}"
+        store.add_search_trend(now, "lunarcrush", key, i, c["symbol"],
+                               coin.name if coin else c["name"], lunarcrush.detail(c))
+    print(f"[lunarcrush] {len(coins)} coins by AltRank saved")
+    return len(coins)

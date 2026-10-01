@@ -9,7 +9,7 @@ import unittest
 
 from crypto_radar import coins, dexscreener, report, search, sentiment
 from crypto_radar.extract import Extractor, Mention
-from crypto_radar.sources import Post, fourchan, news, reddit, telegram, x, youtube
+from crypto_radar.sources import Post, fourchan, lunarcrush, news, reddit, telegram, x, youtube
 from crypto_radar.store import Store
 
 EXTRACTOR = Extractor(coins.fallback_registry())
@@ -321,6 +321,33 @@ class ShillCommentTest(unittest.TestCase):
         s = {x.key: x for x in rep.stats}["$SPX80B"]
         self.assertTrue(s.pump_only)
         self.assertNotIn("$SPX80B", [x.key for x in rep.heating_up(min_voices=1)])
+
+
+class LunarCrushTest(unittest.TestCase):
+    def test_parse_store_and_report(self):
+        data = {"data": [
+            {"symbol": "sol", "name": "Solana", "alt_rank": 2, "galaxy_score": 71,
+             "interactions_24h": 5400000, "social_dominance": 6.2, "sentiment": 81,
+             "percent_change_24h": 3.4},
+            {"symbol": "ZORK", "name": "Zork", "alt_rank": 1, "galaxy_score": 60}]}
+        parsed = lunarcrush.parse_coins(data)
+        self.assertEqual([c["symbol"] for c in parsed], ["SOL", "ZORK"])
+        store = Store(":memory:")
+        now = time.time()
+        reg = coins.fallback_registry()
+        symbols = search.symbol_index(reg)
+        for i, c in enumerate(sorted(parsed, key=lambda c: c["alt_rank"]), start=1):
+            coin = symbols.get(c["symbol"])
+            store.add_search_trend(now - 60, "lunarcrush", coin.id if coin else f"${c['symbol']}", i,
+                                   c["symbol"], c["name"], lunarcrush.detail(c))
+        rep = report.build(store, now=now)
+        sol = {s.key: s for s in rep.stats}["solana"]
+        self.assertEqual(sol.search.lunar_rank, 2)
+        self.assertEqual(sol.search.google, [])          # not shown as Google/X trends
+        text = report.render_text(rep)
+        self.assertIn("== LUNARCRUSH", text)
+        self.assertIn("5,400,000 interactions", text)
+        self.assertIn("81% positive", text)
 
 
 class XCapTest(unittest.TestCase):

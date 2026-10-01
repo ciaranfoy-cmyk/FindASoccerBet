@@ -60,6 +60,7 @@ jobs:
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          LUNARCRUSH_API_KEY: ${{ secrets.LUNARCRUSH_API_KEY || secrets.LUNAR_API_KEY || secrets.LUNARCRUSH_KEY || secrets.LUNAR_KEY }}
           COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
           X_FORCE: ${{ inputs.force_x && '1' || '' }}
         run: python -m crypto_radar run
