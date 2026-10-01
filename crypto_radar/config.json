@@ -43,6 +43,8 @@
   "x_daily_post_budget": 250,
   "x_trend_locations": ["WORLD", "UK", "US"],
   "x_every_hours": 3,
+  "youtube_channels": ["intothecryptoverse", "CoinBureau", "TomCrown", "MMCryptoTube",
+                       "AlexBeckersChannel", "MichaelvandePoppe"],
   "google_trends_geos": ["GB", "US"],
   "coin_registry_size": 1000,
   "report_window_hours": 6,

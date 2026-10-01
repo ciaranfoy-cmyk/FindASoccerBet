@@ -14,11 +14,11 @@ from datetime import datetime, timezone
 
 from . import alerts, coins, dexscreener, report, search, sentiment
 from .extract import EXTRACTOR_VERSION, Extractor
-from .sources import fourchan, news, reddit, telegram, x
+from .sources import fourchan, news, reddit, telegram, x, youtube
 from .store import DEFAULT_DB, Store
 
 DEFAULT_CONFIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
-ALL_SOURCES = ("reddit", "telegram", "4chan", "news", "x", "search")
+ALL_SOURCES = ("reddit", "telegram", "4chan", "news", "x", "youtube", "search")
 
 
 def load_config(path: str) -> dict:
@@ -59,6 +59,13 @@ def collect(store: Store, cfg: dict, sources: tuple[str, ...]) -> int:
         print(f"[x] cleanup: {n} spam posts removed")
     if "x" in sources and os.environ.get("X_BEARER_TOKEN"):
         posts += collect_x(store, cfg, registry)
+
+    if "youtube" in sources and os.environ.get("YOUTUBE_API_KEY"):
+        cache = store.get_state("youtube_channels", {})
+        yt_posts, videos = youtube.collect(cfg.get("youtube_channels", []), cache, time.time())
+        store.set_state("youtube_channels", cache)
+        store.save_videos(videos, time.time())
+        posts += yt_posts
 
     if "search" in sources:
         search.collect(store, registry, cfg.get("google_trends_geos", ["GB", "US"]))
