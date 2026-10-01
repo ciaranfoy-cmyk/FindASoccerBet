@@ -15,7 +15,7 @@ from .extract import STABLECOINS
 from .store import Store
 
 SOURCE_LETTER = {"reddit": "R", "telegram": "T", "4chan": "4", "news": "N", "x": "X", "youtube": "Y"}
-TAKING_OFF = 2.0   # a video gaining views this many times faster than the channel's norm
+TAKING_OFF = 1.0   # a video (< 48h old) with this many times the channel's typical total views
 
 
 @dataclass
@@ -209,6 +209,7 @@ def build(store: Store, window_h: float = 6, baseline_h: float = 72,
     stats: dict[str, CoinStats] = {}
     voices_now: dict[str, set] = defaultdict(set)
     voices_base: dict[str, set] = defaultdict(set)
+    non_comment: dict[str, int] = defaultdict(int)   # mentions not from YouTube comments
 
     for row in store.mention_rows(base_start):
         key = row["coin_key"]
@@ -224,6 +225,8 @@ def build(store: Store, window_h: float = 6, baseline_h: float = 72,
         s.channels[row["channel"]] += 1
         s.sources.add(row["source"])
         s.sentiment_sum += row["sentiment"]
+        if not row["id"].startswith("yt:c:"):
+            non_comment[key] += 1
 
     search = search_status(store, now)
     for key in search:
@@ -254,6 +257,9 @@ def build(store: Store, window_h: float = 6, baseline_h: float = 72,
         s.heat = math.log2(max(s.velocity, 1.0)) * math.sqrt(s.voices) * (1 + 0.25 * (len(s.sources) - 1))
         s.is_new = first_seen.get(key, 0) >= window_start and history_h > window_h * 2
         s.pump_only = bool(s.channels) and all(c in pump_channels for c in s.channels)
+        # An unknown token pushed only in YouTube comment sections is a shill campaign.
+        if key.startswith("$") and s.mentions and not non_comment[key]:
+            s.pump_only = True
         s.search = search.get(key)
         if s.search:
             # Search interest confirming social buzz is a stronger signal than either alone.
@@ -400,8 +406,8 @@ def render_text(report: Report, top: int = 20) -> str:
         lines.append("== YOUTUBE (new videos from followed channels, 24h) ==")
         for v in report.videos:
             hours = (report.now - v["published_utc"]) / 3600
-            pace = f", {v['vs_norm']:.1f}x channel's usual pace" if v["vs_norm"] else ""
-            flag = "  <- TAKING OFF" if (v["vs_norm"] or 0) >= TAKING_OFF and hours >= 1 else ""
+            pace = f", {v['vs_norm']:.1f}x channel's typical video" if v["vs_norm"] else ""
+            flag = "  <- TAKING OFF" if (v["vs_norm"] or 0) >= TAKING_OFF and 1 <= hours <= 48 else ""
             lines.append(f"@{v['handle']:<20} {hours:4.1f}h ago  {v['views']:>8,} views "
                          f"({v['views_per_hour']:,.0f}/h{pace}), {v['comments']:,} comments  "
                          f"{v['title'][:80]}{flag}")

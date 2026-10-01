@@ -222,9 +222,15 @@ class XTrendsTest(unittest.TestCase):
             {"trend_name": "#Bitcoin", "tweet_count": 52000}, {"trend_name": "Premier League"},
             {"trend_name": "$DOGE", "tweet_count": 9000}, {"trend_name": "$ZORK"}, {"trend_name": "Link"}]})
         m = search.GoogleMatcher(coins.fallback_registry())
-        keys = [(search.match_x_trend(m, t["name"]) or [None])[0] for t in trends]
-        # distinctive name and cashtags match; plain words ("Link") don't
-        self.assertEqual(keys, ["bitcoin", None, "dogecoin", "$ZORK", None])
+        symbols = search.symbol_index(coins.fallback_registry())
+        keys = [(search.match_x_trend(m, t["name"], symbols) or [None])[0] for t in trends]
+        # distinctive names and known tickers match; unknown cashtags (often stocks) and
+        # plain words ("Link") don't
+        self.assertEqual(keys, ["bitcoin", None, "dogecoin", None, None])
+
+    def test_sports_fixtures_ignored_for_google(self):
+        self.assertTrue(search._FIXTURE.search("kings vs avalanche"))
+        self.assertFalse(search._FIXTURE.search("avalanche crypto price"))
 
     def test_x_trend_shows_in_report(self):
         store = Store(":memory:")
@@ -273,8 +279,9 @@ class YouTubeTest(unittest.TestCase):
     def test_videos_comments_and_taking_off(self):
         now = time.time()
         h = 3600
-        ages = {"new": 2, "a": 30, "b": 60, "c": 90}
-        views = {"new": 40000, "a": 30000, "b": 60000, "c": 90000}   # norm ~1,000/h, new 20,000/h
+        # Typical settled video ~10k views; the 2-hour-old one already has 40k.
+        ages = {"new": 2, "a": 100, "b": 130, "c": 160}
+        views = {"new": 40000, "a": 9000, "b": 10000, "c": 12000}
         playlist = {"items": [{"snippet": {"title": f"Video {v}", "description": "Why $SOL could run",
                                            "publishedAt": self._iso(now - ages[v] * h)},
                                "contentDetails": {"videoId": v, "videoPublishedAt": self._iso(now - ages[v] * h)}}
@@ -283,7 +290,7 @@ class YouTubeTest(unittest.TestCase):
                                                     "commentCount": "3"}} for v in ages]}
         vids = youtube.parse_videos(playlist, stats, "intothecryptoverse", now)
         new = next(v for v in vids if v["id"] == "new")
-        self.assertGreater(new["vs_norm"], 10)
+        self.assertAlmostEqual(new["vs_norm"], 4.0)
         post = youtube.video_post(new)
         self.assertEqual((post.source, post.channel), ("youtube", "yt:@intothecryptoverse"))
         self.assertIn("$SOL", post.text)
@@ -299,6 +306,21 @@ class YouTubeTest(unittest.TestCase):
         self.assertIn("== YOUTUBE", text)
         self.assertIn("TAKING OFF", text)
         self.assertEqual(text.count("TAKING OFF"), 1)
+
+
+class ShillCommentTest(unittest.TestCase):
+    def test_unknown_token_only_in_youtube_comments_is_signal_only(self):
+        store = Store(":memory:")
+        now = time.time()
+        ex = Extractor(coins.fallback_registry())
+        for i, ch in enumerate(["yt:@tomcrown", "yt:@coinbureau", "yt:@meetkevin"]):
+            text = "The AI boom is evolving into the Space Boom. $SPX80B could dominate"
+            store.add_post(Post(id=f"yt:c:{i}", source="youtube", channel=ch, author=f"bot{i}",
+                                created_utc=now - 600, text=text, url=""), 0.1, ex.extract(text))
+        rep = report.build(store, now=now)
+        s = {x.key: x for x in rep.stats}["$SPX80B"]
+        self.assertTrue(s.pump_only)
+        self.assertNotIn("$SPX80B", [x.key for x in rep.heating_up(min_voices=1)])
 
 
 class XCapTest(unittest.TestCase):

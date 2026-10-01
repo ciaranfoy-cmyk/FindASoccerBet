@@ -28,6 +28,8 @@ GOOGLE_TRENDS_RSS = "https://trends.google.com/trending/rss?geo={geo}"
 
 # Words that suggest a trending Google query is about crypto, for tickers/names
 # that are also ordinary words.
+# Sports fixtures ("kings vs avalanche", "spurs v arsenal") are never about a coin.
+_FIXTURE = re.compile(r"\b(vs?\.?|versus)\s", re.I)
 _CRYPTO_CONTEXT = re.compile(r"\b(coin|crypto|token|price|etf|blockchain|memecoin|airdrop)\b", re.I)
 
 
@@ -156,6 +158,8 @@ def collect(store, registry: list[Coin], geos: list[str]) -> int:
             continue
         print(f"[search] Google Trends {geo}: {len(trends)} trending searches read")
         for i, t in enumerate(trends, start=1):
+            if _FIXTURE.search(t["query"]):
+                continue  # "kings vs avalanche" is ice hockey, not AVAX
             coin = matcher.match(t["query"], t["news"])
             if coin:
                 store.add_search_trend(now, f"google-{geo}", coin.id, i, coin.symbol, coin.name,
@@ -165,22 +169,32 @@ def collect(store, registry: list[Coin], geos: list[str]) -> int:
     return rows
 
 
-def match_x_trend(matcher: GoogleMatcher, name: str) -> tuple[str, str, str] | None:
-    """(coin_key, symbol, name) for an X trend like "#Bitcoin", "$PEPE" or "Solana"."""
+def symbol_index(registry: list[Coin]) -> dict[str, Coin]:
+    """Ticker -> coin across the whole registry (biggest coin wins a shared ticker)."""
+    out: dict[str, Coin] = {}
+    for coin in sorted(registry, key=lambda c: c.rank, reverse=True):
+        if coin.symbol.upper() not in STABLECOINS:
+            out[coin.symbol.upper()] = coin
+    return out
+
+
+def match_x_trend(matcher: GoogleMatcher, name: str,
+                  symbols: dict[str, Coin] | None = None) -> tuple[str, str, str] | None:
+    """(coin_key, symbol, name) for an X trend like "#Bitcoin", "$PEPE" or "Solana".
+    Cashtags count only if they are a known coin ticker: X cashtags are often stocks."""
     word = name.lstrip("#$").strip()
-    cashtag = name.startswith("$")
-    coin = matcher.match(word + (" crypto" if cashtag else ""), [])
-    if coin:
-        return coin.id, coin.symbol, coin.name
-    if cashtag and re.fullmatch(r"[A-Za-z][A-Za-z0-9]{1,9}", word) and word.upper() not in STABLECOINS:
-        return f"${word.upper()}", word.upper(), ""
-    return None
+    if name.startswith("$"):
+        coin = (symbols or {}).get(word.upper()) or matcher.match(word + " crypto", [])
+    else:
+        coin = matcher.match(word, [])
+    return (coin.id, coin.symbol, coin.name) if coin else None
 
 
 def collect_x_trends(store, registry: list[Coin], locations: list[str]) -> int:
     """Snapshot X's trending topics (one request per location) and keep the crypto ones."""
     now = time.time()
     matcher = GoogleMatcher(registry)
+    symbols = symbol_index(registry)
     rows = 0
     for loc in locations:
         try:
@@ -190,7 +204,7 @@ def collect_x_trends(store, registry: list[Coin], locations: list[str]) -> int:
             continue
         hits = 0
         for i, t in enumerate(trends, start=1):
-            m = match_x_trend(matcher, t["name"])
+            m = match_x_trend(matcher, t["name"], symbols)
             if m:
                 posts = f" {t['posts']:,} posts" if t.get("posts") else ""
                 store.add_search_trend(now, f"x-{loc}", m[0], i, m[1], m[2], f'"{t["name"]}"{posts}')
