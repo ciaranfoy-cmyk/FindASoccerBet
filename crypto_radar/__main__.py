@@ -70,7 +70,7 @@ def collect(store: Store, cfg: dict, sources: tuple[str, ...]) -> int:
     if "search" in sources:
         search.collect(store, registry, cfg.get("google_trends_geos", ["GB", "US"]))
         if os.environ.get("LUNARCRUSH_API_KEY"):
-            search.collect_lunarcrush(store, registry, cfg.get("lunarcrush_top", 50))
+            search.collect_lunarcrush(store, registry, cfg.get("lunarcrush_top", 200))
 
     new = 0
     by_source: dict[str, int] = {}

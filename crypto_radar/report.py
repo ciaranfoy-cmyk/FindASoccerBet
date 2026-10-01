@@ -16,6 +16,7 @@ from .extract import STABLECOINS
 from .store import Store
 
 SOURCE_LETTER = {"reddit": "R", "telegram": "T", "4chan": "4", "news": "N", "x": "X", "youtube": "Y"}
+LUNAR_MIN_INTERACTIONS = 50_000   # ignore tiny coins whose "growth" is noise
 TAKING_OFF = 1.0   # a video (< 48h old) with this many times the channel's typical total views
 
 
@@ -60,8 +61,10 @@ class SearchInfo:
     change_since_entry: float | None = None  # percent since its current streak began
     early: bool = False                 # climbing in searches and price hasn't run yet
     already_pumped: bool = False        # searched because it already moved
-    lunar_rank: int | None = None       # position in LunarCrush's AltRank list (latest)
+    lunar_rank: int | None = None       # position in LunarCrush's most-discussed list (latest)
     lunar: dict = field(default_factory=dict)  # its social metrics
+    lunar_growth: float | None = None   # interactions now / ~a day earlier
+    lunar_growth_h: float | None = None # how far back that comparison reaches (hours)
     moving_now: bool = False            # big 1h move: mid-spike, too late to call early
     market_cap: float | None = None     # USD
 
@@ -119,14 +122,28 @@ def search_status(store: Store, now: float, lookback_h: float = 48,
     if lunar_rows:
         latest = max(r["fetched_utc"] for r in lunar_rows)
         if latest >= now - stale_after_h * 3600:
+            history: dict[str, list] = defaultdict(list)
             for r in lunar_rows:
-                if r["fetched_utc"] == latest:
-                    info = out[r["coin_key"]]
-                    info.lunar_rank = r["rank"]
-                    try:
-                        info.lunar = json.loads(r["detail"] or "{}")
-                    except ValueError:
-                        info.lunar = {}
+                try:
+                    m = json.loads(r["detail"] or "{}")
+                except ValueError:
+                    m = {}
+                history[r["coin_key"]].append((r["fetched_utc"], r["rank"], m))
+            for key, snaps in history.items():
+                snaps.sort(key=lambda x: x[0])
+                t, rank, m = snaps[-1]
+                if t != latest:
+                    continue
+                info = out[key]
+                info.lunar_rank, info.lunar = rank, m
+                # Compare with the snapshot closest to 24h earlier (at least 3h back).
+                older = [x for x in snaps if latest - x[0] >= 3 * 3600]
+                if older and m.get("interactions_24h"):
+                    then = min(older, key=lambda x: abs(latest - 24 * 3600 - x[0]))
+                    base = then[2].get("interactions_24h")
+                    if base:
+                        info.lunar_growth = m["interactions_24h"] / base
+                        info.lunar_growth_h = (latest - then[0]) / 3600
 
     times = sorted(snapshots)
     if times and times[-1] >= now - stale_after_h * 3600:
@@ -422,20 +439,29 @@ def render_text(report: Report, top: int = 20) -> str:
         lines.append(f"{s.label[:28]:<28} {where}{move}  {buzz}{price}{flag}{google}")
     lines.append("")
 
-    lunar = sorted((s for s in report.stats if s.search and s.search.lunar_rank),
-                   key=lambda s: s.search.lunar_rank)[:15]
+    lunar = [s for s in report.stats if s.search and s.search.lunar_rank]
     if lunar:
-        lines.append("== LUNARCRUSH (top AltRank: price + social activity across crypto social media) ==")
-        for s in lunar:
+        rising = sorted((s for s in lunar if s.search.lunar_growth
+                         and (s.search.lunar.get("interactions_24h") or 0) >= LUNAR_MIN_INTERACTIONS),
+                        key=lambda s: -s.search.lunar_growth)[:15]
+        if rising:
+            lines.append("== LUNARCRUSH RISING (social activity growing fastest vs ~a day ago) ==")
+            shown = rising
+        else:
+            lines.append("== LUNARCRUSH (most-discussed coins; 'rising' needs 3h+ of snapshots) ==")
+            shown = sorted(lunar, key=lambda s: s.search.lunar_rank)[:15]
+        for s in shown:
             m = s.search.lunar
-            bits = [f"AltRank {m['alt_rank']:.0f}" if m.get("alt_rank") is not None else "",
-                    f"galaxy {m['galaxy_score']:.0f}" if m.get("galaxy_score") is not None else "",
+            g = s.search
+            grow = f"{g.lunar_growth:.1f}x interactions vs {g.lunar_growth_h:.0f}h ago" if g.lunar_growth else ""
+            bits = [grow,
                     f"{m['interactions_24h']:,.0f} interactions" if m.get("interactions_24h") is not None else "",
                     f"{m['social_dominance']:.2f}% of chatter" if m.get("social_dominance") is not None else "",
                     f"{m['sentiment']:.0f}% positive" if m.get("sentiment") is not None else "",
-                    f"24h {m['change_24h']:+.0f}%" if m.get("change_24h") is not None else ""]
+                    f"24h {m['change_24h']:+.0f}%" if m.get("change_24h") is not None else "",
+                    f"AltRank {m['alt_rank']:.0f}" if m.get("alt_rank") is not None else ""]
             ours = f"  (ours: {s.voices} voices)" if s.voices else ""
-            lines.append(f"#{s.search.lunar_rank:<3} {s.label[:26]:<26} " + ", ".join(b for b in bits if b) + ours)
+            lines.append(f"{s.label[:26]:<26} " + ", ".join(b for b in bits if b) + ours)
         lines.append("")
 
     if report.videos:

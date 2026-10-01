@@ -1,10 +1,10 @@
 """LunarCrush (API v4): social metrics across crypto X, Reddit, YouTube, TikTok, news.
 Optional: needs LUNARCRUSH_API_KEY.
 
-One request per check: the coin list sorted by AltRank (LunarCrush's blend of price
-action and social activity; 1 = best). We keep the top N with their social volume,
-interactions, social dominance and sentiment, as a "what's trending across crypto
-social" list that covers far more of X than we can afford to read ourselves.
+One request per check: the 200 most-discussed coins (by 24h interactions) with social
+volume, social dominance, sentiment and AltRank. Snapshots are kept every run, so the
+report can rank coins by how fast their social activity is rising vs a day earlier:
+"starting to get attention", not "already pumped" (AltRank leans to the latter).
 """
 
 import json
@@ -45,23 +45,28 @@ def parse_coins(data: dict) -> list[dict]:
     return out
 
 
-def fetch(limit: int = 50) -> list[dict]:
+def fetch(limit: int = 200, sort: str = "interactions") -> list[dict]:
     key = os.environ.get("LUNARCRUSH_API_KEY", "").strip()
     if not key:
         return []
-    params = urllib.parse.urlencode({"sort": "alt_rank", "limit": limit})
     last_exc = None
     for version in ("v2", "v1"):  # v2 is current; fall back if the plan only has v1
-        try:
-            data = net.get_json(f"{BASE.format(version=version)}?{params}",
-                                headers={"Authorization": f"Bearer {key}"})
-        except net.HttpError as exc:
-            last_exc = exc
-            continue
-        coins = parse_coins(data)
-        if coins:
-            coins.sort(key=lambda c: c["alt_rank"] if c["alt_rank"] is not None else 1e9)
-            return coins[:limit]
+        # Try the default order first; if it came back smallest-first, ask for descending.
+        for extra in ({}, {"desc": "1"}):
+            params = urllib.parse.urlencode({"sort": sort, "limit": limit, **extra})
+            try:
+                data = net.get_json(f"{BASE.format(version=version)}?{params}",
+                                    headers={"Authorization": f"Bearer {key}"})
+            except net.HttpError as exc:
+                last_exc = exc
+                break
+            coins = parse_coins(data)
+            if not coins:
+                break
+            vals = [c["interactions_24h"] or 0 for c in coins]
+            if extra or vals[0] >= vals[-1]:
+                coins.sort(key=lambda c: -(c["interactions_24h"] or 0))
+                return coins[:limit]
     if last_exc:
         print(f"[lunarcrush] {str(last_exc)[:200]}")
     return []
