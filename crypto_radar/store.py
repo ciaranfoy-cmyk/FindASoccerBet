@@ -66,6 +66,20 @@ CREATE TABLE IF NOT EXISTS prices (
 );
 CREATE INDEX IF NOT EXISTS prices_coin_time ON prices(coin_key, fetched_utc);
 
+-- Latest stats per followed YouTube video (refreshed every check).
+CREATE TABLE IF NOT EXISTS youtube_videos (
+    video_id TEXT PRIMARY KEY,
+    handle TEXT NOT NULL,
+    title TEXT,
+    published_utc REAL,
+    views INTEGER,
+    likes INTEGER,
+    comments INTEGER,
+    views_per_hour REAL,
+    vs_norm REAL,               -- views/hour vs the channel's other recent uploads
+    fetched_utc REAL
+);
+
 CREATE TABLE IF NOT EXISTS alerts (
     coin_key TEXT NOT NULL,
     sent_utc REAL NOT NULL
@@ -151,6 +165,7 @@ class Store:
         self.db.execute("DELETE FROM alerts WHERE sent_utc < ?", (cutoff,))
         self.db.execute("DELETE FROM search_trends WHERE fetched_utc < ?", (cutoff,))
         self.db.execute("DELETE FROM prices WHERE fetched_utc < ?", (cutoff,))
+        self.db.execute("DELETE FROM youtube_videos WHERE published_utc < ?", (cutoff,))
         self.db.commit()
         if deleted:
             self.db.execute("VACUUM")
@@ -180,6 +195,16 @@ class Store:
             "SELECT * FROM search_trends WHERE fetched_utc >= ? ORDER BY fetched_utc",
             (since_utc,),
         ).fetchall()
+
+    def save_videos(self, videos: list[dict], fetched_utc: float) -> None:
+        for v in videos:
+            self.db.execute("INSERT OR REPLACE INTO youtube_videos VALUES (?,?,?,?,?,?,?,?,?,?)",
+                            (v["id"], v["handle"], v["title"], v["published"], v["views"], v["likes"],
+                             v["comments"], v["views_per_hour"], v.get("vs_norm"), fetched_utc))
+
+    def recent_videos(self, since_utc: float) -> list[sqlite3.Row]:
+        return self.db.execute("SELECT * FROM youtube_videos WHERE published_utc >= ? "
+                               "ORDER BY published_utc DESC", (since_utc,)).fetchall()
 
     # --- contract-address resolution -------------------------------------------------
 

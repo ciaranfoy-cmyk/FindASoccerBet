@@ -14,7 +14,8 @@ from dataclasses import dataclass, field
 from .extract import STABLECOINS
 from .store import Store
 
-SOURCE_LETTER = {"reddit": "R", "telegram": "T", "4chan": "4", "news": "N", "x": "X"}
+SOURCE_LETTER = {"reddit": "R", "telegram": "T", "4chan": "4", "news": "N", "x": "X", "youtube": "Y"}
+TAKING_OFF = 2.0   # a video gaining views this many times faster than the channel's norm
 
 
 @dataclass
@@ -156,6 +157,7 @@ class Report:
     history_h: float
     stats: list[CoinStats]
     now: float = 0.0
+    videos: list = field(default_factory=list)   # followed YouTube uploads, last 24h
 
     def most_talked(self, n: int = 20) -> list[CoinStats]:
         talked = [s for s in self.stats if s.voices]
@@ -261,7 +263,8 @@ def build(store: Store, window_h: float = 6, baseline_h: float = 72,
                 s.heat *= 2
         out.append(s)
 
-    return Report(window_h=window_h, baseline_h=baseline_h, history_h=history_h, stats=out,
+    videos = store.recent_videos(now - 24 * 3600)
+    return Report(window_h=window_h, baseline_h=baseline_h, history_h=history_h, stats=out, videos=videos,
                   now=now)
 
 
@@ -325,7 +328,7 @@ def render_text(report: Report, top: int = 20) -> str:
     if report.history_h < report.window_h + report.baseline_h:
         lines.append("Note: baseline is still filling up; 'vs base' and 'new' get more reliable "
                      "after a few days of collecting.")
-    lines.append("Sources: R=Reddit T=Telegram 4=4chan N=News X=X/Twitter   "
+    lines.append("Sources: R=Reddit T=Telegram 4=4chan N=News X=X/Twitter Y=YouTube   "
                  "voic = distinct people-hours talking about it\n")
 
     sections = [
@@ -392,6 +395,17 @@ def render_text(report: Report, top: int = 20) -> str:
         google = "  " + "; ".join(f"{_trend_where(src)}: {d}" for _, src, d in si.google[-2:]) if si.google else ""
         lines.append(f"{s.label[:28]:<28} {where}{move}  {buzz}{price}{flag}{google}")
     lines.append("")
+
+    if report.videos:
+        lines.append("== YOUTUBE (new videos from followed channels, 24h) ==")
+        for v in report.videos:
+            hours = (report.now - v["published_utc"]) / 3600
+            pace = f", {v['vs_norm']:.1f}x channel's usual pace" if v["vs_norm"] else ""
+            flag = "  <- TAKING OFF" if (v["vs_norm"] or 0) >= TAKING_OFF and hours >= 1 else ""
+            lines.append(f"@{v['handle']:<20} {hours:4.1f}h ago  {v['views']:>8,} views "
+                         f"({v['views_per_hour']:,.0f}/h{pace}), {v['comments']:,} comments  "
+                         f"{v['title'][:80]}{flag}")
+        lines.append("")
     return "\n".join(lines)
 
 

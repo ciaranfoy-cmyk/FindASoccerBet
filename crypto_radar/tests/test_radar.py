@@ -9,7 +9,7 @@ import unittest
 
 from crypto_radar import coins, dexscreener, report, search, sentiment
 from crypto_radar.extract import Extractor, Mention
-from crypto_radar.sources import Post, fourchan, news, reddit, telegram, x
+from crypto_radar.sources import Post, fourchan, news, reddit, telegram, x, youtube
 from crypto_radar.store import Store
 
 EXTRACTOR = Extractor(coins.fallback_registry())
@@ -264,6 +264,41 @@ class XBudgetTest(unittest.TestCase):
         # and it won't run again until x_every_hours has passed
         with mock.patch.object(cli.x, "collect") as collect:
             self.assertEqual(cli.collect_x(store, cfg, []), [])
+
+
+class YouTubeTest(unittest.TestCase):
+    def _iso(self, t):
+        return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(t))
+
+    def test_videos_comments_and_taking_off(self):
+        now = time.time()
+        h = 3600
+        ages = {"new": 2, "a": 30, "b": 60, "c": 90}
+        views = {"new": 40000, "a": 30000, "b": 60000, "c": 90000}   # norm ~1,000/h, new 20,000/h
+        playlist = {"items": [{"snippet": {"title": f"Video {v}", "description": "Why $SOL could run",
+                                           "publishedAt": self._iso(now - ages[v] * h)},
+                               "contentDetails": {"videoId": v, "videoPublishedAt": self._iso(now - ages[v] * h)}}
+                              for v in ages]}
+        stats = {"items": [{"id": v, "statistics": {"viewCount": str(views[v]), "likeCount": "10",
+                                                    "commentCount": "3"}} for v in ages]}
+        vids = youtube.parse_videos(playlist, stats, "intothecryptoverse", now)
+        new = next(v for v in vids if v["id"] == "new")
+        self.assertGreater(new["vs_norm"], 10)
+        post = youtube.video_post(new)
+        self.assertEqual((post.source, post.channel), ("youtube", "yt:@intothecryptoverse"))
+        self.assertIn("$SOL", post.text)
+
+        comments = youtube.parse_comments({"items": [{"snippet": {"topLevelComment": {
+            "id": "c1", "snippet": {"textOriginal": "SOL to 300", "authorDisplayName": "@viewer",
+                                    "publishedAt": self._iso(now - 600)}}}}]}, "intothecryptoverse", "new")
+        self.assertEqual((comments[0].author, comments[0].id), ("@viewer", "yt:c:c1"))
+
+        store = Store(":memory:")
+        store.save_videos(vids, now)
+        text = report.render_text(report.build(store, now=now))
+        self.assertIn("== YOUTUBE", text)
+        self.assertIn("TAKING OFF", text)
+        self.assertEqual(text.count("TAKING OFF"), 1)
 
 
 class XCapTest(unittest.TestCase):
