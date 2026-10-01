@@ -6,6 +6,7 @@ mentioning it counts 20 times. Voices add up over time, so a 6-hour window can
 be compared fairly against a 72-hour baseline.
 """
 
+import json
 import math
 import time
 from collections import defaultdict
@@ -59,6 +60,8 @@ class SearchInfo:
     change_since_entry: float | None = None  # percent since its current streak began
     early: bool = False                 # climbing in searches and price hasn't run yet
     already_pumped: bool = False        # searched because it already moved
+    lunar_rank: int | None = None       # position in LunarCrush's AltRank list (latest)
+    lunar: dict = field(default_factory=dict)  # its social metrics
     moving_now: bool = False            # big 1h move: mid-spike, too late to call early
     market_cap: float | None = None     # USD
 
@@ -104,11 +107,26 @@ def search_status(store: Store, now: float, lookback_h: float = 48,
     out: dict[str, SearchInfo] = defaultdict(SearchInfo)
 
     snapshots: dict[float, dict[str, int]] = defaultdict(dict)
+    lunar_rows = []
     for r in rows:
         if r["source"] == "coingecko":
             snapshots[r["fetched_utc"]][r["coin_key"]] = r["rank"]
+        elif r["source"] == "lunarcrush":
+            lunar_rows.append(r)
         elif r["fetched_utc"] >= now - 24 * 3600:
             out[r["coin_key"]].google.append((r["fetched_utc"], r["source"], r["detail"]))
+
+    if lunar_rows:
+        latest = max(r["fetched_utc"] for r in lunar_rows)
+        if latest >= now - stale_after_h * 3600:
+            for r in lunar_rows:
+                if r["fetched_utc"] == latest:
+                    info = out[r["coin_key"]]
+                    info.lunar_rank = r["rank"]
+                    try:
+                        info.lunar = json.loads(r["detail"] or "{}")
+                    except ValueError:
+                        info.lunar = {}
 
     times = sorted(snapshots)
     if times and times[-1] >= now - stale_after_h * 3600:
@@ -306,6 +324,8 @@ def _search_tags(s: CoinStats, window_start: float) -> list[str]:
     if s.search and s.search.google:
         for where in sorted({_trend_where(src) for _, src, _ in s.search.google}):
             tags.append(f"{where}-TRENDING")
+    if s.search and s.search.lunar_rank and s.search.lunar_rank <= 20:
+        tags.append(f"LC#{s.search.lunar_rank}")
     if s.search and s.search.early:
         tags.append("EARLY?")
     return tags
@@ -401,6 +421,22 @@ def render_text(report: Report, top: int = 20) -> str:
         google = "  " + "; ".join(f"{_trend_where(src)}: {d}" for _, src, d in si.google[-2:]) if si.google else ""
         lines.append(f"{s.label[:28]:<28} {where}{move}  {buzz}{price}{flag}{google}")
     lines.append("")
+
+    lunar = sorted((s for s in report.stats if s.search and s.search.lunar_rank),
+                   key=lambda s: s.search.lunar_rank)[:15]
+    if lunar:
+        lines.append("== LUNARCRUSH (top AltRank: price + social activity across crypto social media) ==")
+        for s in lunar:
+            m = s.search.lunar
+            bits = [f"AltRank {m['alt_rank']:.0f}" if m.get("alt_rank") is not None else "",
+                    f"galaxy {m['galaxy_score']:.0f}" if m.get("galaxy_score") is not None else "",
+                    f"{m['interactions_24h']:,.0f} interactions" if m.get("interactions_24h") is not None else "",
+                    f"{m['social_dominance']:.2f}% of chatter" if m.get("social_dominance") is not None else "",
+                    f"{m['sentiment']:.0f}% positive" if m.get("sentiment") is not None else "",
+                    f"24h {m['change_24h']:+.0f}%" if m.get("change_24h") is not None else ""]
+            ours = f"  (ours: {s.voices} voices)" if s.voices else ""
+            lines.append(f"#{s.search.lunar_rank:<3} {s.label[:26]:<26} " + ", ".join(b for b in bits if b) + ours)
+        lines.append("")
 
     if report.videos:
         lines.append("== YOUTUBE (new videos from followed channels, 24h) ==")
