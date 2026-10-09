@@ -139,10 +139,12 @@ def pump_channels(cfg: dict) -> frozenset:
 
 def build_report(store: Store, cfg: dict, window: float | None = None,
                  baseline: float | None = None) -> report.Report:
-    return report.build(store, window or cfg["report_window_hours"],
-                        baseline or cfg["report_baseline_hours"],
-                        pump_channels=pump_channels(cfg), news_channels=news_channels(cfg),
-                        brand_channels=frozenset(f"x:@{a.lower()}" for a in cfg.get("brand_accounts", [])))
+    rep = report.build(store, window or cfg["report_window_hours"],
+                       baseline or cfg["report_baseline_hours"],
+                       pump_channels=pump_channels(cfg), news_channels=news_channels(cfg),
+                       brand_channels=frozenset(f"x:@{a.lower()}" for a in cfg.get("brand_accounts", [])))
+    rep.hidden = frozenset(cfg.get("market_coins", []))
+    return rep
 
 
 def digest_due(store: Store, cfg: dict, now: float) -> bool:

@@ -195,29 +195,34 @@ class Report:
     stats: list[CoinStats]
     now: float = 0.0
     videos: list = field(default_factory=list)   # followed YouTube uploads, last 24h
+    hidden: frozenset = frozenset()   # market coins (BTC, ETH): always discussed, so left out of rankings
+
+    @property
+    def ranked(self) -> list[CoinStats]:
+        return [s for s in self.stats if s.key not in self.hidden]
 
     def most_talked(self, n: int = 20) -> list[CoinStats]:
-        talked = [s for s in self.stats if s.voices]
+        talked = [s for s in self.ranked if s.voices]
         return sorted(talked, key=lambda s: (-s.voices, -s.mentions))[:n]
 
     def search_signals(self) -> list[CoinStats]:
         """Climbing the search list while the price hasn't run yet."""
-        return sorted((s for s in self.stats if s.search and s.search.early),
+        return sorted((s for s in self.ranked if s.search and s.search.early),
                       key=lambda s: s.search.cg_rank)
 
     def search_interest(self) -> list[CoinStats]:
         """Coins on CoinGecko trending now, then any that hit Google Trends in 24h."""
-        on_cg = [s for s in self.stats if s.search and s.search.cg_rank is not None]
-        on_google = [s for s in self.stats if s.search and s.search.google and s not in on_cg]
+        on_cg = [s for s in self.ranked if s.search and s.search.cg_rank is not None]
+        on_google = [s for s in self.ranked if s.search and s.search.google and s not in on_cg]
         return sorted(on_cg, key=lambda s: s.search.cg_rank) + on_google
 
     def heating_up(self, n: int = 15, min_voices: int = 3) -> list[CoinStats]:
-        rising = [s for s in self.stats
+        rising = [s for s in self.ranked
                   if s.voices >= min_voices and s.velocity > 1.5 and not s.pump_only]
         return sorted(rising, key=lambda s: -s.heat)[:n]
 
     def new_on_radar(self, n: int = 15, min_voices: int = 2) -> list[CoinStats]:
-        fresh = [s for s in self.stats if s.is_new and s.voices >= min_voices and not s.pump_only]
+        fresh = [s for s in self.ranked if s.is_new and s.voices >= min_voices and not s.pump_only]
         return sorted(fresh, key=lambda s: -s.voices)[:n]
 
     def pump_only_coins(self) -> list[CoinStats]:
@@ -297,7 +302,7 @@ def build(store: Store, window_h: float = 6, baseline_h: float = 72,
         s.info = dict(row) if row else {}
         if key.startswith("ca:") and s.info.get("resolved_utc") and not s.info.get("symbol"):
             continue  # DEX Screener checked it: not a traded token
-        if (s.info.get("symbol") or "").upper() in STABLECOINS:
+        if (s.info.get("symbol") or key.lstrip("$")).upper() in STABLECOINS:
             continue  # stored before stablecoins were filtered at extraction
         s.label = _label(key, s.info)
         s.voices = len(voices_now[key])
@@ -387,6 +392,8 @@ def render_text(report: Report, top: int = 20) -> str:
     if report.history_h < report.window_h + report.baseline_h:
         lines.append("Note: baseline is still filling up; 'vs base' and 'new' get more reliable "
                      "after a few days of collecting.")
+    if report.hidden:
+        lines.append(f"Left out of the rankings (always discussed): {', '.join(sorted(report.hidden))}")
     lines.append("Sources: R=Reddit T=Telegram 4=4chan N=News X=X/Twitter Y=YouTube   "
                  "voic = distinct people-hours talking about it\n")
 
@@ -455,7 +462,7 @@ def render_text(report: Report, top: int = 20) -> str:
         lines.append(f"{s.label[:28]:<28} {where}{move}  {buzz}{price}{flag}{google}")
     lines.append("")
 
-    lunar = [s for s in report.stats if s.search and s.search.lunar_rank]
+    lunar = [s for s in report.ranked if s.search and s.search.lunar_rank]
     if lunar:
         rising = sorted((s for s in lunar if s.search.lunar_growth
                          and (s.search.lunar.get("interactions_24h") or 0) >= LUNAR_MIN_INTERACTIONS),

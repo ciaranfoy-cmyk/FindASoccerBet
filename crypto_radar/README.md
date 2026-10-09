@@ -114,6 +114,9 @@ LunarCrush social growth) and is put in a bucket:
 - ⚫ **likely pushed**: pump channels or shill comments only, top searches with nobody real
   talking (small caps), unknown cashtags, or tiny DEX liquidity
 
+BTC and ETH (`market_coins`) are always discussed, so they are left out of the rankings and calls;
+they still count towards the market line and overall mood.
+
 Every 🟢/🟡 call is logged with its price; the digest's **track record** line shows how
 calls did after 1, 3 and 7 days, against just holding BTC, and whether calls made while
 the coin was already falling did better or worse than the rest. `python -m crypto_radar signals` lists every coin's score

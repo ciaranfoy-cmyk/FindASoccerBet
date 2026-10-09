@@ -172,9 +172,9 @@ def score(s, latest_prices: dict) -> Signal:
 
 def build_signals(rep: Report, store, now: float | None = None) -> list[Signal]:
     now = now or time.time()
-    keys = [s.key for s in rep.stats]
+    keys = [s.key for s in rep.ranked]
     latest = store.latest_prices(keys, now - 3 * 3600)
-    out = [score(s, latest) for s in rep.stats]
+    out = [score(s, latest) for s in rep.ranked]
     out = [g for g in out if g.bucket]
     order = {"green": 0, "yellow": 1, "red": 2, "black": 3}
     return sorted(out, key=lambda g: (order[g.bucket], -g.score))
@@ -183,7 +183,7 @@ def build_signals(rep: Report, store, now: float | None = None) -> list[Signal]:
 def price_candidates(rep: Report, registry_ids: set, extra: list[str] = ()) -> list[str]:
     """CoinGecko ids worth a price check: coins with some signal, plus open calls."""
     ids = set(extra) | {"bitcoin", "ethereum"}
-    for s in sorted(rep.stats, key=lambda s: -(s.voices + 3 * len(s.experts))):
+    for s in sorted(rep.ranked, key=lambda s: -(s.voices + 3 * len(s.experts))):
         if s.key in registry_ids and (s.voices >= 2 or s.experts or s.news):
             ids.add(s.key)
         if len(ids) >= 120:
