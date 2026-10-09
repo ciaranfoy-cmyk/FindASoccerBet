@@ -217,10 +217,11 @@ def open_call_ids(store, registry_ids: set, now: float) -> list[str]:
                    if r["coin_key"] in registry_ids})
 
 
-def scorecard(store, now: float | None = None) -> dict:
-    """{bucket: {days: (n_checked, n_up, avg_return_pct)}} for calls old enough to judge."""
-    now = now or time.time()
-    out: dict = {}
+TREND_PCT = 3.0   # price move over the 24h before a call that counts as "falling"/"rising"
+
+
+def _outcomes(store, now: float):
+    """Yields (row, days, return_pct, btc_return_pct or None) for calls old enough to judge."""
     for r in store.signals_since(now - 21 * 86400):
         if not r["price"]:
             continue
@@ -231,18 +232,64 @@ def scorecard(store, now: float | None = None) -> dict:
             later = store.price_near(r["coin_key"], t)
             if later is None:
                 continue
-            ret = (later / r["price"] - 1) * 100
-            n, up, total = out.setdefault(r["bucket"], {}).get(days, (0, 0, 0.0))
-            out[r["bucket"]][days] = (n + 1, up + (ret > 0), total + ret)
-    return {b: {d: (n, up, total / n) for d, (n, up, total) in v.items()} for b, v in out.items()}
+            b0, b1 = store.price_near("bitcoin", r["logged_utc"]), store.price_near("bitcoin", t)
+            btc = (b1 / b0 - 1) * 100 if b0 and b1 else None
+            yield r, days, (later / r["price"] - 1) * 100, btc
 
 
-def render_scorecard(card: dict) -> str:
+def scorecard(store, now: float | None = None) -> dict:
+    """{bucket: {days: (n_checked, n_up, avg_return_pct, avg_vs_btc_pct|None, n_beat_btc)}}."""
+    now = now or time.time()
+    acc: dict = {}
+    for r, days, ret, btc in _outcomes(store, now):
+        a = acc.setdefault(r["bucket"], {}).setdefault(days, [0, 0, 0.0, 0, 0.0, 0])
+        a[0] += 1
+        a[1] += ret > 0
+        a[2] += ret
+        if btc is not None:
+            a[3] += 1
+            a[4] += ret - btc
+            a[5] += ret > btc
+    return {b: {d: (n, up, tot / n, (ex / nb) if nb else None, beat)
+                for d, (n, up, tot, nb, ex, beat) in v.items()} for b, v in acc.items()}
+
+
+def trend_split(store, now: float | None = None, min_n: int = 10) -> tuple[int, dict] | None:
+    """Do calls made while the coin was already falling do worse than the rest?
+    Returns (days, {"falling"|"flat"|"rising": (n, avg_vs_btc_pct)}) for the longest
+    horizon with at least `min_n` judged calls, else None."""
+    now = now or time.time()
+    by_days: dict = {}
+    for r, days, ret, btc in _outcomes(store, now):
+        if btc is None or r["coin_key"] == "bitcoin":
+            continue
+        before = store.price_near(r["coin_key"], r["logged_utc"] - 86400)
+        if not before:
+            continue
+        move = (r["price"] / before - 1) * 100
+        kind = "falling" if move < -TREND_PCT else "rising" if move > TREND_PCT else "flat"
+        by_days.setdefault(days, {}).setdefault(kind, []).append(ret - btc)
+    for days in sorted(by_days, reverse=True):
+        groups = by_days[days]
+        if sum(len(v) for v in groups.values()) >= min_n:
+            return days, {k: (len(v), sum(v) / len(v)) for k, v in groups.items()}
+    return None
+
+
+def render_scorecard(card: dict, split: tuple[int, dict] | None = None) -> str:
     parts = []
     for bucket in ("green", "yellow"):
-        for days, (n, up, avg) in sorted(card.get(bucket, {}).items()):
-            parts.append(f"{ICON[bucket]} {days}d: {up}/{n} up, avg {avg:+.1f}%")
-    return "Track record: " + ("; ".join(parts) if parts else "building (needs a day of calls + prices)")
+        for days, (n, up, avg, vs_btc, beat) in sorted(card.get(bucket, {}).items()):
+            bit = f"{ICON[bucket]} {days}d: {up}/{n} up, avg {avg:+.1f}%"
+            if vs_btc is not None:
+                bit += f" ({vs_btc:+.1f}% vs BTC, {beat} beat it)"
+            parts.append(bit)
+    out = "Track record (vs just holding BTC): " + ("; ".join(parts) if parts else "building (needs a day of calls + prices)")
+    if split:
+        days, groups = split
+        out += (f"\nCalled while price was falling / flat / rising ({days}d, vs BTC): " + " · ".join(
+            f"{k} {groups[k][1]:+.1f}% ({groups[k][0]})" for k in ("falling", "flat", "rising") if k in groups))
+    return out
 
 
 # --- digest --------------------------------------------------------------------------
@@ -278,7 +325,7 @@ def render_digest(rep: Report, signals: list[Signal], store, now: float | None =
             return ""
         return f" · price {_fmt_price(g.price)} ({g.change_24h:+.0f}% 24h)" if g.price else f" · {g.change_24h:+.0f}% 24h"
 
-    lines.append(f"{ICON['green']} EARLY & CONFIRMED")
+    lines.append(f"{ICON['green']} IN FOCUS: strongest signals (ideas to research, not buy signals)")
     if by["green"]:
         for g in by["green"][:5]:
             lines.append(f"{g.label}{price_bit(g)}")
@@ -290,7 +337,7 @@ def render_digest(rep: Report, signals: list[Signal], store, now: float | None =
     else:
         lines.append("  none right now: no coin has 3+ independent signals with the price still flat")
     lines.append("")
-    lines.append(f"{ICON['yellow']} WATCH")
+    lines.append(f"{ICON['yellow']} ON THE RADAR")
     for g in by["yellow"][:max_watch]:
         lines.append(f"{g.label}{price_bit(g)}: {'; '.join(g.why[:2])}"
                      + (f"  ⚠ {g.risks[0]}" if g.risks else ""))
@@ -316,13 +363,13 @@ def render_digest(rep: Report, signals: list[Signal], store, now: float | None =
                          + ("; " if new and gone else "")
                          + (f"dropped {', '.join(gone[:8])}" if gone else ""))
     lines.append("")
-    lines.append(render_scorecard(scorecard(store, now)))
+    lines.append(render_scorecard(scorecard(store, now), trend_split(store, now)))
     lines.append("Not financial advice: this is chatter and data, not a buy signal.")
     return "\n".join(lines)
 
 
 def render_green_alert(g: Signal) -> str:
-    lines = [f"🟢 {g.label}: early & confirmed"]
+    lines = [f"🟢 {g.label}: in focus (strongest signals; research it, not a buy signal)"]
     lines += [f"• {w}" for w in g.why[:5]]
     if g.price:
         lines.append(f"price {_fmt_price(g.price)}" + (f" ({g.change_24h:+.0f}% 24h)" if g.change_24h is not None else ""))

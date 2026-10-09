@@ -107,15 +107,16 @@ from **independent** evidence (rising chatter, breadth across platforms, your fo
 accounts and YouTubers, coin-specific news, CoinGecko search climb, Google/X trends,
 LunarCrush social growth) and is put in a bucket:
 
-- 🟢 **early & confirmed**: score 6+ from 3+ kinds of evidence, price not up 15%+ (or 10% in
+- 🟢 **in focus** (strongest signals, not buy signals): score 6+ from 3+ kinds of evidence, price not up 15%+ (or 10% in
   an hour), not falling 8%+, no bad news (hack/exploit/lawsuit/delisting...)
-- 🟡 **watch**: score 3+
+- 🟡 **on the radar**: score 3+
 - 🔴 **late**: already moved; don't chase
 - ⚫ **likely pushed**: pump channels or shill comments only, top searches with nobody real
   talking (small caps), unknown cashtags, or tiny DEX liquidity
 
 Every 🟢/🟡 call is logged with its price; the digest's **track record** line shows how
-calls did after 1, 3 and 7 days. `python -m crypto_radar signals` lists every coin's score
+calls did after 1, 3 and 7 days, against just holding BTC, and whether calls made while
+the coin was already falling did better or worse than the rest. `python -m crypto_radar signals` lists every coin's score
 and evidence. Exchange/brand accounts (`brand_accounts`) don't count as experts; Telegram
 `news_channels` count as news.
 
