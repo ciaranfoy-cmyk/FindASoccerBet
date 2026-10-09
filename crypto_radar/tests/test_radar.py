@@ -422,11 +422,24 @@ class SignalsTest(unittest.TestCase):
         self.assertEqual(card["green"][1][:2], (1, 1))
         self.assertAlmostEqual(card["green"][1][2], 10.0)
         self.assertIn("🟢 1d: 1/1 up, avg +10.0%", signals.render_scorecard(card))
+        self.assertIsNone(card["green"][1][3])                                    # no BTC prices yet
+        for t, p in ((now - 2 * 86400, 80000.0), (now - 86400, 84000.0)):         # BTC +5% over the day
+            store.add_price(t, "bitcoin", p, None, None, None)
+        store.add_price(now - 3 * 86400, "solana", 125.0, None, None, None)       # SOL fell 20% before the call
+        card = signals.scorecard(store, now)
+        self.assertAlmostEqual(card["green"][1][3], 5.0)
+        self.assertEqual(card["green"][1][4], 1)
+        split = signals.trend_split(store, now, min_n=1)
+        self.assertEqual(split[0], 1)
+        self.assertAlmostEqual(split[1]["falling"][1], 5.0)
+        text = signals.render_scorecard(card, split)
+        self.assertIn("(+5.0% vs BTC, 1 beat it)", text)
+        self.assertIn("falling / flat / rising (1d, vs BTC): falling +5.0% (1)", text)
         rep = report.build(store, now=now)
         text = signals.render_digest(rep, [g, signals.Signal(key="edel", label="EDEL", bucket="black")],
                                      store, now, previous={})
-        for part in ("EARLY & CONFIRMED", "SOL · Solana", "Confirms if: c", "LIKELY PUSHED (avoid): EDEL",
-                     "Track record:"):
+        for part in ("IN FOCUS", "ON THE RADAR", "SOL · Solana", "Confirms if: c", "LIKELY PUSHED (avoid): EDEL",
+                     "Track record (vs just holding BTC):"):
             self.assertIn(part, text)
 
     def test_digest_due_once_per_slot(self):
