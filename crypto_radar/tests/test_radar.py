@@ -409,6 +409,22 @@ class SignalsTest(unittest.TestCase):
             cg_rank=1, cg_since=time.time(), price=0.027, change_24h=5.0, market_cap=18e6)), {})
         self.assertEqual(edel.bucket, "black")
 
+    def test_market_coins_left_out_of_rankings(self):
+        store = Store(":memory:")
+        now = time.time()
+        for i in range(4):
+            for key in ("bitcoin", "solana"):
+                pid = f"{key}{i}"
+                store.add_post(Post(id=pid, source="reddit", channel="r/x", author=f"u{i}",
+                                    created_utc=now - 600 - i * 3600, text="t"), 0.5,
+                               [Mention(key=key, symbol=key[:3].upper(), name=key, method="name")])
+        rep = report.build(store, now=now)
+        rep.hidden = frozenset({"bitcoin"})
+        self.assertEqual([s.key for s in rep.most_talked()], ["solana"])
+        self.assertNotIn("bitcoin", [g.key for g in signals.build_signals(rep, store, now)])
+        self.assertIn("Left out of the rankings (always discussed): bitcoin", report.render_text(rep))
+        self.assertIn("mood upbeat", signals.render_digest(rep, [], store, now))   # mood still counts BTC
+
     def test_track_record_and_digest(self):
         store = Store(":memory:")
         now = time.time()

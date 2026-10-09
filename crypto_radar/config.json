@@ -59,6 +59,7 @@
   "coin_registry_size": 1000,
   "report_window_hours": 6,
   "report_baseline_hours": 72,
+  "market_coins": ["bitcoin", "ethereum"],
   "digest_hours": [8, 14],
   "digest_timezone": "Europe/London",
   "raw_alerts": false,
