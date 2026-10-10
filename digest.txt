@@ -1,0 +1,21 @@
+Market: BTC $82,964 +0.6% · ETH $2,511 +1.1% · mood cautious (+0.09) · your accounts: 25 bullish / 7 bearish posts (12h)
+
+🟢 IN FOCUS: strongest signals (ideas to research, not buy signals)
+  none right now: no coin has 3+ independent signals with the price still flat
+
+🟡 ON THE RADAR
+LINK · Chainlink · price $13.07 (+2% 24h): chatter 2.3x normal (10 people, 4chan, x, youtube); talked about on 3 platforms
+ZEC · Zcash · price $1,224 (+1% 24h): talked about on 3 platforms; your accounts: @cryptotony__
+INJ · Injective · price $7.56 (+10% 24h): chatter 2.6x normal (3 people, reddit, x); your accounts: @cryptotony__, @eliz883
+SOL · Solana · price $110 (+1% 24h): talked about on 4 platforms; your accounts: @digitalassetnews
+QNT · Quant · price $243 (+0% 24h): chatter 2.9x normal (7 people, 4chan, youtube); CoinGecko searches #14 (new)
+HBAR · Hedera · price $0.09223 (+3% 24h): chatter 2.8x normal (3 people, reddit, youtube); your accounts: @hackyourcrypto
+
+🔴 LATE (already moved; don't chase): CHIP +28%, STRK +43%
+⚫ LIKELY PUSHED (avoid): NEAR, SWARM, QTC, MET, PUMP, $MUU (unlisted), MERL, NIL, CELO, $FWDI (unlisted)
+
+Changed since last digest: new/upgraded LINK, ZEC, INJ, SOL, HBAR, TAO, TRX; dropped near, litecoin
+
+Track record (vs just holding BTC): 🟢 1d: 1/10 up, avg -3.7% (-2.6% vs BTC, 2 beat it); 🟢 3d: 1/7 up, avg -7.0% (-4.4% vs BTC, 1 beat it); 🟢 7d: 0/1 up, avg -9.3% (-6.5% vs BTC, 0 beat it); 🟡 1d: 54/146 up, avg -1.1% (-0.7% vs BTC, 54 beat it); 🟡 3d: 45/111 up, avg -1.6% (-0.5% vs BTC, 36 beat it); 🟡 7d: 1/48 up, avg -7.7% (-4.6% vs BTC, 3 beat it)
+Called while price was falling / flat / rising (7d, vs BTC): falling -4.0% (13) · flat -4.6% (22) · rising -3.8% (3)
+Not financial advice: this is chatter and data, not a buy signal.
