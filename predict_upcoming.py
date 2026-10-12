@@ -260,7 +260,7 @@ def rolling_avg_venue_shots(dq: deque, key: str) -> float | None:
     return sum(g[key] for g in recent) / len(recent)
 
 
-def apply_match(state: dict, m: dict) -> None:
+def apply_match(state: dict, m: dict, fetch_details: bool = True) -> None:
     """Fold one finished match into the tracked state — the same
     bookkeeping build_dataset_apifootball.main() does per row, extracted
     so a walk-forward backtest can advance the state incrementally
@@ -274,14 +274,14 @@ def apply_match(state: dict, m: dict) -> None:
     season_label = f"{competition}-{m['season']}"
 
     try:
-        shots = shot_stats_for(m["fixture_id"])
+        shots = shot_stats_for(m["fixture_id"]) if fetch_details else {}
     except apifootball.ApiFootballError:
         shots = {}
     home_shots_this = shots.get(m["home_id"])
     away_shots_this = shots.get(m["away_id"])
 
     try:
-        xg = xg_stats_for(m["fixture_id"])
+        xg = xg_stats_for(m["fixture_id"]) if fetch_details else {}
     except apifootball.ApiFootballError:
         xg = {}
     home_id, away_id = m.get("home_id"), m.get("away_id")
@@ -299,11 +299,11 @@ def apply_match(state: dict, m: dict) -> None:
         state["xg_against_history_weighted"][away].append({"date": date, "competition": competition, "value": home_xg})
 
     try:
-        lineups = lineup_for(m["fixture_id"])
+        lineups = lineup_for(m["fixture_id"]) if fetch_details else {}
     except apifootball.ApiFootballError:
         lineups = {}
     try:
-        scorers = goal_scorers_for(m["fixture_id"])
+        scorers = goal_scorers_for(m["fixture_id"]) if fetch_details else []
     except apifootball.ApiFootballError:
         scorers = []
     goals_this_match: dict[int, int] = defaultdict(int)
@@ -381,6 +381,14 @@ def fit_current_team_ratings(matches: list[dict]) -> dict[str, tuple[dict, dict]
     return result
 
 
+# Per-fixture details (shots, xG, lineups, scorers) only feed rolling
+# windows -- at most the last 40 matches per team (weighted xG) or 10
+# starts per player -- so the live replay fetches them for the last two
+# seasons only. Scores, tables and h2h still replay from 2010. Fetching
+# details for all ~43k historical fixtures costs ~130k API calls.
+REPLAY_DETAILS_SINCE = "2024-07-01"
+
+
 def replay_to_current_state(matches: list[dict]) -> dict:
     """Replay every finished match chronologically to arrive at each
     team's current tracked state — identical bookkeeping to
@@ -388,8 +396,11 @@ def replay_to_current_state(matches: list[dict]) -> dict:
     instead of a training-row list.
     """
     state = new_state()
+    recent_ids = [m["fixture_id"] for m in matches if m["date"] >= REPLAY_DETAILS_SINCE]
+    calls = apifootball.prefetch_fixture_details(recent_ids)
+    print(f"  match details for {len(recent_ids)} fixtures since {REPLAY_DETAILS_SINCE} cached ({calls} API calls)", file=sys.stderr)
     for i, m in enumerate(matches, start=1):
-        apply_match(state, m)
+        apply_match(state, m, fetch_details=m["date"] >= REPLAY_DETAILS_SINCE)
         if i % 2000 == 0:
             print(f"  ...replayed {i}/{len(matches)} historical matches", file=sys.stderr)
     state["team_ratings"] = fit_current_team_ratings(matches)

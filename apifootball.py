@@ -114,3 +114,52 @@ def get(path: str, params: dict | None = None, ttl_seconds: float | None = None)
         json.dump(data, f)
 
     return data
+
+
+_DETAIL_ENDPOINTS = ("statistics", "lineups", "events")
+_IDS_PER_BATCH = 20  # API-Football's cap on /fixtures?ids=
+
+
+def prefetch_fixture_details(fixture_ids: list[int]) -> int:
+    """Warm the per-fixture /fixtures/{statistics,lineups,events} cache for
+    many finished fixtures at once.
+
+    /fixtures?ids=a-b-c returns up to 20 fixtures per call with their
+    statistics, lineups and events embedded -- the same response arrays
+    the per-fixture endpoints return (checked field-for-field) -- so one
+    call here replaces up to 60 individual calls. Each embedded array is
+    written to exactly the cache file get("/fixtures/<endpoint>",
+    {"fixture": id}) reads, so callers don't change. Returns the number
+    of API calls made.
+    """
+    missing = [
+        fid for fid in dict.fromkeys(fixture_ids)
+        if not all(os.path.exists(_cache_path(f"/fixtures/{ep}", {"fixture": fid})) for ep in _DETAIL_ENDPOINTS)
+    ]
+    calls = 0
+    for i in range(0, len(missing), _IDS_PER_BATCH):
+        batch = missing[i:i + _IDS_PER_BATCH]
+        params = {"ids": "-".join(str(fid) for fid in batch)}
+        data = get("/fixtures", params, ttl_seconds=0)
+        calls += 1
+        # The combined response is split into per-fixture files below; the
+        # batch file itself would never be read again.
+        os.remove(_cache_path("/fixtures", params))
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        for item in data.get("response", []):
+            fid = item["fixture"]["id"]
+            for ep in _DETAIL_ENDPOINTS:
+                arr = item.get(ep) or []
+                envelope = {
+                    "get": f"fixtures/{ep}",
+                    "parameters": {"fixture": str(fid)},
+                    "errors": [],
+                    "results": len(arr),
+                    "paging": {"current": 1, "total": 1},
+                    "response": arr,
+                }
+                with open(_cache_path(f"/fixtures/{ep}", {"fixture": fid}), "w") as f:
+                    json.dump(envelope, f)
+        if (i // _IDS_PER_BATCH) % 50 == 0:
+            print(f"  ...prefetched {min(i + _IDS_PER_BATCH, len(missing))}/{len(missing)} fixtures", flush=True)
+    return calls
