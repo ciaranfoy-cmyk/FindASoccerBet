@@ -8,7 +8,7 @@ import json
 import os
 import unittest
 
-from crypto_radar import coins, dexscreener, report, search, sentiment, signals
+from crypto_radar import buzz, coins, dexscreener, report, search, sentiment, signals
 from crypto_radar.extract import Extractor, Mention
 from crypto_radar.sources import Post, fourchan, lunarcrush, news, reddit, telegram, x, youtube
 from crypto_radar.store import Store
@@ -408,6 +408,31 @@ class SignalsTest(unittest.TestCase):
         edel = signals.score(self._stats(key="edel", label="EDEL", search=report.SearchInfo(
             cg_rank=1, cg_since=time.time(), price=0.027, change_24h=5.0, market_cap=18e6)), {})
         self.assertEqual(edel.bucket, "black")
+
+    def test_buzz_digest_weekly_shift(self):
+        store = Store(":memory:")
+        now = time.time()
+        n = 0
+        # last week: SOL talked about a lot, LINK a little; this week the other way round
+        for days_ago, key, people in ((10, "solana", 8), (10, "chainlink", 2), (2, "solana", 2),
+                                      (2, "chainlink", 8), (0.2, "chainlink", 3), (2, "bitcoin", 30)):
+            for i in range(people):
+                n += 1
+                store.add_post(Post(id=f"p{n}", source="reddit", channel="r/x", author=f"u{n}",
+                                    created_utc=now - days_ago * 86400, text="t"), 0.3,
+                               [Mention(key=key, symbol=key[:4].upper(), name=key.title(), method="name")])
+        this_week, last_week = buzz.weekly_voices(store, now, hidden=frozenset({"bitcoin"}))
+        self.assertEqual((this_week["chainlink"], last_week["solana"]), (11, 8))
+        self.assertNotIn("bitcoin", this_week)
+        shifts = buzz.share_shifts(this_week, last_week)
+        self.assertEqual([r[0] for r in shifts], ["chainlink", "solana"])
+        rep = report.build(store, 24, 168, now=now)
+        rep.hidden = frozenset({"bitcoin"})
+        text = buzz.render(rep, store, now)
+        for part in ("MOST TALKED ABOUT (last 24h", "Chainlink: 3 people", "GAINING ATTENTION THIS WEEK",
+                     "Chainlink: 20.0% → 84.6%", "Fading: SOLA 80.0% → 15.4%"):
+            self.assertIn(part, text)
+        self.assertNotIn("Bitcoin", text.split("\n", 1)[1])
 
     def test_market_coins_left_out_of_rankings(self):
         store = Store(":memory:")
