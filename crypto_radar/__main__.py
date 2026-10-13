@@ -13,7 +13,7 @@ import time
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
-from . import alerts, coins, dexscreener, report, search, sentiment, signals
+from . import alerts, buzz, coins, dexscreener, report, search, sentiment, signals
 from .extract import EXTRACTOR_VERSION, Extractor
 from .sources import fourchan, news, reddit, telegram, x, youtube
 from .store import DEFAULT_DB, Store
@@ -147,6 +147,19 @@ def build_report(store: Store, cfg: dict, window: float | None = None,
     return rep
 
 
+def digest_report(store: Store, cfg: dict, now: float | None = None) -> report.Report:
+    """The digest looks at the last day against the week before it."""
+    rep = report.build(store, cfg.get("digest_window_hours", 24), cfg.get("digest_baseline_hours", 168), now=now,
+                       pump_channels=pump_channels(cfg), news_channels=news_channels(cfg),
+                       brand_channels=frozenset(f"x:@{a.lower()}" for a in cfg.get("brand_accounts", [])))
+    rep.hidden = frozenset(cfg.get("market_coins", []))
+    return rep
+
+
+def render_digest(store: Store, cfg: dict, now: float | None = None) -> str:
+    return buzz.render(digest_report(store, cfg, now), store, now, pump_channels(cfg))
+
+
 def digest_due(store: Store, cfg: dict, now: float) -> bool:
     """True once per scheduled hour (UK time) for the Telegram digest."""
     local = datetime.fromtimestamp(now, ZoneInfo(cfg.get("digest_timezone", "Europe/London")))
@@ -164,26 +177,14 @@ def check_alerts(store: Store, cfg: dict) -> None:
     rep = build_report(store, cfg)
     cooldown = cfg.get("alert_cooldown_hours", 12) * 3600
 
-    # Prices for anything with a signal (and open calls), then score and log the calls.
+    # Prices for the coins being talked about, for the digest.
     registry_ids = {c.id for c in coins.load_registry(cfg.get("coin_registry_size", 1000))}
-    ids = signals.price_candidates(rep, registry_ids, signals.open_call_ids(store, registry_ids, now))
-    search.fetch_prices(store, ids)
-    rep = build_report(store, cfg)
-    sigs = signals.build_signals(rep, store, now)
-    for g in signals.record(store, sigs, now):
-        key = f"green:{g.key}"
-        last = store.last_alert(key)
-        if last and now - last < cooldown:
-            continue
-        alerts.send(signals.render_green_alert(g))
-        store.record_alert(key)
+    search.fetch_prices(store, signals.price_candidates(digest_report(store, cfg), registry_ids))
 
     if digest_due(store, cfg, now):
-        previous = store.get_state("digest_buckets", {})
-        alerts.send(signals.render_digest(rep, sigs, store, now, previous))
-        store.set_state("digest_buckets", {g.key: g.bucket for g in sigs if g.bucket in ("green", "yellow")})
+        alerts.send(render_digest(store, cfg, now))
 
-    # Raw heating-up / search alerts only if asked for (the green alerts replace them).
+    # Raw heating-up alerts only if asked for (off by default; the digest covers it).
     if cfg.get("raw_alerts", False):
         for s in rep.heating_up(min_voices=cfg.get("alert_min_voices", 5)):
             if s.heat < cfg.get("alert_min_heat", 4.0):
@@ -213,7 +214,7 @@ def main() -> None:
     p.add_argument("--top", type=int, default=20)
     p.add_argument("--send", action="store_true", help="also send the report to Telegram")
 
-    p = sub.add_parser("digest", help="one-screen digest: early/watch/late/pushed calls")
+    p = sub.add_parser("digest", help="what people are talking about: today, this week vs last, your accounts, search, news")
     p.add_argument("--send", action="store_true", help="also send it to Telegram")
 
     p = sub.add_parser("signals", help="every coin's score, bucket and evidence")
@@ -246,9 +247,7 @@ def main() -> None:
                 for i, s in enumerate(rep.most_talked(15), 1)))
 
     elif args.cmd == "digest":
-        rep = build_report(store, cfg)
-        sigs = signals.build_signals(rep, store)
-        text = signals.render_digest(rep, sigs, store, previous=store.get_state("digest_buckets", {}))
+        text = render_digest(store, cfg)
         print(text)
         if args.send:
             alerts.send(text)

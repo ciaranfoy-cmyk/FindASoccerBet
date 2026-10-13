@@ -100,31 +100,24 @@ early chatter is in smaller "calls"/alpha channels, so add the ones you find
   stronger signal than either alone. The report's last section lists everything
   people are searching for, including coins nobody is talking about yet.
 
-## Calls: early / watch / late / pushed
+## Digest: what people are talking about
 
-`python -m crypto_radar digest` turns everything into one screen. Each coin gets a score
-from **independent** evidence (rising chatter, breadth across platforms, your followed X
-accounts and YouTubers, coin-specific news, CoinGecko search climb, Google/X trends,
-LunarCrush social growth) and is put in a bucket:
+`python -m crypto_radar digest` is a one-screen briefing (no calls or buy signals):
 
-- 🟢 **in focus** (strongest signals, not buy signals): score 6+ from 3+ kinds of evidence, price not up 15%+ (or 10% in
-  an hour), not falling 8%+, no bad news (hack/exploit/lawsuit/delisting...)
-- 🟡 **on the radar**: score 3+
-- 🔴 **late**: already moved; don't chase
-- ⚫ **likely pushed**: pump channels or shill comments only, top searches with nobody real
-  talking (small caps), unknown cashtags, or tiny DEX liquidity
+- **Most talked about** in the last 24h: how many people, vs their usual, on which platforms,
+  sentiment, and price over 24h / 7d.
+- **Gaining / fading this week**: each coin's share of all coin talk this week vs the week
+  before, the longer-term view.
+- **Your accounts & YouTubers**: which coins your followed X accounts and YouTubers are
+  discussing, plus their best-performing new videos.
+- **LunarCrush** (most discussed and rising fastest across social media), **CoinGecko
+  searches**, and **coin-specific news**.
+- Big 24h moves and coins only pushed by pump/signal channels, for context.
 
-BTC and ETH (`market_coins`) are always discussed, so they are left out of the rankings and calls;
-they still count towards the market line and overall mood.
-
-Every 🟢/🟡 call is logged with its price; the digest's **track record** line shows how
-calls did after 1, 3 and 7 days, against just holding BTC, and whether calls made while
-the coin was already falling did better or worse than the rest. `python -m crypto_radar signals` lists every coin's score
-and evidence. Exchange/brand accounts (`brand_accounts`) don't count as experts; Telegram
-`news_channels` count as news.
-
-On Telegram: an instant 🟢 alert when a coin first turns green, and the digest at
-`digest_hours` (UK time). The old raw "heating up" alerts are off (`raw_alerts`).
+BTC and ETH (`market_coins`) are always discussed, so they are left out of the rankings;
+they still count towards the market line and overall mood. The digest goes to Telegram at
+`digest_hours` (UK time). `python -m crypto_radar signals` still shows the older per-coin
+scoring for anyone who wants it.
 
 ## Alerts to your phone
 
