@@ -1,0 +1,122 @@
+Window: last 6h vs previous 72h   (history in DB: 504.0h)
+Left out of the rankings (always discussed): bitcoin, ethereum
+Sources: R=Reddit T=Telegram 4=4chan N=News X=X/Twitter Y=YouTube   voic = distinct people-hours talking about it
+
+== MOST TALKED ABOUT ==
+coin                               voic posts  vs base  sentiment  src   top channels                            
+SOL · Solana                         16    16    1.1x  +  +0.15  RT4NY /biz/, yt:@cryptojebb, yt:@tylerhillcryp 
+HYPE · Hyperliquid                   12    12    3.9x  +  +0.22  TXY   yt:@alexanderelorenzo, yt:@moneyzg, x:@c CG#15↑new
+XRP                                  11    11    1.2x  +  +0.11  RT4Y  /biz/, yt:@cryptojebb, r/CryptoCurrency  LC#4
+ADA · Cardano                         6     6    1.9x  ~  +0.05  RXY   yt:@cryptocapitalventure, x:@cardano, r/ LC#6
+INJ · Injective                       3     3    1.3x  +  +0.33  TX    x:@coingecko, t.me/binancekillers, x:@cr 
+LINK · Chainlink                      3     3    0.5x  -  -0.18  4XY   /biz/, x:@cryptotony__, yt:@digitalasset LC#7
+BNB                                   3     3    2.6x  +  +0.26  RTY   yt:@cryptojebb, t.me/binancekillers, r/s LC#12
+SPX · SPX6900                         3     3    3.0x  ~  +0.07  R     r/memecoins                              
+SUI                                   3     3    2.1x  +  +0.16  RY    r/sui, yt:@tylerhillcryptoyt             CG#12↑new
+ZRO · LayerZero                       2     2    4.0x  ++ +0.39  TX    x:@coingecko, t.me/CoinBureau            CG#9↑new EARLY?
+LTC · Litecoin                        2     2    0.6x  ~  -0.07  RY    r/CryptoCurrency, yt:@c-zargetscrypto167 LC#15
+ZEC · Zcash                           2     2    1.3x  ~  -0.04  T     t.me/binancekillers, t.me/wublockchainen CG#3↑new LC#5 EARLY?
+STX · Stacks                          2     2    3.4x  ~  +0.00  R4    /biz/, r/Bitcoin                         
+HBAR · Hedera                         2     2    3.4x  +  +0.28  R     r/CryptoMarkets                          
+GT · Gate                             2     2    3.4x  -- -0.41  R4    r/defi, /biz/                            
+TWT · Trust Wallet                    2     2    8.0x  ~  +0.02  R     r/Bitcoin                                
+BCH · Bitcoin Cash                    2     2    3.4x  ~  +0.06  RY    yt:@c-zargetscrypto1677, r/CryptoCurrenc 
+XMR · Monero                          2     2    0.4x  ~  +0.00  R     r/CryptoCurrency                         
+APT · Aptos                           2     2    8.0x  ++ +0.62  RT    r/sui, t.me/CoinBureau                   
+TRUTH · Swarm Network                 1     6    new   ++ +0.77  T     t.me/degenpump_crypto_pump_signals       [pump/signal only]
+$PENG (unlisted)                      1     3    new   ++ +0.77  T     t.me/degenpump_crypto_pump_signals       [pump/signal only]
+MAGMA · Magma Finance                 1     3    new   ++ +0.77  T     t.me/degenpump_crypto_pump_signals       [pump/signal only]
+$EPIC (unlisted)                      1     3    new   ++ +0.77  T     t.me/degenpump_crypto_pump_signals       [pump/signal only]
+$SOXS (unlisted)                      1     3    new   ++ +0.77  T     t.me/degenpump_crypto_pump_signals       [pump/signal only]
+TIA · Celestia                        1     1    1.7x  ~  +0.00  X     x:@coingecko                             CG#4 EARLY?
+
+== HEATING UP (buzz rising fastest vs its own baseline) ==
+coin                               voic posts  vs base  sentiment  src   top channels                            
+HYPE · Hyperliquid                   12    12    3.9x  +  +0.22  TXY   yt:@alexanderelorenzo, yt:@moneyzg, x:@c CG#15↑new
+BNB                                   3     3    2.6x  +  +0.26  RTY   yt:@cryptojebb, t.me/binancekillers, r/s LC#12
+SUI                                   3     3    2.1x  +  +0.16  RY    r/sui, yt:@tylerhillcryptoyt             CG#12↑new
+ADA · Cardano                         6     6    1.9x  ~  +0.05  RXY   yt:@cryptocapitalventure, x:@cardano, r/ LC#6
+SPX · SPX6900                         3     3    3.0x  ~  +0.07  R     r/memecoins                              
+
+== NEW ON THE RADAR (first mentions ever, in this window) ==
+  (nothing yet)
+
+== ONLY IN SIGNAL/PUMP CHANNELS (not ranked above) ==
+  TRUTH (6), $PENG (unlisted) (3), MAGMA (3), $EPIC (unlisted) (3), $SOXS (unlisted) (3)
+
+== EARLY SEARCH SIGNALS (climbing CoinGecko searches, price not run yet) ==
+NEAR · NEAR Protocol         #2 (from #9)  price 24h -3%  chatter: 0 voices
+ZEC · Zcash                  #3 (from #10)  price 24h -2%  chatter: 2 voices
+TIA · Celestia               #4 (from #13)  price 24h -4%  chatter: 1 voices
+QNT · Quant                  #5 (from #2)  price 24h -2%  chatter: 1 voices
+PONS                         #7 (new to list)  price 24h -12%  chatter: 0 voices
+ONDO                         #8 (new to list)  price 24h -4%  chatter: 0 voices
+ZRO · LayerZero              #9 (new to list)  price 24h -8%  chatter: 2 voices
+
+== SEARCH INTEREST (CoinGecko trending now + Google & X Trends, 24h) ==
+Q · Quack AI                 CoinGecko #1  on list   0.0h (new in 2h)  0 voices (no chatter)  price 24h +115%, 1h +21.6%, since listed +0%  (searched after a pump)
+NEAR · NEAR Protocol         CoinGecko #2  on list   8.1h (was #9 2h ago)  0 voices (no chatter)  price 24h -3%, 1h -2.5%, since listed -5%  <- EARLY? climbing, price not run yet
+ZEC · Zcash                  CoinGecko #3  on list   0.9h (was #10 2h ago)  2 voices, 1.3x usual  price 24h -2%, 1h -1.9%, since listed -1%  <- EARLY? climbing, price not run yet
+TIA · Celestia               CoinGecko #4  on list  13.0h (was #13 2h ago)  1 voices, 1.7x usual  price 24h -4%, 1h -0.7%, since listed -10%  <- EARLY? climbing, price not run yet
+QNT · Quant                  CoinGecko #5  on list   0.9h (was #2 2h ago)  1 voices, 0.5x usual  price 24h -2%, 1h -1.0%, since listed -1%  <- EARLY? climbing, price not run yet
+PENGU · Pudgy Penguins       CoinGecko #6  on list   4.0h  0 voices (no chatter)  price 24h -2%, 1h -1.0%, since listed -1%
+PONS                         CoinGecko #7  on list   1.0h (new in 2h)  0 voices (no chatter)  price 24h -12%, 1h -3.5%, since listed -2%  <- EARLY? climbing, price not run yet
+ONDO                         CoinGecko #8  on list   0.0h (new in 2h)  0 voices (no chatter)  price 24h -4%, 1h -1.2%, since listed +0%  <- EARLY? climbing, price not run yet
+ZRO · LayerZero              CoinGecko #9  on list   0.0h (new in 2h)  2 voices, 4.0x usual  price 24h -8%, 1h -0.9%, since listed +0%  <- EARLY? climbing, price not run yet
+PRL · Pearl                  CoinGecko #11 on list   2.0h (new in 2h)  1 voices, 12.0x usual  price 24h +2%, 1h +1.9%, since listed +7%
+SUI                          CoinGecko #12 on list   2.0h (new in 2h)  3 voices, 2.1x usual  price 24h -4%, 1h -1.3%, since listed -2%
+LIT · Lighter                CoinGecko #13 on list   1.0h (was #15 2h ago)  0 voices (no chatter)  price 24h +1%, 1h -2.9%, since listed +0%
+SEI                          CoinGecko #14 on list   0.0h (new in 2h)  0 voices (no chatter)  price 24h -4%, 1h -1.7%, since listed +0%
+HYPE · Hyperliquid           CoinGecko #15 on list   0.9h (was #8 2h ago)  12 voices, 3.9x usual  price 24h -0%, 1h -0.7%, since listed +0%
+
+== LUNARCRUSH RISING (social activity growing fastest vs ~a day ago) ==
+ZRX · 0x Protocol          104.7x interactions vs 24h ago, 92,893 interactions, 0.00% of chatter, 100% positive, 24h -3%, AltRank 1479
+NMR · Numeraire            22.9x interactions vs 24h ago, 155,771 interactions, 0.02% of chatter, 82% positive, 24h +7%, AltRank 11
+$BTS (unlisted)            2.8x interactions vs 24h ago, 74,553 interactions, 0.01% of chatter, 100% positive, 24h -2%, AltRank 1360
+ZIL · Zilliqa              1.7x interactions vs 24h ago, 138,726 interactions, 0.07% of chatter, 73% positive, 24h -11%, AltRank 1584
+XMR · Monero               1.3x interactions vs 24h ago, 231,189 interactions, 0.16% of chatter, 84% positive, 24h -1%, AltRank 480  (ours: 2 voices)
+$MAN (unlisted)            1.3x interactions vs 24h ago, 1,069,721 interactions, 0.06% of chatter, 36% positive, 24h +1%, AltRank 159
+DUSK                       1.3x interactions vs 24h ago, 122,821 interactions, 0.07% of chatter, 88% positive, 24h -3%, AltRank 1008
+ZEC · Zcash                1.2x interactions vs 24h ago, 4,190,775 interactions, 1.50% of chatter, 85% positive, 24h -3%, AltRank 721  (ours: 2 voices)
+$BLK (unlisted)            1.2x interactions vs 24h ago, 63,081 interactions, 0.01% of chatter, 80% positive, 24h +0%, AltRank 362
+$BTG (unlisted)            1.2x interactions vs 24h ago, 245,956 interactions, 0.03% of chatter, 96% positive, 24h -1%, AltRank 1140
+ADA · Cardano              1.2x interactions vs 24h ago, 2,658,727 interactions, 0.88% of chatter, 78% positive, 24h -2%, AltRank 665  (ours: 6 voices)
+TRX · TRON                 1.1x interactions vs 24h ago, 362,333 interactions, 0.13% of chatter, 81% positive, 24h +0%, AltRank 51
+XTZ · Tezos                1.1x interactions vs 24h ago, 157,781 interactions, 0.33% of chatter, 92% positive, 24h -4%, AltRank 1191
+LINK · Chainlink           1.1x interactions vs 24h ago, 2,256,933 interactions, 0.83% of chatter, 83% positive, 24h -4%, AltRank 921  (ours: 3 voices)
+BNB                        1.0x interactions vs 24h ago, 816,357 interactions, 0.33% of chatter, 81% positive, 24h -1%, AltRank 482  (ours: 3 voices)
+
+== YOUTUBE (new videos from followed channels, 24h) ==
+@digitalassetnews      0.1h ago         0 views (0/h), 0 comments  Crypto Lost $200B. Here’s Your Survival List. BTC + ...
+@elliotrades_official  0.4h ago       176 views (470/h, 0.0x channel's typical video), 0 comments  Crypto Coins to HOLD vs. TRADE
+@cryptocapitalventure  0.7h ago       633 views (919/h, 0.0x channel's typical video), 24 comments  CARDANO & MIDNIGHT Holders...This Is The Best Altcoin Setup We've Ever Seen (GET
+@hackyourcrypto        0.8h ago         7 views (9/h, 0.1x channel's typical video), 0 comments  Crypto Market Cap Breaks Higher: Is a 50% Pullback Next?
+@tylerhillcryptoyt     1.7h ago       607 views (365/h, 0.1x channel's typical video), 19 comments  Solana Just Flashed My Favorite Buy Signal, You Know What That Means..
+@thomaskralow          2.9h ago       116 views (40/h, 0.2x channel's typical video), 0 comments  WHY DO WOMEN GO CRAZY FOR A LEAN GUY IN A SUIT??
+@coinbureau            2.9h ago     2,282 views (791/h, 0.2x channel's typical video), 4 comments  How Crypto Wallets ACTUALLY Work
+@hackyourcrypto        3.8h ago        20 views (5/h, 0.1x channel's typical video), 0 comments  QNT Token vs. Quant Company: What You MUST Know!
+@meetkevin             3.9h ago     1,466 views (377/h, 0.0x channel's typical video), 0 comments  Why Meta Muse Is Going VIRAL
+@thomaskralow          5.4h ago       292 views (54/h, 0.5x channel's typical video), 0 comments  Why wait for GTA 6 when you can LIVE it yourself??
+@hackyourcrypto        7.2h ago        22 views (3/h, 0.2x channel's typical video), 6 comments  XRP’s Biggest Risks: RLUSD, Adoption, and Supply Concerns
+@thomaskralow          7.9h ago        98 views (12/h, 0.2x channel's typical video), 1 comments  Finance Explained To People Who Hate Finance.
+@alexanderelorenzo     8.8h ago     1,497 views (171/h, 0.2x channel's typical video), 6 comments  Why Prices Don’t Go Back Down When Inflation Slows | CoinPicks Live Class
+@meetkevin             9.9h ago     4,714 views (477/h, 0.1x channel's typical video), 3 comments  Elon Musk Just FLAMED This Company 😭
+@digitalassetnews     15.3h ago     1,882 views (124/h, 1.0x channel's typical video), 9 comments  Why you should take profits and live for the present  <- TAKING OFF
+@alexanderelorenzo    15.6h ago     2,252 views (144/h, 0.3x channel's typical video), 13 comments  Krakens Owner Just Agreed to Buy a Bank
+@meetkevin            15.9h ago     4,771 views (300/h, 0.1x channel's typical video), 7 comments  Why The Market Being Down Is Actually GOOD For America! 🦅
+@meetkevin            16.6h ago    34,152 views (2,063/h, 0.8x channel's typical video), 83 comments  Prepare: Gold Prices are Set to Skyrocket on THIS DATE.
+@coinbureau           19.9h ago     2,566 views (129/h, 0.2x channel's typical video), 0 comments  HOW DID A 17 MILEPIPE WRECK AI?
+@alexanderelorenzo    20.1h ago     7,467 views (372/h, 0.9x channel's typical video), 25 comments  Apple, Nvidia, and Tesla Just Started Trading on the Blockchain
+@elliotrades_official 21.0h ago    11,257 views (537/h, 0.8x channel's typical video), 9 comments  Why I’m Still BULLISH on Crypto While AI Stocks Bleed
+@cryptocapitalventure 22.4h ago    17,990 views (802/h, 0.7x channel's typical video), 128 comments  The Most Insane Crypto Fractal I’ve Ever Seen! (ALTCOIN Bull Market Incoming)
+@tomcrown             22.7h ago     6,941 views (306/h, 1.1x channel's typical video), 5 comments  bitcoin live trading  <- TAKING OFF
+@c-zargetscrypto1677  22.8h ago     1,000 views (44/h, 0.8x channel's typical video), 22 comments  ZBCN Zebec Price Prediction: 16th of October
+@c-zargetscrypto1677  22.9h ago     1,455 views (64/h, 1.5x channel's typical video), 18 comments  XCN OnyxCoin Price Prediction: 16th of October  <- TAKING OFF
+@cryptojebb           22.9h ago     5,199 views (227/h, 0.6x channel's typical video), 14 comments  Bitcoin Crashed Through Key Support.... (HUGE Investment Buy Signal Incoming!)
+@paulbarronnetwork    22.9h ago    66,495 views (2,906/h, 0.9x channel's typical video), 168 comments  Market Selloff Incoming?
+@meetkevin            23.0h ago    25,273 views (1,102/h, 0.6x channel's typical video), 55 comments  Apple JUST Suffered a "NATIONWIDE" Failure.
+@thomaskralow         23.4h ago     1,743 views (75/h, 4.2x channel's typical video), 4 comments  Back in Dubai after a couple of months away…  <- TAKING OFF
+@digitalassetnews     23.5h ago    15,361 views (656/h, 8.4x channel's typical video), 71 comments  They Laughed At Elon’s Roadster. Crypto Is Next.  <- TAKING OFF
+@c-zargetscrypto1677  23.6h ago       517 views (22/h, 0.4x channel's typical video), 7 comments  BCH Bitcoin Cash Price Prediction: 16th of OCTOBER
+@c-zargetscrypto1677  23.7h ago       735 views (31/h, 0.6x channel's typical video), 10 comments  Bitcoin Price Prediction: 16th of October
+

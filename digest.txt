@@ -1,0 +1,49 @@
+Market: BTC $81,195 -0.2% · ETH $2,403 -1.1% · mood cautious (+0.13) · your accounts: 22 bullish / 10 bearish posts (12h)
+
+🗣 MOST TALKED ABOUT (last 24h, BTC/ETH aside)
+SOL · Solana: 51 people, 1.0x usual (4chan, news, Reddit, Telegram, X, YouTube; positive) · $103, -1% 24h, -6% 7d
+XRP: 49 people, 1.3x usual (4chan, Reddit, Telegram, X, YouTube; positive) · $1.29, -1% 24h, -8% 7d
+HYPE · Hyperliquid: 25 people, 2.8x usual (4chan, Reddit, Telegram, X, YouTube; positive) · $78.61, -0% 24h, -8% 7d
+XMR · Monero: 17 people, 1.2x usual (4chan, Reddit, Telegram; positive) · $546, -1% 24h, +4% 7d
+LINK · Chainlink: 15 people, 0.7x usual (4chan, Reddit, Telegram, X, YouTube; mixed) · $11.90, -3% 24h, -9% 7d
+LTC · Litecoin: 10 people, 0.6x usual (4chan, Reddit, YouTube; mixed) · $58.65, -2% 24h, -9% 7d
+INJ · Injective: 7 people, 1.0x usual (Telegram, X; positive) · $8.50, -3% 24h, +12% 7d
+BNB: 7 people, 1.3x usual (Reddit, Telegram, X, YouTube; positive) · $713, -1% 24h, -5% 7d
+
+📈 GAINING ATTENTION THIS WEEK (share of all coin talk, vs the week before)
+XRP: 6.4% → 8.0% · $1.29, -1% 24h, -8% 7d
+KCS · KuCoin: 0.7% → 2.3% · $7.42, -1% 24h, -3% 7d
+LINK · Chainlink: 5.5% → 6.2% · $11.90, -3% 24h, -9% 7d
+TAO · Bittensor: 0.3% → 1.0% · $267, -4% 24h, -6% 7d
+INJ · Injective: 0.5% → 1.1% · $8.50, -3% 24h, +12% 7d
+NEAR · NEAR Protocol: 0.2% → 0.8% · $4.88, -3% 24h, -10% 7d
+📉 Fading: LTC 6.8% → 3.2%, SOL 16.6% → 13.3%, ADA 2.2% → 1.3%, ICP 1.1% → 0.4%
+
+🎙 YOUR ACCOUNTS & YOUTUBERS
+SOL: @alexanderelorenzo, @cryptotony__, @digitalassetnews, @tylerhillcryptoyt
+LINK: @cryptotony__, @digitalassetnews
+NIGHT: @cryptocapitalventure, @iohk_charles
+XRP: @hackyourcrypto
+BCH: @c-zargetscrypto1677
+HYPE: @cryptotony__
+BNB: @cryptotony__
+UNI: @paulbarronnetwork
+▶ @digitalassetnews: "They Laughed At Elon’s Roadster. Crypto Is Next." (15,361 views, 8.4x their usual)
+▶ @thomaskralow: "Back in Dubai after a couple of months away…" (1,743 views, 4.2x their usual)
+▶ @c-zargetscrypto1677: "XCN OnyxCoin Price Prediction: 16th of October" (1,455 views, 1.5x their usual)
+
+🌐 ACROSS SOCIAL MEDIA (LunarCrush, 24h)
+Most discussed: XRP 7.5M, ZEC 4.2M, ADA 2.7M, LINK 2.3M, DOGE 1.7M, $MAN (unlisted) 1.1M
+Rising fastest: ZRX 105x, NMR 23x
+
+🔎 MOST SEARCHED (CoinGecko): Q +115%, NEAR -3%, ZEC -2%, TIA -4%, QNT -2%, PENGU -2%, PONS -12%, ONDO -4%
+
+📰 IN THE NEWS
+$DRAM (unlisted): ‼️ BRUTAL: Leopold Aschenbrenner rebuilt his AI bets after July’s forced liquidation, only to face ANOTHER sharp selloff. He bough
+ZEC: On-Chain Data Shows Increasing Number of Hackers Moving Stolen Funds to Zcash for Laundering On-chain analyst Specter noted that f
+SOL: Solana shows resilience, but some areas need continued observation, Fidelity says Solana has had no reported mainnet outages in tw
+$TSLA (unlisted): JUST IN: Elon Musk says the new Tesla $TSLA Roadster "will be sentient." "You will be able to ask the Roadster to perform any of t
+SOL: LATEST: 📊 Grayscale’s Zach Pandl argues Solana’s speed and scale advantage put it in a category of its own, leading all chains in 
+
+Big moves (24h): Q +115%
+Only in pump/signal channels (ignore): MAGIC, KMNO, VTHO, KAVA, ORDI, PHA
