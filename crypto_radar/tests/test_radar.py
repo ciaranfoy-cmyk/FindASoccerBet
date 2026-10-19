@@ -357,6 +357,9 @@ class LunarGrowthTest(unittest.TestCase):
         now = time.time()
         h = 3600
         snaps = {24: {"solana": 1_000_000, "dogecoin": 100_000},
+                 23.9: {"solana": 10, "dogecoin": 10},          # LunarCrush glitches: ignored
+                 23.5: {"solana": 100_000, "dogecoin": 10_000},
+                 24.5: {"solana": 1_000_000, "dogecoin": 100_000},
                  0.1: {"solana": 1_100_000, "dogecoin": 400_000}}
         for ago, vals in snaps.items():
             for i, (k, v) in enumerate(sorted(vals.items(), key=lambda kv: -kv[1]), start=1):
