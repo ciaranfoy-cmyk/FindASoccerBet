@@ -17,6 +17,7 @@ from .store import Store
 
 SOURCE_LETTER = {"reddit": "R", "telegram": "T", "4chan": "4", "news": "N", "x": "X", "youtube": "Y"}
 LUNAR_MIN_INTERACTIONS = 50_000   # ignore tiny coins whose "growth" is noise
+LUNAR_MIN_BASE = 1_000            # a baseline snapshot below this is a LunarCrush glitch, not real
 TAKING_OFF = 1.0   # a video (< 48h old) with this many times the channel's typical total views
 
 
@@ -138,14 +139,18 @@ def search_status(store: Store, now: float, lookback_h: float = 48,
                     continue
                 info = out[key]
                 info.lunar_rank, info.lunar = rank, m
-                # Compare with the snapshot closest to 24h earlier (at least 3h back).
-                older = [x for x in snaps if latest - x[0] >= 3 * 3600]
+                # Compare with ~24h earlier (at least 3h back). Use the median of the snapshots
+                # within 2h of that point: LunarCrush sometimes returns a glitched, near-zero
+                # snapshot, and one bad reading must not make a coin look like it rose 1000x.
+                older = [x for x in snaps if latest - x[0] >= 3 * 3600
+                         and (x[2].get("interactions_24h") or 0) >= LUNAR_MIN_BASE]
                 if older and m.get("interactions_24h"):
-                    then = min(older, key=lambda x: abs(latest - 24 * 3600 - x[0]))
-                    base = then[2].get("interactions_24h")
-                    if base:
-                        info.lunar_growth = m["interactions_24h"] / base
-                        info.lunar_growth_h = (latest - then[0]) / 3600
+                    target = latest - 24 * 3600
+                    then = min(older, key=lambda x: abs(target - x[0]))
+                    near = sorted(x[2]["interactions_24h"] for x in older if abs(x[0] - then[0]) <= 2 * 3600)
+                    base = near[len(near) // 2]
+                    info.lunar_growth = m["interactions_24h"] / base
+                    info.lunar_growth_h = (latest - then[0]) / 3600
 
     times = sorted(snapshots)
     if times and times[-1] >= now - stale_after_h * 3600:
