@@ -563,24 +563,30 @@ def main() -> int:
             else:
                 print(f"  only {len(xg_odds_model_df)} rows with both xG features and a market price -- skipping, too few to trust")
 
-        print("Replaying full match history to build current team state...")
-        all_finished = fetch_all_fixtures(None)
-        state = replay_to_current_state(all_finished)
+        state = None
 
+    # Upcoming fixtures FIRST: it reads the same current-season /fixtures
+    # cache files fetch_all_fixtures() does, but with a 5-minute ttl, so
+    # it is what pulls in results played since the last run. Fetched the
+    # other way round, the replay below would run on last week's lists.
+    print("Fetching upcoming fixtures...")
+    upcoming = fetch_upcoming_fixtures(args.days)
+    all_finished = fetch_all_fixtures(None)
+
+    # The models and bars only depend on data/*.csv, but the replayed team
+    # state depends on every finished match -- a cache hit from last week
+    # would otherwise score fixtures on last week's form. Re-replay (cheap
+    # once match details are cached) whenever new results have come in.
+    if state is None or state.get("replayed_matches") != len(all_finished):
+        print("Replaying full match history to build current team state...")
+        state = replay_to_current_state(all_finished)
+        state["replayed_matches"] = len(all_finished)
         model_cache.save("explain_picks_bundle", (
             bar, under_bar, early_bar, early_under_bar, pool_over, pool_over_early, pool_under,
             model, scaler, xg_model, xg_scaler, odds_model, odds_scaler,
             xg_odds_model, xg_odds_scaler, state,
         ))
 
-    # Cheap regardless of cache hit/miss -- apifootball's own on-disk cache
-    # (ttl=None) makes this a near-instant reload when it was just fetched
-    # above, and it's needed unconditionally for live games-into-season
-    # lookups below.
-    all_finished = fetch_all_fixtures(None)
-
-    print("Fetching upcoming fixtures...")
-    upcoming = fetch_upcoming_fixtures(args.days)
     if args.fixture_id is not None:
         upcoming = [m for m in upcoming if m["fixture_id"] == args.fixture_id]
 
