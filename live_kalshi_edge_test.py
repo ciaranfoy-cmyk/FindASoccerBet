@@ -94,8 +94,6 @@ _TEAM_ALIASES = {
     "man city": "manchester city",
     "man united": "manchester united",
     "man utd": "manchester united",
-    # Eredivisie -- Kalshi titles it "GA Eagles vs Telstar"
-    "go ahead eagles": "ga eagles",
     # MLS
     "atlanta united fc": "atlanta",
     "inter miami": "miami",
