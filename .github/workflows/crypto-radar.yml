@@ -69,12 +69,13 @@ jobs:
         run: |
           python -m crypto_radar digest | tee "$DATA_DIR/digest.txt"
           python -m crypto_radar report --top 25 > "$DATA_DIR/latest_report.txt"
+          python -m crypto_radar voices --hours 24 > "$DATA_DIR/voices.txt"
           { cat "$DATA_DIR/digest.txt"; echo; cat "$DATA_DIR/latest_report.txt"; } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Save database to radar-data branch
         run: |
           snapshot=$(mktemp -d)
-          cp "$DATA_DIR/radar.sqlite3" "$DATA_DIR/latest_report.txt" "$DATA_DIR/digest.txt" "$snapshot/"
+          cp "$DATA_DIR/radar.sqlite3" "$DATA_DIR/latest_report.txt" "$DATA_DIR/digest.txt" "$DATA_DIR/voices.txt" "$snapshot/"
           cp "$CACHE_DIR/coingecko_markets.json" "$snapshot/" 2>/dev/null || true
           cd "$snapshot"
           git init -q -b radar-data
