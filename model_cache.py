@@ -10,7 +10,10 @@ entry is keyed by a fingerprint of only TRAINING_FILES' mtime + size,
 so it is invalidated automatically the instant training data actually
 changes (e.g. after pulling in new match results) -- a cache hit can
 never be stale relative to what a fresh run would produce -- while
-being immune to unrelated writes elsewhere in data/.
+being immune to unrelated writes elsewhere in data/. The fingerprint
+hashes file CONTENTS, not mtimes: every fresh clone gets new mtimes,
+which used to force a full retrain on every new session even though
+the data hadn't changed.
 
 Uses dill, not stdlib pickle: the replayed team-history state (built by
 predict_upcoming.new_state()) is a dict of defaultdicts with lambda
@@ -46,7 +49,8 @@ def data_fingerprint() -> str:
     for name in sorted(TRAINING_FILES):
         path = os.path.join(DATA_DIR, name)
         if os.path.exists(path):
-            parts.append(f"{name}:{os.path.getmtime(path)}:{os.path.getsize(path)}")
+            with open(path, "rb") as f:
+                parts.append(f"{name}:{hashlib.sha256(f.read()).hexdigest()}")
     # Data files alone aren't the whole story -- a constant like
     # TRAINING_DATA_CUTOFF changes what a fresh run would train on
     # without touching any file this fingerprint otherwise tracks,

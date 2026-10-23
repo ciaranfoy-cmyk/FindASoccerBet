@@ -3,3 +3,4 @@ numpy
 scipy
 statsmodels
 scikit-learn
+dill
