@@ -13,7 +13,7 @@ import time
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
-from . import alerts, buzz, coins, dexscreener, report, search, sentiment, signals
+from . import alerts, buzz, coins, voices, dexscreener, report, search, sentiment, signals
 from .extract import EXTRACTOR_VERSION, Extractor
 from .sources import fourchan, news, reddit, telegram, x, youtube
 from .store import DEFAULT_DB, Store
@@ -214,6 +214,11 @@ def main() -> None:
     p.add_argument("--top", type=int, default=20)
     p.add_argument("--send", action="store_true", help="also send the report to Telegram")
 
+    p = sub.add_parser("voices", help="account-by-account: what your X accounts posted and what YouTubers covered")
+    p.add_argument("--hours", type=float, default=24)
+    p.add_argument("--account", help="just accounts/channels whose handle contains this, e.g. cowen")
+    p.add_argument("--send", action="store_true", help="also send to Telegram")
+
     p = sub.add_parser("digest", help="what people are talking about: today, this week vs last, your accounts, search, news")
     p.add_argument("--send", action="store_true", help="also send it to Telegram")
 
@@ -245,6 +250,12 @@ def main() -> None:
             alerts.send("\n".join(
                 f"{i}. {s.label} — {s.voices} voices, {s.velocity:.1f}x, sent {s.sentiment:+.2f}"
                 for i, s in enumerate(rep.most_talked(15), 1)))
+
+    elif args.cmd == "voices":
+        text = voices.render(store, cfg, args.hours, account=args.account)
+        print(text)
+        if args.send:
+            alerts.send(text)
 
     elif args.cmd == "digest":
         text = render_digest(store, cfg)

@@ -119,6 +119,22 @@ they still count towards the market line and overall mood. The digest goes to Te
 `digest_hours` (UK time). `python -m crypto_radar signals` still shows the older per-coin
 scoring for anyone who wants it.
 
+## Voices: what your accounts are actually saying
+
+`python -m crypto_radar voices [--hours 24] [--account cowen]` goes account by account:
+
+- **X**: each followed account's own posts (links stripped, duplicates dropped), how many
+  read bullish/bearish, and which coins they mention. Exchange/brand and signal accounts are
+  left out.
+- **YouTube**: each new video's title, views vs the channel's usual, the outline from its
+  description (chapters and bullet points, with sponsor/link boilerplate removed), and a few
+  top viewer comments. Scam replies, copy-pasted comments and bot campaigns (a token name
+  pushed in comment sections across several channels but discussed nowhere else) are
+  filtered out and named at the bottom.
+
+Full video transcripts aren't available: YouTube's API only gives captions to the channel
+owner. Each run saves this as `voices.txt` on the `radar-data` branch.
+
 ## Alerts to your phone
 
 ```bash

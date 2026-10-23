@@ -8,7 +8,7 @@ import json
 import os
 import unittest
 
-from crypto_radar import buzz, coins, dexscreener, report, search, sentiment, signals
+from crypto_radar import buzz, coins, voices, dexscreener, report, search, sentiment, signals
 from crypto_radar.extract import Extractor, Mention
 from crypto_radar.sources import Post, fourchan, lunarcrush, news, reddit, telegram, x, youtube
 from crypto_radar.store import Store
@@ -436,6 +436,30 @@ class SignalsTest(unittest.TestCase):
                      "Chainlink: 20.0% → 84.6%", "Fading: SOLA 80.0% → 15.4%"):
             self.assertIn(part, text)
         self.assertNotIn("Bitcoin", text.split("\n", 1)[1])
+
+    def test_voices_outline_and_bot_comments(self):
+        desc = ("Gold and silver just lost $500 billion. Benjamin Cowen joins me to sort the signal from the noise.\n"
+                "In today's livestream:\n• Bitcoin breaks $82K support\n• Is the 4-year cycle still working?\n"
+                "0:00 - INTRO\n3:10 The technical bull case\n"
+                "Use code KEVIN for a $25 bonus https://x.co/a\n▀▀▀▀▀▀▀▀▀▀\nLife Insurance: get covered today")
+        out = voices.outline(desc, "NFA LIVE")
+        self.assertEqual(out, ["Gold and silver just lost $500 billion. Benjamin Cowen joins me to sort the signal "
+                               "from the noise.", "The technical bull case", "Bitcoin breaks $82K support",
+                               "Is the 4-year cycle still working?"])
+        store = Store(":memory:")
+        now = time.time()
+        n = 0
+        for ch in ("yt:@a", "yt:@b", "yt:@c"):
+            for text in ("Saivom is the future of payments", "Saivom presale is live, early adopters win",
+                         "Great video, BTC looks weak here"):
+                n += 1
+                store.add_post(Post(id=f"yt:c:{n}", source="youtube", channel=ch, author=f"u{n}",
+                                    created_utc=now - 3600, text=text, url=f"https://www.youtube.com/watch?v=v{ch[-1]}"),
+                               0.2, [])
+        store.add_post(Post(id="reddit:1", source="reddit", channel="r/x", author="z", created_utc=now - 3600,
+                            text="BTC looks weak, great thread"), 0.0, [])
+        self.assertEqual(set(voices.shill_words(store, now - 86400)), {"saivom"})
+        self.assertIn("Great video, BTC looks weak here", voices.copy_paste(store, now - 86400))
 
     def test_market_coins_left_out_of_rankings(self):
         store = Store(":memory:")
