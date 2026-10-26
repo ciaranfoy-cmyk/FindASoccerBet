@@ -208,8 +208,9 @@ def buy_no(market_slug: str, price: float, quantity: float, **kwargs) -> dict:
     return place_order(market_slug, "OUTCOME_SIDE_NO", "ORDER_ACTION_BUY", price, quantity, **kwargs)
 
 
-def cancel_order(order_id: str) -> dict:
-    return _request("POST", f"/v1/order/{order_id}/cancel")
+def cancel_order(order_id: str, market_slug: str) -> dict:
+    """The cancel endpoint 400s without the order's marketSlug in the body."""
+    return _request("POST", f"/v1/order/{order_id}/cancel", body={"marketSlug": market_slug})
 
 
 def cancel_all_open_orders() -> dict:
@@ -233,6 +234,7 @@ def main() -> int:
 
     cancel = sub.add_parser("cancel")
     cancel.add_argument("--order-id", required=True)
+    cancel.add_argument("market_slug")
 
     sub.add_parser("cancel-all")
 
@@ -252,7 +254,7 @@ def main() -> int:
             result = fn(args.market_slug, args.price, args.quantity, tif=args.tif)
             print(json.dumps(result, indent=2))
         elif args.cmd == "cancel":
-            print(json.dumps(cancel_order(args.order_id), indent=2))
+            print(json.dumps(cancel_order(args.order_id, args.market_slug), indent=2))
         elif args.cmd == "cancel-all":
             print(json.dumps(cancel_all_open_orders(), indent=2))
     except PolymarketError as exc:
