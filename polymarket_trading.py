@@ -208,8 +208,9 @@ def buy_no(market_slug: str, price: float, quantity: float, **kwargs) -> dict:
     return place_order(market_slug, "OUTCOME_SIDE_NO", "ORDER_ACTION_BUY", price, quantity, **kwargs)
 
 
-def cancel_order(order_id: str) -> dict:
-    return _request("POST", f"/v1/order/{order_id}/cancel")
+def cancel_order(order_id: str, market_slug: str) -> dict:
+    """The cancel endpoint 400s without the order's marketSlug in the body."""
+    return _request("POST", f"/v1/order/{order_id}/cancel", body={"marketSlug": market_slug})
 
 
 def cancel_all_open_orders() -> dict:
