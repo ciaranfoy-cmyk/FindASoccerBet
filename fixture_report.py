@@ -96,13 +96,18 @@ def _poly_us_ask(home: str, away: str) -> tuple[float | None, str | None]:
         if e.get("closed") or away_key not in ep._normalize(e.get("title", "")):
             continue
         slug = f"tsc-{e['slug']}-2pt5"
-        time.sleep(2)  # the gateway rate-limits quick calls
-        try:
-            bbo = pus.get_market_bbo(slug)["marketData"]
-            ask = bbo.get("bestAsk")
-            return (float(ask["value"]) if ask else None), slug
-        except Exception:
-            return None, f"{e['slug']} (no Over 2.5 market)"
+        # The gateway rate-limits quick calls (429 code 1015); only a 404
+        # means the event has no Over 2.5 market.
+        for wait in (2, 8, 20):
+            time.sleep(wait)
+            try:
+                bbo = pus.get_market_bbo(slug)["marketData"]
+                ask = bbo.get("bestAsk")
+                return (float(ask["value"]) if ask else None), slug
+            except Exception as exc:
+                if "404" in str(exc):
+                    return None, f"{e['slug']} (no Over 2.5 market)"
+        return None, f"{slug} (lookup rate-limited, recheck)"
     return None, None
 
 
