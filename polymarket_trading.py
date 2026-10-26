@@ -234,6 +234,7 @@ def main() -> int:
 
     cancel = sub.add_parser("cancel")
     cancel.add_argument("--order-id", required=True)
+    cancel.add_argument("market_slug")
 
     sub.add_parser("cancel-all")
 
@@ -253,7 +254,7 @@ def main() -> int:
             result = fn(args.market_slug, args.price, args.quantity, tif=args.tif)
             print(json.dumps(result, indent=2))
         elif args.cmd == "cancel":
-            print(json.dumps(cancel_order(args.order_id), indent=2))
+            print(json.dumps(cancel_order(args.order_id, args.market_slug), indent=2))
         elif args.cmd == "cancel-all":
             print(json.dumps(cancel_all_open_orders(), indent=2))
     except PolymarketError as exc:
