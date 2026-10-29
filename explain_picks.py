@@ -53,6 +53,7 @@ from sklearn.linear_model import LogisticRegressionCV
 from sklearn.preprocessing import StandardScaler
 
 import model_cache
+import rotation_flags
 from analyze_dataset_apifootball import add_derived_features
 from analyze_player_form import add_player_form_derived_features
 from analyze_shots_venue import (
@@ -106,7 +107,7 @@ from predict_upcoming import (
     fetch_upcoming_fixtures,
     replay_to_current_state,
 )
-from build_dataset_apifootball import fetch_all_fixtures
+from build_dataset_apifootball import LEAGUES, fetch_all_fixtures
 from market_odds_features import (
     COVERED_COMPETITIONS,
     MARKET_ODDS_ENABLED,
@@ -299,7 +300,7 @@ def _print_table(rows: list[dict], value_cols: tuple[str, ...]) -> None:
     table = table.rename(columns={
         "fixture": "Fixture", "comp": "Comp", "date": "Date", "side": "Side",
         "model_pct": "Model %", "bet365_pct": "Bet365 %", "kalshi_pct": "Kalshi %", "poly_pct": "Poly %",
-        "pool_hit_pct": "Pool hit %", "edge_pp": "Edge (pp)", "verdict": "Verdict",
+        "pool_hit_pct": "Pool hit %", "edge_pp": "Edge (pp)", "verdict": "Verdict", "flags": "Flags",
     })
     pd.set_option("display.width", 240)
     pd.set_option("display.max_colwidth", 60)
@@ -331,7 +332,11 @@ def print_picks_table(live_df: pd.DataFrame, xg_odds_model, xg_odds_scaler, cali
     """
     core_rows = []
     xg_odds_rows = []
+    flag_notes = {}
     for _, r in live_df.iterrows():
+        flags = r.get("flags") or []
+        if flags:
+            flag_notes[f"{r['home_team']} vs {r['away_team']}"] = flags
         comp = r["competition"]
         over_disallowed = comp in OVER_DISALLOWED_COMPETITIONS
         under_disallowed = comp in UNDER_DISALLOWED_COMPETITIONS
@@ -350,7 +355,7 @@ def print_picks_table(live_df: pd.DataFrame, xg_odds_model, xg_odds_scaler, cali
                 "kalshi_pct": r["kalshi_fair_p"] * 100 if pd.notna(r["kalshi_fair_p"]) else (r["kalshi_yes_ask"] * 100 if pd.notna(r["kalshi_yes_ask"]) else None),
                 "poly_pct": r["poly_fair_p"] * 100 if pd.notna(r["poly_fair_p"]) else (r["poly_yes_ask"] * 100 if pd.notna(r["poly_yes_ask"]) else None),
                 "pool_hit_pct": None if over_disallowed else r["effective_over_prob"] * 100,
-                "edge_pp": edge, "verdict": verdict,
+                "edge_pp": edge, "verdict": verdict, "flags": len(flags) or "",
             })
         if r["under_p"] >= TABLE_MIN_MODEL_P:
             edge = None if under_disallowed else (r["best_edge_under"] * 100 if pd.notna(r["best_edge_under"]) else None)
@@ -364,7 +369,7 @@ def print_picks_table(live_df: pd.DataFrame, xg_odds_model, xg_odds_scaler, cali
                 "kalshi_pct": (100 - r["kalshi_fair_p"] * 100) if pd.notna(r["kalshi_fair_p"]) else (r["kalshi_no_ask"] * 100 if pd.notna(r["kalshi_no_ask"]) else None),
                 "poly_pct": (100 - r["poly_fair_p"] * 100) if pd.notna(r["poly_fair_p"]) else (r["poly_no_ask"] * 100 if pd.notna(r["poly_no_ask"]) else None),
                 "pool_hit_pct": None if under_disallowed else r["effective_under_prob"] * 100,
-                "edge_pp": edge, "verdict": verdict,
+                "edge_pp": edge, "verdict": verdict, "flags": len(flags) or "",
             })
 
         # -- Section 2: xG+odds, informational only --
@@ -411,6 +416,14 @@ def print_picks_table(live_df: pd.DataFrame, xg_odds_model, xg_odds_scaler, cali
         print(f"Nothing at or above {TABLE_MIN_MODEL_P*100:.0f}% confidence this window.")
     else:
         _print_table(core_rows, value_cols)
+        shown_fixtures = {row["fixture"] for row in core_rows}
+        notes = {f: fl for f, fl in flag_notes.items() if f in shown_fixtures}
+        if notes:
+            print("\nCHECK BEFORE BETTING (team news the model can't see -- warnings, not validated filters):")
+            for fixture, flags in notes.items():
+                print(f"  {fixture}")
+                for flag in flags:
+                    print(f"    - {flag}")
 
     print(f"\n{'='*100}\nXG+ODDS (reference only -- not a live pick input)\n{'='*100}")
     if not xg_odds_rows:
@@ -608,6 +621,14 @@ def main() -> int:
     live_df = add_shots_venue_derived_features(live_df)
     standings_cache = build_standings_cache()
     live_df = add_league_finish_features(live_df, standings_cache)
+    # A confirmed XI (posted ~1hr before kickoff) whose attackers have no
+    # scoring history leaves attacking form blank, and the fixture would
+    # silently vanish here -- say so, since it usually means heavy rotation.
+    soon = pd.to_datetime(live_df["kickoff"], utc=True) <= pd.Timestamp.now(tz="UTC") + pd.Timedelta(hours=3)
+    no_form = live_df[soon & live_df[["home_attacking_form", "away_attacking_form"]].isna().any(axis=1)]
+    for _, r in no_form.iterrows():
+        print(f"Dropped {r['home_team']} vs {r['away_team']}: a starting attacker has no scoring history "
+              f"(often a rotated XI once lineups are out) -- re-check this one by hand.")
     live_df = live_df.dropna(subset=CORE_CANDIDATES)
     if live_df.empty:
         print("All fixtures were missing a required feature.")
@@ -823,6 +844,15 @@ def main() -> int:
         live_df["clears_under_bar"] & live_df["priced"] & (live_df["best_edge_under"] > 0) & (~live_df["is_early_season"])
     )
     live_df["best_edge"] = live_df[["best_edge_over", "best_edge_under"]].apply(pd.to_numeric, errors="coerce").max(axis=1, skipna=True)
+
+    # Team-news warnings (rotation, congestion, injuries, confirmed XIs) --
+    # only for fixtures that will show in the table, to save API calls.
+    print("Checking team news for rotation/injury flags...")
+    shown = (live_df["calibrated_p"] >= TABLE_MIN_MODEL_P) | (live_df["under_p"] >= TABLE_MIN_MODEL_P)
+    live_df["flags"] = [
+        rotation_flags.flags_for(r, state, LEAGUES[r["competition"]]["id"]) if show else []
+        for (_, r), show in zip(live_df.iterrows(), shown)
+    ]
 
     if args.table:
         print_picks_table(live_df, xg_odds_model, xg_odds_scaler, calibrators)
