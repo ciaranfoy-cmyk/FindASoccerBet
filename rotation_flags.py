@@ -16,7 +16,10 @@ rule. Each fixture gets a list of plain-English flags:
   settled     -- late in the league season, a side's position can no
                  longer change (or it has clinched 1st) -- nothing to play for.
   missing     -- a usual starter is on API-Football's injury/suspension
-                 list for this fixture (posted days ahead).
+                 list for this fixture (posted days ahead), split into new
+                 absences (a regular lately, so not in the form numbers yet)
+                 and long-term ones (recent form already reflects them),
+                 with each player's position.
   lineup      -- once the confirmed XIs are out (~1hr before kickoff),
                  usual starters who were benched or left out.
 
@@ -36,6 +39,9 @@ CONGESTION_DAYS = 4          # another match closer than this either side -> fla
 LINEUP_BENCHED_MIN = 3       # this many usual starters missing from the confirmed XI -> flag
 TEAM_NEWS_TTL = 1800         # injuries / lineups / schedules can change up to kickoff
 STANDINGS_TTL = 6 * 3600
+RECENT_WINDOW = 5            # an absentee who started fewer than RECENT_STARTS_MIN of the
+RECENT_STARTS_MIN = 2        # team's last RECENT_WINDOW games is a long-term absence
+POSITION_NAMES = {"G": "keeper", "D": "defender", "M": "attacker", "F": "attacker"}
 
 
 def _get(path: str, params: dict, ttl: int) -> dict:
@@ -122,19 +128,37 @@ def settled_flags(team: str, team_id: int, league_id: int, season: int) -> list[
 
 
 def missing_flags(team: str, team_id: int, fixture_id: int, state: dict) -> list[str]:
+    """Usual starters on the injury/suspension list, split into NEW
+    absences (a regular starter lately -- the model's form numbers still
+    assume he plays, so this can move the real chance) and LONG-TERM ones
+    (started fewer than RECENT_STARTS_MIN of the last RECENT_WINDOW games --
+    recent form already reflects playing without him). New attackers are
+    the ones that matter most for an Over; a missing defender, if
+    anything, helps it."""
     usual = usual_xi(state, team_id)
+    recent = list(state["team_lineup_history"].get(team_id) or [])[-RECENT_WINDOW:]
     data = _get("/injuries", {"fixture": fixture_id}, TEAM_NEWS_TTL)
     seen: set[int] = set()
-    out = []
+    new, long_term = [], []
     for e in data.get("response", []):
         p = e["player"]
         if e["team"]["id"] != team_id or p["id"] in seen or p["id"] not in usual:
             continue
         seen.add(p["id"])
-        role = "attacker" if state["player_positions"].get(p["id"]) in ATTACKING_POS else "starter"
-        doubt = " (doubtful)" if p.get("type") == "Questionable" else ""
-        out.append(f"{_short(p['name'])} -- usual {role}, {p.get('reason') or 'out'}{doubt}")
-    return [f"{team} missing: " + "; ".join(out)] if out else []
+        role = POSITION_NAMES.get(state["player_positions"].get(p["id"]), "player")
+        doubt = ", doubtful" if p.get("type") == "Questionable" else ""
+        starts = sum(p["id"] in xi for xi in recent)
+        text = f"{_short(p['name'])} ({role}, {p.get('reason') or 'out'}{doubt}"
+        if starts >= RECENT_STARTS_MIN:
+            new.append((role != "attacker", f"{text}, started {starts} of last {len(recent)})"))
+        else:
+            long_term.append(f"{text})")
+    flags = []
+    if new:
+        flags.append(f"{team} NEW absences: " + "; ".join(t for _, t in sorted(new)))
+    if long_term:
+        flags.append(f"{team} long-term absences, already in recent form: " + "; ".join(long_term))
+    return flags
 
 
 def lineup_flags(team: str, team_id: int, fixture_id: int, state: dict) -> list[str]:
