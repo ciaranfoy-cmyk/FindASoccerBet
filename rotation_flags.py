@@ -137,12 +137,15 @@ def missing_flags(team: str, team_id: int, fixture_id: int, state: dict) -> list
     anything, helps it."""
     usual = usual_xi(state, team_id)
     recent = list(state["team_lineup_history"].get(team_id) or [])[-RECENT_WINDOW:]
+    # Once the XIs are posted, a "doubtful" player who starts isn't missing.
+    lineups = _get("/fixtures/lineups", {"fixture": fixture_id}, TEAM_NEWS_TTL).get("response", [])
+    starting = {p["player"]["id"] for b in lineups if b["team"]["id"] == team_id for p in b.get("startXI", [])}
     data = _get("/injuries", {"fixture": fixture_id}, TEAM_NEWS_TTL)
     seen: set[int] = set()
     new, long_term = [], []
     for e in data.get("response", []):
         p = e["player"]
-        if e["team"]["id"] != team_id or p["id"] in seen or p["id"] not in usual:
+        if e["team"]["id"] != team_id or p["id"] in seen or p["id"] not in usual or p["id"] in starting:
             continue
         seen.add(p["id"])
         role = POSITION_NAMES.get(state["player_positions"].get(p["id"]), "player")
