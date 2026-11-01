@@ -53,6 +53,7 @@ from sklearn.linear_model import LogisticRegressionCV
 from sklearn.preprocessing import StandardScaler
 
 import model_cache
+import price_log
 from analyze_dataset_apifootball import add_derived_features
 from analyze_player_form import add_player_form_derived_features
 from analyze_shots_venue import (
@@ -823,6 +824,12 @@ def main() -> int:
         live_df["clears_under_bar"] & live_df["priced"] & (live_df["best_edge_under"] > 0) & (~live_df["is_early_season"])
     )
     live_df["best_edge"] = live_df[["best_edge_over", "best_edge_under"]].apply(pd.to_numeric, errors="coerce").max(axis=1, skipna=True)
+
+    # Keep a history of exchange prices next to the model's number for
+    # every fixture (see price_log.py for why). Best-effort, never fails
+    # the run. PRICE_LOG_DISABLE=1 skips it (e.g. re-scoring past games).
+    if not os.environ.get("PRICE_LOG_DISABLE"):
+        price_log.append(live_df)
 
     if args.table:
         print_picks_table(live_df, xg_odds_model, xg_odds_scaler, calibrators)
