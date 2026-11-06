@@ -192,3 +192,63 @@ def flags_for(row, state: dict, league_id: int) -> list[str]:
         flags += missing_flags(team, team_id, int(row["fixture_id"]), state)
         flags += lineup_flags(team, team_id, int(row["fixture_id"]), state)
     return flags
+
+
+# --- Market-disagreement flags -------------------------------------------
+# From the 2026-11-06 gap study (out-of-fold predictions 2021-26 joined to
+# Bet365 closing prices, n=10,547):
+#   * model >= 65% and 12+ pts above the market: Over hit 47% (n=78) while
+#     the model said 69% -- the market was right. This is already a skip
+#     reason in the staking rules; the flag just makes it automatic.
+#   * top-5 v top-5 at model >= 70%: when the market agrees (gap < 6) Over
+#     hit 74% (n=35); when the market is 6+ pts lower it hit 57% (n=21).
+#     The model adds up two strong attacks; the market prices in that big
+#     games between top sides tend to be cagey. Feeding the model a
+#     "both top-5" input and an opponent-defence-strength input did not
+#     fix it (walk-forward test, same date), hence a warning here instead.
+# Small samples -- warnings, not validated filters.
+BIG_GAME_TOP_N = 5
+BIG_GAME_GAP_PTS = 6.0
+LARGE_GAP_PTS = 12.0
+
+
+def _market_fair_p(row) -> float | None:
+    """Average devigged Over 2.5 probability across whichever exchanges
+    priced the fixture (Kalshi, Polymarket, Novig)."""
+    vals = []
+    for col in ("kalshi_fair_p", "poly_fair_p", "novig_fair_p"):
+        v = row.get(col) if hasattr(row, "get") else None
+        try:
+            v = float(v)
+        except (TypeError, ValueError):
+            continue
+        if v == v:  # not NaN
+            vals.append(v)
+    return sum(vals) / len(vals) if vals else None
+
+
+def market_flags(row) -> list[str]:
+    """Flags for an Over pick where the market strongly disagrees with the
+    model. Needs calibrated_p, league positions and the exchange fair-price
+    columns on the live_df row."""
+    model_p = row.get("calibrated_p")
+    market_p = _market_fair_p(row)
+    if model_p is None or market_p is None:
+        return []
+    gap = (float(model_p) - market_p) * 100
+    flags: list[str] = []
+    if gap >= LARGE_GAP_PTS:
+        flags.append(
+            f"SKIP: market {market_p*100:.0f}% is {gap:.0f} pts below the model "
+            f"(12+ pt gap games hit ~47% historically)"
+        )
+    try:
+        hp, ap = int(row.get("home_league_position")), int(row.get("away_league_position"))
+    except (TypeError, ValueError):
+        return flags
+    if hp <= BIG_GAME_TOP_N and ap <= BIG_GAME_TOP_N and gap >= BIG_GAME_GAP_PTS:
+        flags.append(
+            f"BIG GAME: {hp} v {ap} in the table and market {market_p*100:.0f}% is {gap:.0f} pts "
+            f"below the model (top-5 v top-5 with a 6+ pt gap hit ~57% historically) -- skip"
+        )
+    return flags

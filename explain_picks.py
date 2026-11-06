@@ -853,6 +853,12 @@ def main() -> int:
         rotation_flags.flags_for(r, state, LEAGUES[r["competition"]]["id"]) if show else []
         for (_, r), show in zip(live_df.iterrows(), shown)
     ]
+    # Market-disagreement warnings (12+ pt gap, cagey big games) -- needs
+    # no API calls, so applied to every shown Over row.
+    live_df["flags"] = [
+        (f + rotation_flags.market_flags(r)) if show else f
+        for (_, r), show, f in zip(live_df.iterrows(), shown, live_df["flags"])
+    ]
 
     if args.table:
         print_picks_table(live_df, xg_odds_model, xg_odds_scaler, calibrators)
