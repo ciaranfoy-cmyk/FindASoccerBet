@@ -539,6 +539,26 @@ class XCapTest(unittest.TestCase):
         self.assertIn("max_results=100", calls[0])
         self.assertEqual(since, {"q": "5"})
 
+    def test_stale_since_id_is_dropped(self):
+        from unittest import mock
+        now = time.time()
+        fresh = str(int((now - 86400) * 1000 - x.TWITTER_EPOCH_MS) << 22)
+        stale = str(int((now - 11 * 86400) * 1000 - x.TWITTER_EPOCH_MS) << 22)
+        self.assertAlmostEqual(x.tweet_time(fresh), now - 86400, delta=1)
+        self.assertEqual(x.usable_since_id(fresh, now), fresh)
+        self.assertIsNone(x.usable_since_id(stale, now))   # X would reject the whole search
+        calls = []
+
+        def fake_get_json(url, headers=None):
+            calls.append(url)
+            return {"data": [], "meta": {"newest_id": "9"}}
+
+        with mock.patch.dict(os.environ, {"X_BEARER_TOKEN": "t"}), \
+                mock.patch.object(x.net, "get_json", fake_get_json):
+            x.collect(["old", "new"], {"old": stale, "new": fresh}, max_posts=10)
+        self.assertNotIn("since_id", calls[0])
+        self.assertIn(f"since_id={fresh}", calls[1])
+
 
 class NetTest(unittest.TestCase):
     def test_coingecko_key_header_only_for_coingecko(self):
