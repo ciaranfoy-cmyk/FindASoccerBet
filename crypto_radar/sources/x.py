@@ -7,6 +7,7 @@ tweet id seen last time, so you only pay for new tweets.
 
 import os
 import re
+import time
 import urllib.parse
 from datetime import datetime
 
@@ -90,6 +91,26 @@ def parse_trends(data: dict) -> list[dict]:
             for t in data.get("data", []) if t.get("trend_name")]
 
 
+TWITTER_EPOCH_MS = 1288834974657
+SEARCH_WINDOW_S = 6.5 * 86400   # recent search only accepts since_id from the last 7 days
+
+
+def tweet_time(tweet_id: str) -> float:
+    """Unix time a tweet id was created (ids are snowflakes with a millisecond timestamp)."""
+    return ((int(tweet_id) >> 22) + TWITTER_EPOCH_MS) / 1000
+
+
+def usable_since_id(tweet_id: str | None, now: float | None = None) -> str | None:
+    """X rejects the whole search if since_id is older than its 7-day window (e.g. after
+    a gap from running out of credits), so drop a stale one and start fresh."""
+    if not tweet_id:
+        return None
+    try:
+        return tweet_id if (now or time.time()) - tweet_time(tweet_id) < SEARCH_WINDOW_S else None
+    except ValueError:
+        return None
+
+
 def collect(queries: list[str], since_ids: dict[str, str], max_posts: int = 100) -> tuple[list[Post], int]:
     """since_ids is updated in place with the newest tweet id per query.
 
@@ -105,8 +126,9 @@ def collect(queries: list[str], since_ids: dict[str, str], max_posts: int = 100)
         max_pages = max(1, -(-max_posts // page_size))
         params = {"query": query, "max_results": str(page_size),
                   "tweet.fields": "created_at,author_id", "expansions": "author_id"}
-        if since_ids.get(query):
-            params["since_id"] = since_ids[query]
+        since = usable_since_id(since_ids.get(query))
+        if since:
+            params["since_id"] = since
         newest = None
         for _ in range(max_pages):
             try:
