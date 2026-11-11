@@ -17,6 +17,7 @@ Usage:
 import re
 import sys
 import time
+import unicodedata
 import urllib.error
 import urllib.request
 import warnings
@@ -138,6 +139,7 @@ _TEAM_ALIASES = {
     "west bromwich": "west brom",
     "sheffield united": "sheffield utd",
     # La Liga
+    "racing santander": "santander",
     "bilbao": "athletic club",
     "athletic club": "athletic club",
     "atletico": "atletico madrid",
@@ -161,6 +163,7 @@ _TEAM_ALIASES = {
     "bayern münchen": "bayern munich",
     "hamburg": "hamburger sv",
     "mainz": "fsv mainz 05",
+    "sv elversberg": "elversberg",
     "frankfurt": "eintracht frankfurt",
     "augsburg": "fc augsburg",
     "fc st. pauli": "st. pauli",
@@ -248,11 +251,18 @@ _TEAM_ALIASES = {
 def _normalize(name: str) -> str:
     n = name.lower().strip()
     if n in _TEAM_ALIASES:
-        return _TEAM_ALIASES[n]
+        return _fold_accents(_TEAM_ALIASES[n])
     for suf in _SUFFIXES:
         if n.endswith(suf) and n != suf.strip():
             n = n[: -len(suf)]
-    return n.strip()
+    return _fold_accents(n.strip())
+
+
+def _fold_accents(n: str) -> str:
+    # Kalshi titles drop diacritics ("Fenerbahce") that API-Football keeps
+    # ("Fenerbahçe"), which silently blanked Kalshi prices for those teams.
+    # Folded after the alias lookup so the accented alias keys still match.
+    return "".join(c for c in unicodedata.normalize("NFKD", n) if not unicodedata.combining(c))
 
 
 _KALSHI_MAX_RETRIES = 5
