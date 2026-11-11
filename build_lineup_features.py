@@ -46,9 +46,15 @@ ATTACKING_POS = {"F", "M"}   # forwards + attacking mids treated as attacking ou
 DEFENSIVE_POS = {"D", "G"}   # defenders + goalkeeper
 
 
-def lineup_for(fixture_id: int) -> dict[int, list[tuple[int, str, str]]]:
-    """team_id -> [(player_id, position, name), ...] for the starting XI."""
-    data = apifootball.get("/fixtures/lineups", {"fixture": fixture_id})
+def lineup_for(fixture_id: int, ttl_seconds: float | None = None) -> dict[int, list[tuple[int, str, str]]]:
+    """team_id -> [(player_id, position, name), ...] for the starting XI.
+
+    ttl_seconds=None caches forever, right for finished matches. A live
+    (not yet kicked off) fixture must pass a short ttl: before the XIs are
+    posted the response is empty, and caching that forever would hide the
+    real lineup from a re-run just before kickoff.
+    """
+    data = apifootball.get("/fixtures/lineups", {"fixture": fixture_id}, ttl_seconds=ttl_seconds)
     out = {}
     for team_block in data.get("response", []):
         team_id = team_block["team"]["id"]
