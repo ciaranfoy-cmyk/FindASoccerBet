@@ -1,0 +1,105 @@
+Window: last 6h vs previous 72h   (history in DB: 504.0h)
+Left out of the rankings (always discussed): bitcoin, ethereum
+Sources: R=Reddit T=Telegram 4=4chan N=News X=X/Twitter Y=YouTube   voic = distinct people-hours talking about it
+
+== MOST TALKED ABOUT ==
+coin                               voic posts  vs base  sentiment  src   top channels                            
+XRP                                  13    15    1.2x  +  +0.12  RT4Y  /biz/, t.me/binancekillers, r/CryptoCurr CG#7↑new LC#4
+SOL · Solana                         11    12    0.8x  ~  +0.03  RTY   r/solana, t.me/degenpump_crypto_pump_sig CG#9
+ADA · Cardano                         7     7    1.5x  +  +0.14  R4Y   r/CryptoCurrency, r/CryptoMarkets, yt:@t LC#5
+NIGHT · Midnight                      5     5    4.3x  ~  +0.04  T4Y   yt:@cryptocapitalventure, t.me/binanceki 
+HYPE · Hyperliquid                    4     4    1.9x  +  +0.24  RT    t.me/CoinBureau, r/defi                  CG#2
+NVDA · NVIDIA • Robinhood Token       4     4    1.8x  ~  +0.03  T     t.me/WatcherGuru                         
+LINK · Chainlink                      3     3    0.8x  +  +0.21  R4    /biz/, r/ethtrader, r/CryptoCurrency     CG#12↑new LC#10
+QNT · Quant                           3     3    4.0x  -  -0.14  R4    /biz/, r/CryptoCurrency                  CG#15↑new LC#15
+AVAX · Avalanche                      2     2    0.7x  +  +0.12  Y     yt:@elliotrades_official, yt:@tylerhillc 
+FORM · Four                           2     2    3.4x  +  +0.30  RN    r/defi, decrypt.co                       
+AR · Arweave                          2     2    8.0x  ~  -0.04  R     r/CryptoCurrency                         
+MEGA · MegaETH                        2     2   12.0x  ~  +0.00  TN    coindesk.com, t.me/CoinDeskGlobal        
+INIT · Initia                         1     3    4.0x  ++ +0.77  T     t.me/degenpump_crypto_pump_signals       [pump/signal only]
+AVA · AVA (Travala)                   1     3    3.0x  ++ +0.77  T     t.me/degenpump_crypto_pump_signals       [pump/signal only]
+$USDBRL (unlisted)                    1     3    new   ++ +0.77  T     t.me/degenpump_crypto_pump_signals       [pump/signal only]
+AKE · Akedo                           1     3    6.0x  ++ +0.77  T     t.me/degenpump_crypto_pump_signals       [pump/signal only]
+ACU · Acurast                         1     3    new   ++ +0.77  T     t.me/degenpump_crypto_pump_signals       [pump/signal only]
+SYN · Synapse                         1     3    4.0x  ++ +0.77  T     t.me/degenpump_crypto_pump_signals       [pump/signal only]
+DOT · Polkadot                        1     1    2.4x  ~  +0.00  R     r/CryptoCurrency                         
+INJ · Injective                       1     1    2.4x  -  -0.13  T     t.me/binancekillers                      CG#11↑new [pump/signal only]
+$GROKVORTEX (unlisted)                1     1    new   ~  +0.00  Y     yt:@paulbarronnetwork                    [pump/signal only]
+XNO · Nano                            1     1    new   ++ +0.84  R     r/ethereum                               
+TIA · Celestia                        1     1    new   +  +0.20  T     t.me/CoinBureau                          
+ENA · Ethena                          1     1    2.4x  +  +0.20  T     t.me/CoinBureau                          
+ETHFI · Ether.fi                      1     1    1.2x  +  +0.20  T     t.me/CoinBureau                          
+
+== HEATING UP (buzz rising fastest vs its own baseline) ==
+coin                               voic posts  vs base  sentiment  src   top channels                            
+NIGHT · Midnight                      5     5    4.3x  ~  +0.04  T4Y   yt:@cryptocapitalventure, t.me/binanceki 
+QNT · Quant                           3     3    4.0x  -  -0.14  R4    /biz/, r/CryptoCurrency                  CG#15↑new LC#15
+HYPE · Hyperliquid                    4     4    1.9x  +  +0.24  RT    t.me/CoinBureau, r/defi                  CG#2
+NVDA · NVIDIA • Robinhood Token       4     4    1.8x  ~  +0.03  T     t.me/WatcherGuru                         
+
+== NEW ON THE RADAR (first mentions ever, in this window) ==
+  (nothing yet)
+
+== ONLY IN SIGNAL/PUMP CHANNELS (not ranked above) ==
+  INIT (3), AVA (3), $USDBRL (unlisted) (3), AKE (3), ACU (3), SYN (3), INJ (1), $GROKVORTEX (unlisted) (1)
+
+== EARLY SEARCH SIGNALS (climbing CoinGecko searches, price not run yet) ==
+UNI · Uniswap                #5 (from #14)  price 24h -13%  chatter: 1 voices
+NEAR · NEAR Protocol         #8 (new to list)  price 24h -11%  chatter: 0 voices
+
+== SEARCH INTEREST (CoinGecko trending now + Google & X Trends, 24h) ==
+HYPE · Hyperliquid           CoinGecko #2  on list  12.0h (was #3 2h ago)  4 voices, 1.9x usual  price 24h -9%, 1h -2.3%, since listed -5%
+KAVA                         CoinGecko #4  on list   7.0h (was #1 2h ago)  0 voices (no chatter)  price 24h -43%, 1h +0.5%, since listed -13%
+UNI · Uniswap                CoinGecko #5  on list   1.0h (was #14 2h ago)  1 voices, 1.0x usual  price 24h -13%, 1h -3.2%, since listed +1%  <- EARLY? climbing, price not run yet
+PRL · Pearl                  CoinGecko #6  on list   6.0h (was #9 2h ago)  0 voices (no chatter)  price 24h -4%, 1h -2.4%, since listed -7%
+XRP                          CoinGecko #7  on list   3.0h (was #5 2h ago)  13 voices, 1.2x usual  price 24h -6%, 1h -1.2%, since listed -2%
+NEAR · NEAR Protocol         CoinGecko #8  on list   0.0h (new in 2h)  0 voices (no chatter)  price 24h -11%, 1h -3.1%, since listed +0%  <- EARLY? climbing, price not run yet
+SOL · Solana                 CoinGecko #9  on list   7.0h (was #4 2h ago)  11 voices, 0.8x usual  price 24h -9%, 1h -1.6%, since listed -4%
+TAO · Bittensor              CoinGecko #10 on list   5.0h (was #6 2h ago)  0 voices (no chatter)  price 24h -10%, 1h -2.7%, since listed -6%
+INJ · Injective              CoinGecko #11 on list   0.0h (new in 2h)  1 voices, 2.4x usual  price 24h -10%, 1h -5.9%, since listed +0%
+LINK · Chainlink             CoinGecko #12 on list   0.0h (new in 2h)  3 voices, 0.8x usual  price 24h -8%, 1h -1.9%, since listed +0%
+QTC · Quantus                CoinGecko #13 on list   0.0h (was #10 2h ago)  0 voices (no chatter)  price 24h -13%, 1h -11.5%, since listed +0%  (moving now: 1h -12%)
+AAVE                         CoinGecko #14 on list   0.0h (new in 2h)  0 voices (no chatter)  price 24h -7%, 1h -1.1%, since listed +0%
+QNT · Quant                  CoinGecko #15 on list   0.0h  3 voices, 4.0x usual  price 24h -7%, 1h -1.4%, since listed +0%
+S · Sonic                                                  0 voices (no chatter)  GOOGLE: "pj marley's medina ohio" 100+
+
+== LUNARCRUSH RISING (social activity growing fastest vs ~a day ago) ==
+A · Vaulta                 7.5x interactions vs 24h ago, 344,011 interactions, 0.01% of chatter, 97% positive, 24h -10%, AltRank 3105
+ELF · aelf                 5.6x interactions vs 24h ago, 100,203 interactions, 0.06% of chatter, 96% positive, 24h -7%, AltRank 727
+ZIL · Zilliqa              3.2x interactions vs 24h ago, 228,873 interactions, 0.04% of chatter, 83% positive, 24h -7%, AltRank 661
+ADA · Cardano              2.3x interactions vs 24h ago, 4,210,008 interactions, 1.12% of chatter, 79% positive, 24h -9%, AltRank 899  (ours: 7 voices)
+DASH                       2.2x interactions vs 25h ago, 150,911 interactions, 0.09% of chatter, 93% positive, 24h -7%, AltRank 660
+BCH · Bitcoin Cash         1.4x interactions vs 24h ago, 66,691 interactions, 0.11% of chatter, 84% positive, 24h -7%, AltRank 625
+MTL · Metal DAO            1.4x interactions vs 24h ago, 2,655,076 interactions, 0.02% of chatter, 100% positive, 24h -8%, AltRank 1066
+$HT (unlisted)             1.4x interactions vs 24h ago, 120,733 interactions, 0.03% of chatter, 62% positive, 24h +3%, AltRank 52
+ONE · ONEchain             1.3x interactions vs 25h ago, 124,027 interactions, 0.09% of chatter, 83% positive, 24h -10%, AltRank 1291
+FET · Artificial Superinte 1.3x interactions vs 25h ago, 205,402 interactions, 0.12% of chatter, 74% positive, 24h -10%, AltRank 1091
+LTC · Litecoin             1.2x interactions vs 24h ago, 893,557 interactions, 0.48% of chatter, 81% positive, 24h -7%, AltRank 630  (ours: 1 voices)
+TRX · TRON                 1.2x interactions vs 25h ago, 255,865 interactions, 0.10% of chatter, 65% positive, 24h -2%, AltRank 151  (ours: 1 voices)
+GAS                        1.2x interactions vs 24h ago, 197,394 interactions, 0.08% of chatter, 89% positive, 24h -5%, AltRank 542
+XTZ · Tezos                1.2x interactions vs 24h ago, 121,281 interactions, 0.26% of chatter, 89% positive, 24h -9%, AltRank 1026
+$BTS (unlisted)            1.2x interactions vs 24h ago, 130,346 interactions, 0.01% of chatter, 98% positive, 24h -5%, AltRank 864
+
+== YOUTUBE (new videos from followed channels, 24h) ==
+@cryptocapitalventure  1.0h ago     4,701 views (4,896/h, 0.2x channel's typical video), 34 comments  Bitcoin CAPITULATES! Crypto Won’t Stop CRASHING (Why Is Midnight Going UP?)
+@tomcrown              2.4h ago     3,844 views (1,648/h, 0.8x channel's typical video), 1 comments  EMERGENCY CRYPTO CRASHING!
+@tomcrown              3.5h ago       641 views (183/h, 0.1x channel's typical video), 0 comments  THE BIG SHORT STOCKS
+@coinbureau            3.9h ago     5,371 views (1,378/h, 1.1x channel's typical video), 4 comments  Where Did Binance's Stolen $6 Billion Go?  <- TAKING OFF
+@tylerhillcryptoyt     4.0h ago     2,953 views (742/h, 0.3x channel's typical video), 69 comments  CRYPTO INVESTORS, YOU NEED TO HEAR THIS NEWS!
+@tylerhillcryptoyt     4.2h ago       123 views (29/h, 0.0x channel's typical video), 5 comments  I HAVE AN ANNOUNCEMENT
+@meetkevin            15.8h ago   104,154 views (6,620/h, 0.9x channel's typical video), 253 comments  Elon JUST Started Selling Cybercabs for $299/mo
+@meetkevin            18.1h ago   119,790 views (6,649/h, 1.2x channel's typical video), 273 comments  The REASON why the FAA *JUST* Shutdown All Airports  <- TAKING OFF
+@meetkevin            18.2h ago   326,136 views (17,918/h, 3.1x channel's typical video), 78 comments  BASES ON ALERT 🚨 FAA Orders ALL Flights STOPPED: Nationwide Ground Stop!  <- TAKING OFF
+@digitalassetnews     18.6h ago     8,942 views (482/h, 6.1x channel's typical video), 28 comments  Q4 Was ALWAYS Going To Hurt. Bitcoin’s Buy Zone Is HERE  <- TAKING OFF
+@elliotrades_official 18.6h ago     5,232 views (282/h, 0.4x channel's typical video), 11 comments  Which Crypto Coins are CHEAP?
+@digitalassetnews     18.7h ago     1,130 views (61/h, 0.8x channel's typical video), 3 comments  Crypto is maturing: crashes hurt less than before
+@thomaskralow         18.9h ago     8,667 views (460/h, 15.6x channel's typical video), 15 comments  🚨 BREAKING: ALL US FLIGHTS GROUNDED!!!!  <- TAKING OFF
+@ryandcrypto          20.4h ago       112 views (6/h, 0.1x channel's typical video), 1 comments  turning $1000 into as much money as i can trading memecoins  #trading #memecoins
+@elliotrades_official 21.2h ago    10,296 views (486/h, 0.7x channel's typical video), 32 comments  URGENT: WORST CRYPTO CRASH IN MONTHS!
+@alexanderelorenzo    21.8h ago    15,103 views (695/h, 3.2x channel's typical video), 85 comments  The Wealth Transfer is Officially Happening  <- TAKING OFF
+@paulbarronnetwork    21.9h ago    57,782 views (2,639/h, 1.3x channel's typical video), 68 comments  Crypto Extreme Fear📉$NVDA vs $BTC Technical Analysis @EvanAldo  <- TAKING OFF
+@hackyourcrypto       22.1h ago        21 views (1/h, 0.2x channel's typical video), 0 comments  Borrowing Against Assets: Why Loans Aren’t Taxed as Income
+@cryptojebb           22.9h ago     2,163 views (94/h, 0.4x channel's typical video), 30 comments  Nvidia Buy Signal — Best Buy In 5 Years. Nvidia Price Prediction
+@digitalassetnews     23.1h ago     1,847 views (80/h, 1.2x channel's typical video), 4 comments  Michael Saylor: $400B moving into AI is squeezing Bitcoin  <- TAKING OFF
+@tomcrown             23.2h ago     4,866 views (210/h, 1.0x channel's typical video), 17 comments  the bottom in for bitcoin?  <- TAKING OFF
+
