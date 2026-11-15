@@ -47,7 +47,7 @@
   "x_sample_posts_per_run": 20,
   "x_daily_post_budget": 250,
   "x_trend_locations": ["WORLD", "UK", "US"],
-  "x_every_hours": 3,
+  "x_every_hours": 24,
   "youtube_channels": ["benjaminjcowen", "CoinBureau", "TomCrown", "MMCryptoTube",
                        "AlexBeckersChannel", "ThomasKralow", "elliotrades_official",
                        "CryptoCapitalVenture", "AlexanderELorenzo", "PaulBarronNetwork",
