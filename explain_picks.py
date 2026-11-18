@@ -95,6 +95,12 @@ from polymarket_prices import (
     fetch_polymarket_over25_for_league,
     polymarket_fee,
 )
+from novig_prices import (
+    NOVIG_LEAGUE_BY_COMPETITION,
+    fetch_novig_over25_for_league,
+    novig_fee,
+    novig_names_match,
+)
 from predict_upcoming import (
     CORE_CANDIDATES,
     ODDS_CANDIDATES,
@@ -298,7 +304,7 @@ def _print_table(rows: list[dict], value_cols: tuple[str, ...]) -> None:
         table[col] = table[col].map(lambda v: (f"{v:+.1f}" if signed else f"{v:.1f}") if pd.notna(v) else "--")
     table = table.rename(columns={
         "fixture": "Fixture", "comp": "Comp", "date": "Date", "side": "Side",
-        "model_pct": "Model %", "bet365_pct": "Bet365 %", "kalshi_pct": "Kalshi %", "poly_pct": "Poly %",
+        "model_pct": "Model %", "bet365_pct": "Bet365 %", "kalshi_pct": "Kalshi %", "poly_pct": "Poly %", "novig_pct": "Novig %",
         "pool_hit_pct": "Pool hit %", "edge_pp": "Edge (pp)", "verdict": "Verdict",
     })
     pd.set_option("display.width", 240)
@@ -349,6 +355,7 @@ def print_picks_table(live_df: pd.DataFrame, xg_odds_model, xg_odds_scaler, cali
                 "bet365_pct": bet365 * 100 if bet365 is not None else None,
                 "kalshi_pct": r["kalshi_fair_p"] * 100 if pd.notna(r["kalshi_fair_p"]) else (r["kalshi_yes_ask"] * 100 if pd.notna(r["kalshi_yes_ask"]) else None),
                 "poly_pct": r["poly_fair_p"] * 100 if pd.notna(r["poly_fair_p"]) else (r["poly_yes_ask"] * 100 if pd.notna(r["poly_yes_ask"]) else None),
+                "novig_pct": r["novig_fair_p"] * 100 if pd.notna(r["novig_fair_p"]) else None,
                 "pool_hit_pct": None if over_disallowed else r["effective_over_prob"] * 100,
                 "edge_pp": edge, "verdict": verdict,
             })
@@ -363,6 +370,7 @@ def print_picks_table(live_df: pd.DataFrame, xg_odds_model, xg_odds_scaler, cali
                 "bet365_pct": (100 - bet365 * 100) if bet365 is not None else None,
                 "kalshi_pct": (100 - r["kalshi_fair_p"] * 100) if pd.notna(r["kalshi_fair_p"]) else (r["kalshi_no_ask"] * 100 if pd.notna(r["kalshi_no_ask"]) else None),
                 "poly_pct": (100 - r["poly_fair_p"] * 100) if pd.notna(r["poly_fair_p"]) else (r["poly_no_ask"] * 100 if pd.notna(r["poly_no_ask"]) else None),
+                "novig_pct": (100 - r["novig_fair_p"] * 100) if pd.notna(r["novig_fair_p"]) else None,
                 "pool_hit_pct": None if under_disallowed else r["effective_under_prob"] * 100,
                 "edge_pp": edge, "verdict": verdict,
             })
@@ -378,6 +386,9 @@ def print_picks_table(live_df: pd.DataFrame, xg_odds_model, xg_odds_scaler, cali
             if pd.notna(r["poly_yes_ask"]):
                 poly_edge = (xg_odds_over - polymarket_fee(r["poly_yes_ask"]) - r["poly_yes_ask"]) * 100
                 edge = poly_edge if edge is None else max(edge, poly_edge)
+            if pd.notna(r["novig_yes_ask"]):
+                novig_edge = (xg_odds_over - r["novig_yes_ask"]) * 100
+                edge = novig_edge if edge is None else max(edge, novig_edge)
             verdict = "EDGE" if edge is not None and edge > 0 else "no edge"
             xg_odds_rows.append({
                 "fixture": f"{r['home_team']} vs {r['away_team']}", "comp": comp, "date": r["date"][:10],
@@ -385,6 +396,7 @@ def print_picks_table(live_df: pd.DataFrame, xg_odds_model, xg_odds_scaler, cali
                 "bet365_pct": bet365 * 100,
                 "kalshi_pct": r["kalshi_fair_p"] * 100 if pd.notna(r["kalshi_fair_p"]) else (r["kalshi_yes_ask"] * 100 if pd.notna(r["kalshi_yes_ask"]) else None),
                 "poly_pct": r["poly_fair_p"] * 100 if pd.notna(r["poly_fair_p"]) else (r["poly_yes_ask"] * 100 if pd.notna(r["poly_yes_ask"]) else None),
+                "novig_pct": r["novig_fair_p"] * 100 if pd.notna(r["novig_fair_p"]) else None,
                 "pool_hit_pct": None, "edge_pp": edge, "verdict": verdict,
             })
         if (1 - xg_odds_over) >= TABLE_MIN_MODEL_P:
@@ -395,6 +407,9 @@ def print_picks_table(live_df: pd.DataFrame, xg_odds_model, xg_odds_scaler, cali
             if pd.notna(r["poly_no_ask"]):
                 poly_edge = (under_p - polymarket_fee(r["poly_no_ask"]) - r["poly_no_ask"]) * 100
                 edge = poly_edge if edge is None else max(edge, poly_edge)
+            if pd.notna(r["novig_no_ask"]):
+                novig_edge = (under_p - r["novig_no_ask"]) * 100
+                edge = novig_edge if edge is None else max(edge, novig_edge)
             verdict = "EDGE" if edge is not None and edge > 0 else "no edge"
             xg_odds_rows.append({
                 "fixture": f"{r['home_team']} vs {r['away_team']}", "comp": comp, "date": r["date"][:10],
@@ -402,10 +417,11 @@ def print_picks_table(live_df: pd.DataFrame, xg_odds_model, xg_odds_scaler, cali
                 "bet365_pct": 100 - bet365 * 100,
                 "kalshi_pct": (100 - r["kalshi_fair_p"] * 100) if pd.notna(r["kalshi_fair_p"]) else (r["kalshi_no_ask"] * 100 if pd.notna(r["kalshi_no_ask"]) else None),
                 "poly_pct": (100 - r["poly_fair_p"] * 100) if pd.notna(r["poly_fair_p"]) else (r["poly_no_ask"] * 100 if pd.notna(r["poly_no_ask"]) else None),
+                "novig_pct": (100 - r["novig_fair_p"] * 100) if pd.notna(r["novig_fair_p"]) else None,
                 "pool_hit_pct": None, "edge_pp": edge, "verdict": verdict,
             })
 
-    value_cols = ("model_pct", "bet365_pct", "kalshi_pct", "poly_pct", "pool_hit_pct", "edge_pp")
+    value_cols = ("model_pct", "bet365_pct", "kalshi_pct", "poly_pct", "novig_pct", "pool_hit_pct", "edge_pp")
     print(f"\n{'='*100}\nXG+CORE (live model)\n{'='*100}")
     if not core_rows:
         print(f"Nothing at or above {TABLE_MIN_MODEL_P*100:.0f}% confidence this window.")
@@ -801,7 +817,34 @@ def main() -> int:
                     live_df.at[idx, "edge_vs_fair_poly"] = r["effective_over_prob"] - yes_fee - k["fair_p"]
                 break
 
-    live_df["priced"] = live_df["kalshi_yes_ask"].notna() | live_df["poly_yes_ask"].notna()
+    print("Fetching real Novig prices per league...")
+    novig_by_comp = {}
+    for comp in NOVIG_LEAGUE_BY_COMPETITION:
+        try:
+            novig_by_comp[comp] = fetch_novig_over25_for_league(comp)
+        except Exception as exc:
+            print(f"  {comp}: could not reach Novig -- {exc}")
+            novig_by_comp[comp] = []
+
+    # Third book, same treatment as Polymarket's block above. Novig's
+    # asks are derived from the opposite side's best bid (see
+    # novig_prices.py), and its fee is zero for a pregame fill.
+    live_df["novig_yes_ask"] = pd.NA
+    live_df["edge_vs_ask_novig"] = pd.NA
+    live_df["novig_no_ask"] = pd.NA
+    live_df["edge_no_novig"] = pd.NA
+    live_df["novig_fair_p"] = pd.NA
+    for idx, r in live_df.iterrows():
+        for k in novig_by_comp.get(r["competition"], []):
+            if novig_names_match(r["home_team"], k["home"]) and novig_names_match(r["away_team"], k["away"]):
+                live_df.at[idx, "novig_yes_ask"] = k["yes_ask"]
+                live_df.at[idx, "edge_vs_ask_novig"] = r["effective_over_prob"] - novig_fee(k["yes_ask"], k["fee_charged"]) - k["yes_ask"]
+                live_df.at[idx, "novig_no_ask"] = k["no_ask"]
+                live_df.at[idx, "edge_no_novig"] = r["effective_under_prob"] - novig_fee(k["no_ask"], k["fee_charged"]) - k["no_ask"]
+                live_df.at[idx, "novig_fair_p"] = k["fair_p"]
+                break
+
+    live_df["priced"] = live_df["kalshi_yes_ask"].notna() | live_df["poly_yes_ask"].notna() | live_df["novig_yes_ask"].notna()
     # Only ONE book needs to show a profitable edge for a real pick --
     # two independently-run markets are extremely unlikely to be wrong
     # about the same fixture in the same direction for the same reason,
@@ -810,8 +853,8 @@ def main() -> int:
     # actual tradeable number reported) is whichever book is better;
     # which book(s) actually cleared zero is tracked separately so the
     # report can say exactly where the edge is.
-    live_df["best_edge_over"] = live_df[["edge_vs_ask", "edge_vs_ask_poly"]].apply(pd.to_numeric, errors="coerce").max(axis=1, skipna=True)
-    live_df["best_edge_under"] = live_df[["edge_no", "edge_no_poly"]].apply(pd.to_numeric, errors="coerce").max(axis=1, skipna=True)
+    live_df["best_edge_over"] = live_df[["edge_vs_ask", "edge_vs_ask_poly", "edge_vs_ask_novig"]].apply(pd.to_numeric, errors="coerce").max(axis=1, skipna=True)
+    live_df["best_edge_under"] = live_df[["edge_no", "edge_no_poly", "edge_no_novig"]].apply(pd.to_numeric, errors="coerce").max(axis=1, skipna=True)
     live_df["is_pick"] = live_df["clears_bar"] & live_df["priced"] & (live_df["best_edge_over"] > 0)
     # Mirror for Under, using its own (weaker) validated bar -- see
     # compute_rolling_p95_under_bar(). Same gate, opposite side.
@@ -897,6 +940,11 @@ def main() -> int:
                       f"edge vs fair (true signal) = {r['edge_vs_fair_poly']*100:+.1f}pp")
         else:
             print("No Polymarket price posted yet for this fixture (or team names didn't confidently match -- see polymarket_prices.py).")
+        if pd.notna(r["novig_yes_ask"]):
+            print(f"Novig over ask = ${r['novig_yes_ask']:.3f}  |  edge vs ask (Over, tradeable, no pregame fee) = {r['edge_vs_ask_novig']*100:+.1f}pp")
+            print(f"Novig under ask = ${r['novig_no_ask']:.3f}  |  edge vs ask (Under, tradeable) = {r['edge_no_novig']*100:+.1f}pp")
+        else:
+            print("No Novig price for this fixture (league not on Novig, or names didn't match -- see novig_prices.py).")
         print("-" * 90)
         print("Top factors driving this prediction (ranked by how much they move the number):")
         for feat, contrib in contributions:
@@ -927,7 +975,7 @@ def main() -> int:
     print("=" * 90)
     if combined.empty:
         print(f"Nothing this window is either a real pick (Over >= {bar*100:.1f}% or Under >= {under_bar*100:.1f}%, "
-              f"priced on Kalshi and/or Polymarket, positive edge on at least one) or close to the market "
+              f"priced on Kalshi, Polymarket or Novig, positive edge on at least one) or close to the market "
               f"(model >= {WATCHLIST_MIN_P*100:.0f}%, within {WATCHLIST_MAX_ABS_EDGE*100:.0f}pp of Kalshi). "
               f"Re-check closer to kickoff.")
     else:
@@ -937,14 +985,17 @@ def main() -> int:
                 label = f"PICK (Over{early_note})"
                 kalshi_price, kalshi_edge = r["kalshi_yes_ask"], r["edge_vs_ask"]
                 poly_price, poly_edge = r["poly_yes_ask"], r["edge_vs_ask_poly"]
+                novig_price, novig_edge = r["novig_yes_ask"], r["edge_vs_ask_novig"]
             elif r["is_under_pick"]:
                 label = f"PICK (Under, weaker track record{early_note})"
                 kalshi_price, kalshi_edge = r["kalshi_no_ask"], r["edge_no"]
                 poly_price, poly_edge = r["poly_no_ask"], r["edge_no_poly"]
+                novig_price, novig_edge = r["novig_no_ask"], r["edge_no_novig"]
             else:
                 label = f"WATCH (model/market agree, no edge{early_note})"
                 kalshi_price, kalshi_edge = r["kalshi_yes_ask"], r["edge_vs_ask"]
                 poly_price, poly_edge = r["poly_yes_ask"], r["edge_vs_ask_poly"]
+                novig_price, novig_edge = r["novig_yes_ask"], r["edge_vs_ask_novig"]
             # Report whichever book(s) actually have a price -- a pick can
             # be real on the strength of just one book's edge even when
             # the other has no price at all, so never assume both exist.
@@ -955,7 +1006,10 @@ def main() -> int:
             if pd.notna(poly_price):
                 cleared = " *edge here*" if pd.notna(poly_edge) and poly_edge > 0 else ""
                 book_strs.append(f"Polymarket ${poly_price:.2f} ({poly_edge*100:+.1f}pp{cleared})")
-            books_str = " | ".join(book_strs) if book_strs else "no price on either book"
+            if pd.notna(novig_price):
+                cleared = " *edge here*" if pd.notna(novig_edge) and novig_edge > 0 else ""
+                book_strs.append(f"Novig ${novig_price:.3f} ({novig_edge*100:+.1f}pp{cleared})")
+            books_str = " | ".join(book_strs) if book_strs else "no price on any book"
             print(f"  [{label}] {r['home_team']} vs {r['away_team']} ({r['competition']}, {r['date']}) -- "
                   f"model {r['calibrated_p']*100:.1f}% over / {r['under_p']*100:.1f}% under (individual estimate) "
                   f"vs {books_str} (priced off pool hit rate "
