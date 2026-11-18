@@ -897,6 +897,13 @@ def main() -> int:
         rotation_flags.flags_for(r, state, LEAGUES[r["competition"]]["id"]) if show else []
         for (_, r), show in zip(live_df.iterrows(), shown)
     ]
+    # Market-disagreement warnings (12+ pt gap, cagey big games) -- needs
+    # no API calls, so applied to every shown Over row.
+    live_df["flags"] = [
+        (f + rotation_flags.market_flags(r)) if show else f
+        for (_, r), show, f in zip(live_df.iterrows(), shown, live_df["flags"])
+    ]
+
     # Keep a history of exchange prices next to the model's number for
     # every fixture (see price_log.py for why). Best-effort, never fails
     # the run. PRICE_LOG_DISABLE=1 skips it (e.g. re-scoring past games).
