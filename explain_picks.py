@@ -54,6 +54,7 @@ from sklearn.preprocessing import StandardScaler
 
 import model_cache
 import rotation_flags
+import price_log
 from analyze_dataset_apifootball import add_derived_features
 from analyze_player_form import add_player_form_derived_features
 from analyze_shots_venue import (
@@ -896,6 +897,11 @@ def main() -> int:
         rotation_flags.flags_for(r, state, LEAGUES[r["competition"]]["id"]) if show else []
         for (_, r), show in zip(live_df.iterrows(), shown)
     ]
+    # Keep a history of exchange prices next to the model's number for
+    # every fixture (see price_log.py for why). Best-effort, never fails
+    # the run. PRICE_LOG_DISABLE=1 skips it (e.g. re-scoring past games).
+    if not os.environ.get("PRICE_LOG_DISABLE"):
+        price_log.append(live_df)
 
     if args.table:
         print_picks_table(live_df, xg_odds_model, xg_odds_scaler, calibrators)
