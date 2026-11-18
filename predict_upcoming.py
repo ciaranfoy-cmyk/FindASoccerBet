@@ -94,6 +94,7 @@ from build_dataset_apifootball import (
     shot_stats_for,
     table_standing,
 )
+from rotation_flags import TEAM_NEWS_TTL
 from build_lineup_features import USUAL_XI_MIN_HISTORY, USUAL_XI_WINDOW, goal_scorers_for, lineup_for
 from build_player_form_features import ATTACKING_POS as FORM_ATTACKING_POS
 from build_player_form_features import MIN_STARTS_FOR_FORM
@@ -500,8 +501,11 @@ def build_feature_row(m: dict, state: dict) -> dict | None:
     pair_key = tuple(sorted([home, away]))
     h2h_goals = state["h2h_history"][pair_key]
 
+    # Team news for a fixture that hasn't kicked off yet changes up to
+    # kickoff, so don't let a days-old (often empty) response stick.
+    news_ttl = TEAM_NEWS_TTL if match_date > datetime.datetime.now(datetime.timezone.utc) else None
     try:
-        injuries = injury_count_for(m["fixture_id"])
+        injuries = injury_count_for(m["fixture_id"], ttl_seconds=news_ttl)
     except apifootball.ApiFootballError:
         injuries = {}
     home_missing = injuries.get(m["home_id"], 0)
@@ -514,7 +518,7 @@ def build_feature_row(m: dict, state: dict) -> dict | None:
         return None if a is None or b is None or b == 0 else a / b
 
     try:
-        live_lineups = lineup_for(m["fixture_id"])
+        live_lineups = lineup_for(m["fixture_id"], ttl_seconds=news_ttl)
     except apifootball.ApiFootballError:
         live_lineups = {}
     home_attacking_form = attacking_form_for(state, m["home_id"], live_lineups.get(m["home_id"]))
@@ -533,6 +537,9 @@ def build_feature_row(m: dict, state: dict) -> dict | None:
     return {
         "fixture_id": m["fixture_id"],
         "date": match_date.date().isoformat(),
+        "kickoff": m["date"],
+        "home_id": m["home_id"],
+        "away_id": m["away_id"],
         "competition": competition,
         "season": m["season"],
         "home_team": home,
