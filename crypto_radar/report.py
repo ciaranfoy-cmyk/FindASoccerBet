@@ -318,8 +318,9 @@ def build(store: Store, window_h: float = 6, baseline_h: float = 72,
         s.heat = math.log2(max(s.velocity, 1.0)) * math.sqrt(s.voices) * (1 + 0.25 * (len(s.sources) - 1))
         s.is_new = first_seen.get(key, 0) >= window_start and history_h > window_h * 2
         s.pump_only = bool(s.channels) and all(c in pump_channels for c in s.channels)
-        # An unknown token pushed only in YouTube comment sections is a shill campaign.
-        if key.startswith("$") and s.mentions and not non_comment[key]:
+        # A coin mentioned only in YouTube comment sections is a shill campaign (bots also
+        # borrow real tickers, e.g. a presale "Altorum $ALT" matching AltLayer's ALT).
+        if s.mentions and not non_comment[key]:
             s.pump_only = True
         s.search = search.get(key)
         if s.search:
