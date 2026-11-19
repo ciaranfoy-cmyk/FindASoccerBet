@@ -323,6 +323,22 @@ class ShillCommentTest(unittest.TestCase):
         self.assertTrue(s.pump_only)
         self.assertNotIn("$SPX80B", [x.key for x in rep.heating_up(min_voices=1)])
 
+    def test_listed_coin_only_in_youtube_comments_is_signal_only(self):
+        store = Store(":memory:")
+        now = time.time()
+        for i, ch in enumerate(["yt:@cryptojebb", "yt:@moneyzg", "yt:@paulbarronnetwork"]):
+            store.add_post(Post(id=f"yt:c:{i}", source="youtube", channel=ch, author=f"bot{i}",
+                                created_utc=now - 600, text="Early holders in Altorum $ALT looking smart"),
+                           0.6, [Mention(key="altlayer", symbol="ALT", name="AltLayer", method="cashtag")])
+        store.add_post(Post(id="r:1", source="reddit", channel="r/x", author="u", created_utc=now - 600,
+                            text="SOL looks fine"), 0.1,
+                       [Mention(key="solana", symbol="SOL", name="Solana", method="symbol")])
+        rep = report.build(store, now=now)
+        stats = {x.key: x for x in rep.stats}
+        self.assertTrue(stats["altlayer"].pump_only)
+        self.assertFalse(stats["solana"].pump_only)
+        self.assertNotIn("altlayer", [x.key for x in rep.most_talked() if not x.pump_only])
+
 
 class LunarCrushTest(unittest.TestCase):
     def test_parse_store_and_report(self):
