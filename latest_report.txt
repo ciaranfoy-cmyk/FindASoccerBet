@@ -1,0 +1,95 @@
+Window: last 6h vs previous 72h   (history in DB: 504.0h)
+Left out of the rankings (always discussed): bitcoin, ethereum
+Sources: R=Reddit T=Telegram 4=4chan N=News X=X/Twitter Y=YouTube   voic = distinct people-hours talking about it
+
+== MOST TALKED ABOUT ==
+coin                               voic posts  vs base  sentiment  src   top channels                            
+XMR · Monero                          7    10    2.4x  ++ +0.41  T4    /biz/, t.me/degenpump_crypto_pump_signal LC#20
+ADA · Cardano                         4     4    1.1x  +  +0.29  XY    yt:@cryptocapitalventure, x:@cardano     LC#7
+SOL · Solana                          3     4    0.4x  ~  +0.06  TY    t.me/WhaleBotAlerts, yt:@paulbarronnetwo CG#9↑new
+ALT · AltLayer                        3     3    0.8x  ++ +0.38  Y     yt:@thomaskralow, yt:@alexanderelorenzo  [pump/signal only]
+SPX · SPX6900                         2     2    2.4x  ~  -0.07  4     /biz/                                    
+LINK · Chainlink                      2     2    0.6x  ~  -0.08  4Y    yt:@digitalassetnews, /biz/              LC#11
+FLIP · Chainflip                      2     2    8.0x  ~  +0.00  TN    coindesk.com, t.me/CoinDeskGlobal        
+ONDO                                  1     4    2.4x  ++ +0.75  T     t.me/degenpump_crypto_pump_signals       [pump/signal only]
+JUP · Jupiter                         1     3    4.0x  ++ +0.77  T     t.me/degenpump_crypto_pump_signals       [pump/signal only]
+UB · Unibase                          1     3    6.0x  ++ +0.77  T     t.me/degenpump_crypto_pump_signals       [pump/signal only]
+AKE · Akedo                           1     3    new   ++ +0.77  T     t.me/degenpump_crypto_pump_signals       [pump/signal only]
+$USDBRL (unlisted)                    1     3    2.4x  ++ +0.67  T     t.me/degenpump_crypto_pump_signals       [pump/signal only]
+ENA · Ethena                          1     1    2.0x  +  +0.20  X     x:@coingecko                             
+PEPE                                  1     1    0.5x  ~  +0.00  4     /biz/                                    
+XRP                                   1     1    0.2x  ~  +0.00  4     /biz/                                    CG#14↑new LC#3
+NEAR · NEAR Protocol                  1     1    2.0x  +  +0.25  X     x:@cryptotony__                          CG#12↑new
+KCS · KuCoin                          1     1    0.7x  +  +0.30  X     x:@kucoincom                             
+HBAR · Hedera                         1     1    4.0x  +  +0.25  4     /biz/                                    
+LIT · Lighter                         1     1    2.4x  ~  +0.00  4     /biz/                                    
+SUI                                   1     1    0.9x  ++ +0.36  Y     yt:@digitalassetnews                     [pump/signal only]
+NIGHT · Midnight                      1     1    1.7x  ++ +0.38  4     /biz/                                    
+ETC · Ethereum Classic                1     1    4.0x  ~  +0.00  4     /biz/                                    
+$TSLA (unlisted)                      1     1    3.0x  ~  +0.00  T     t.me/WatcherGuru                         
+
+== HEATING UP (buzz rising fastest vs its own baseline) ==
+coin                               voic posts  vs base  sentiment  src   top channels                            
+XMR · Monero                          7    10    2.4x  ++ +0.41  T4    /biz/, t.me/degenpump_crypto_pump_signal LC#20
+
+== NEW ON THE RADAR (first mentions ever, in this window) ==
+  (nothing yet)
+
+== ONLY IN SIGNAL/PUMP CHANNELS (not ranked above) ==
+  ONDO (4), JUP (3), UB (3), ALT (3), AKE (3), $USDBRL (unlisted) (3), SUI (1)
+
+== EARLY SEARCH SIGNALS (climbing CoinGecko searches, price not run yet) ==
+  (none right now)
+
+== SEARCH INTEREST (CoinGecko trending now + Google & X Trends, 24h) ==
+PIPI                         CoinGecko #1  on list   1.0h (new in 2h)  0 voices (no chatter)  price 24h +673%, 1h -16.9%, since listed -5%  (searched after a pump)
+WASTED                       CoinGecko #2  on list   9.0h (was #1 2h ago)  0 voices (no chatter)  price 24h -5%, 1h -1.0%, since listed +9%
+ZEC · Zcash                  CoinGecko #3  on list   4.0h (was #2 2h ago)  0 voices (no chatter)  price 24h +4%, 1h +0.8%, since listed -0%
+WSTAR · Wanted Star          CoinGecko #4  on list   5.0h (was #6 2h ago)  0 voices (no chatter)  price 24h +3949%, 1h -10.2%, since listed +47%  (searched after a pump)
+CHUNKEE · Chunkee The Manate CoinGecko #5  on list   6.0h (was #7 2h ago)  0 voices (no chatter)  price 24h +25%, 1h +16.1%, since listed +23%  (searched after a pump)
+PENGU · Pudgy Penguins       CoinGecko #7  on list  29.0h (was #5 2h ago)  0 voices (no chatter)  price 24h +1%, 1h -0.6%, since listed -3%
+BP · Backpack                CoinGecko #8  on list   5.0h (was #4 2h ago)  0 voices (no chatter)  price 24h +10%, 1h -1.2%, since listed +7%
+SOL · Solana                 CoinGecko #9  on list   2.0h (new in 2h)  3 voices, 0.4x usual  price 24h +4%, 1h +0.2%, since listed -0%
+VVV · Venice Token           CoinGecko #10 on list   2.0h (new in 2h)  0 voices (no chatter)  price 24h +21%, 1h +1.8%, since listed +1%  (searched after a pump)
+DRV · Derive                 CoinGecko #11 on list   1.0h (new in 2h)  0 voices (no chatter)  price 24h +40%, 1h +3.0%, since listed +4%  (searched after a pump)
+NEAR · NEAR Protocol         CoinGecko #12 on list   1.0h (was #15 2h ago)  1 voices, 2.0x usual  price 24h +1%, 1h +0.5%, since listed +1%
+UNI · Uniswap                CoinGecko #13 on list   0.0h (new in 2h)  0 voices (no chatter)  price 24h +8%, 1h -0.6%, since listed +0%
+XRP                          CoinGecko #14 on list   0.0h (new in 2h)  1 voices, 0.2x usual  price 24h +5%, 1h +0.2%, since listed +0%
+PRL · Pearl                  CoinGecko #15 on list   0.0h (was #10 2h ago)  0 voices (no chatter)  price 24h -9%, 1h +2.4%, since listed +0%
+
+== LUNARCRUSH RISING (social activity growing fastest vs ~a day ago) ==
+ANKR · Ankr Network        52.1x interactions vs 19h ago, 87,150 interactions, 0.00% of chatter, 100% positive, 24h -2%, AltRank 1870
+ARK                        2.5x interactions vs 24h ago, 54,613 interactions, 0.02% of chatter, 98% positive, 24h -2%, AltRank 1818
+VET · VeChain              2.4x interactions vs 24h ago, 272,273 interactions, 0.14% of chatter, 83% positive, 24h +4%, AltRank 73
+$BTG (unlisted)            1.8x interactions vs 24h ago, 1,595,473 interactions, 0.07% of chatter, 92% positive, 24h +3%, AltRank 788
+$TT (unlisted)             1.7x interactions vs 24h ago, 159,707 interactions, 0.00% of chatter, 10% positive, 24h -3%, AltRank 2269
+TRX · TRON                 1.6x interactions vs 24h ago, 333,996 interactions, 0.14% of chatter, 88% positive, 24h +1%, AltRank 295
+DOGE · Dogecoin            1.5x interactions vs 24h ago, 2,393,041 interactions, 0.85% of chatter, 74% positive, 24h +4%, AltRank 49
+FET · Artificial Superinte 1.5x interactions vs 24h ago, 218,360 interactions, 0.11% of chatter, 79% positive, 24h -4%, AltRank 1544
+ATOM · Cosmos Hub          1.4x interactions vs 24h ago, 107,389 interactions, 0.07% of chatter, 88% positive, 24h -3%, AltRank 1555
+QNT · Quant                1.4x interactions vs 24h ago, 625,157 interactions, 0.31% of chatter, 87% positive, 24h +3%, AltRank 96
+BNB                        1.3x interactions vs 24h ago, 842,357 interactions, 0.36% of chatter, 77% positive, 24h +3%, AltRank 131
+BCH · Bitcoin Cash         1.2x interactions vs 24h ago, 168,604 interactions, 0.13% of chatter, 80% positive, 24h +4%, AltRank 69
+$MONA (unlisted)           1.2x interactions vs 24h ago, 76,502 interactions, 0.01% of chatter, 76% positive, 24h -3%, AltRank 2195
+$BTS (unlisted)            1.2x interactions vs 24h ago, 104,192 interactions, 0.01% of chatter, 100% positive, 24h +3%, AltRank 350
+BAT · Basic Attention      1.2x interactions vs 24h ago, 191,676 interactions, 0.04% of chatter, 75% positive, 24h -1%, AltRank 1427
+
+== YOUTUBE (new videos from followed channels, 24h) ==
+@thomaskralow          1.2h ago       311 views (257/h, 0.0x channel's typical video), 0 comments  ICE CREAM MONEY IS HERE!!!!
+@tomcrown              2.3h ago       310 views (138/h, 0.0x channel's typical video), 6 comments  MARKETS CRASHING
+@digitalassetnews      2.8h ago     6,461 views (2,294/h, 5.8x channel's typical video), 37 comments  Into The Cryptoverse: Hard Times Are Here. PREPARE  <- TAKING OFF
+@digitalassetnews      2.9h ago       259 views (89/h, 0.2x channel's typical video), 0 comments  Bitcoin hit $58K and he still says it goes lower
+@cryptocapitalventure  3.0h ago     3,843 views (1,311/h, 0.2x channel's typical video), 60 comments  🚨 Crypto Holders: Everything Is Getting SOLD At Once (Here's Why It's NOT Over)
+@hackyourcrypto        4.9h ago         2 views (0/h, 0.1x channel's typical video), 0 comments  3 Cryptos I'm Watching This Week | FREE Members-Only Preview
+@alexanderelorenzo     5.7h ago     1,414 views (247/h, 0.1x channel's typical video), 22 comments  Crypto, Faith, and the Mark of the Beast
+@hackyourcrypto        6.8h ago        33 views (5/h, 1.1x channel's typical video), 0 comments  Bitcoin Cycles and Ethereum’s $1,800 Fair Value Explained  <- TAKING OFF
+@thomaskralow         10.1h ago     6,214 views (615/h, 0.6x channel's typical video), 17 comments  🚨 MY $5,000,000 BITCOIN TRADE!!! 🚨
+@benjaminjcowen       14.9h ago   240,980 views (16,206/h, 1.0x channel's typical video), 715 comments  Bitcoin: The Lower Low  <- TAKING OFF
+@alexanderelorenzo    17.8h ago     2,853 views (161/h, 0.1x channel's typical video), 24 comments  I Lost All My Crypto Three Times Before I Learned This
+@hackyourcrypto       18.6h ago       127 views (7/h, 4.2x channel's typical video), 3 comments  Solana vs. Ethereum: Why Wall Street Is Paying Attention  <- TAKING OFF
+@alexanderelorenzo    19.8h ago     3,202 views (162/h, 0.1x channel's typical video), 13 comments  The Wealth Transfer Just Started. There’s No Turning Back
+@elliotrades_official 22.3h ago    23,483 views (1,056/h, 1.9x channel's typical video), 46 comments  I’m Seriously Worried About Crypto…  <- TAKING OFF
+@cryptojebb           22.9h ago     6,534 views (285/h, 1.0x channel's typical video), 22 comments  Bitcoin Broke CRITICAL SUPPORT! Where Are We Going Next?
+@tylerhillcryptoyt    23.4h ago     8,131 views (348/h, 1.0x channel's typical video), 73 comments  CRYPTO EMERGENCY: EVERYTHING IS CRASHING & I AM BUYING!  <- TAKING OFF
+@paulbarronnetwork    23.9h ago    73,919 views (3,093/h, 1.1x channel's typical video), 181 comments  Cathie Wood Sells ETH and Solana 📉 Loads Up on $ANT  <- TAKING OFF
+

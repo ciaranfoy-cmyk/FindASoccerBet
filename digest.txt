@@ -1,0 +1,49 @@
+Market: BTC $60,321 +3.2% · ETH $1,687 +5.0% · mood nervous (+0.01) · your accounts: 17 bullish / 15 bearish posts (12h)
+
+🗣 MOST TALKED ABOUT (last 24h, BTC/ETH aside)
+SOL · Solana: 19 people, 0.3x usual (Telegram, X, YouTube; mixed) · $70.59, +4% 24h, -2% 7d
+XMR · Monero: 15 people, 1.5x usual (4chan, Telegram; positive) · $485, +8% 24h, -2% 7d
+XRP: 15 people, 0.4x usual (4chan, news, Telegram, X, YouTube; mixed) · $0.9358, +5% 24h, -2% 7d
+ADA · Cardano: 13 people, 0.7x usual (4chan, X, YouTube; positive) · $0.1451, +4% 24h, -6% 7d
+LINK · Chainlink: 9 people, 0.8x usual (4chan, YouTube; mixed) · $8.64, +3% 24h, -5% 7d
+ZEC · Zcash: 7 people, 2.1x usual (4chan, Telegram, X, YouTube; very positive) · $791, +4% 24h, -7% 7d
+HYPE · Hyperliquid: 7 people, 0.6x usual (4chan, Telegram, X, YouTube; positive) · $61.20, +1% 24h, -6% 7d
+PEPE: 7 people, 1.3x usual (4chan, YouTube; mixed) · $3.39e-06, -0% 24h, -14% 7d
+
+📈 GAINING ATTENTION THIS WEEK (share of all coin talk, vs the week before)
+$ANT (unlisted): 0.3% → 2.4%
+SOL · Solana: 13.4% → 14.8% · $70.59, +4% 24h, -2% 7d
+NVDA · NVIDIA • Robinhood Token: 2.3% → 3.6% · $131, +2% 24h, -18% 7d
+HYPE · Hyperliquid: 2.9% → 4.0% · $61.20, +1% 24h, -6% 7d
+KCS · KuCoin: 1.6% → 2.5% · $5.81, +0% 24h
+LIT · Lighter: 0.6% → 1.4% · $2.36, +1% 24h, -18% 7d
+📉 Fading: XRP 13.8% → 7.9%, AVAX 3.2% → 0.7%, LINK 5.4% → 3.9%, QNT 1.2% → 0.3%
+
+🎙 YOUR ACCOUNTS & YOUTUBERS
+SOL: @cryptotony__, @hackyourcrypto, @paulbarronnetwork
+ZEC: @cryptomichnl, @paulbarronnetwork
+HYPE: @cryptomichnl, @cryptotony__
+$ANT (unlisted): @paulbarronnetwork
+TAO: @cryptotony__
+XRP: @cryptotony__
+BCH: @cryptomichnl
+LINK: @digitalassetnews
+▶ @digitalassetnews: "Into The Cryptoverse: Hard Times Are Here. PREPARE" (6,461 views, 5.8x their usual)
+▶ @hackyourcrypto: "Solana vs. Ethereum: Why Wall Street Is Paying Attention" (127 views, 4.2x their usual)
+▶ @elliotrades_official: "I’m Seriously Worried About Crypto…" (23,483 views, 1.9x their usual)
+
+🌐 ACROSS SOCIAL MEDIA (LunarCrush, 24h)
+Most discussed: XRP 8.9M, ZEC 3.6M, DOGE 2.4M, ADA 2.0M, $BTG (unlisted) 1.6M, MTL 1.3M
+Rising fastest: ANKR 52x, ARK 2x, VET 2x
+
+🔎 MOST SEARCHED (CoinGecko): PIPI +673%, WASTED -5%, ZEC +4%, WSTAR +3949%, CHUNKEE +25%, PENGU +1%, BP +10%, SOL +4%
+
+📰 IN THE NEWS
+$TSLA (unlisted): JUST IN: Elon Musk's Tesla $TSLA officially begins rolling out FSD v15. @WatcherGuru
+FLIP: Cross-chain protocol Chainflip's FLIP tanks 30% after suspected $4.86 million vault drain The withdrawal carried a valid signature
+XRP: XRP falls 10% as long bets unwind and ETF assets slip below $1 billion The token broke its previous November lows during Saturday'
+XAUT: 🔥 NEW: Two people close to Tether are raising a fund to squeeze yield out of $XAUt. They're targeting 4% on top of gold and $100M 
+RUNE: Investigation: Only $32M Recovered Three Weeks After $6.4B Binance Hack, $2.82B Frozen According to blockchain investigator SomaXB
+
+Big moves (24h): WSTAR +3949%, PIPI +673%, DRV +40%, CHUNKEE +25%, VVV +21%
+Only in pump/signal channels (ignore): ARB, AR, $US (unlisted), USELESS, BMT, AIOT
