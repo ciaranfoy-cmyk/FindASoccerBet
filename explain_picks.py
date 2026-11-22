@@ -910,6 +910,9 @@ def main() -> int:
     if not os.environ.get("PRICE_LOG_DISABLE"):
         price_log.append(live_df)
 
+    if os.environ.get("LIVE_DF_DUMP"):
+        live_df.to_pickle(os.environ["LIVE_DF_DUMP"])
+
     if args.table:
         print_picks_table(live_df, xg_odds_model, xg_odds_scaler, calibrators)
         return 0
