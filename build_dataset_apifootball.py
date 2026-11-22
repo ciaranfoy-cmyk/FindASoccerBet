@@ -195,14 +195,15 @@ def shot_stats_for(fixture_id: int) -> dict[int, dict]:
     return out
 
 
-def injury_count_for(fixture_id: int) -> dict[int, int]:
+def injury_count_for(fixture_id: int, ttl_seconds: float | None = None) -> dict[int, int]:
     """team_id -> count of unique players missing this fixture.
 
     The API returns exact duplicate entries for the same player in some
     responses (confirmed by inspection), so dedupe by (team, player) id
-    before counting rather than counting raw entries.
+    before counting rather than counting raw entries. Pass a short
+    ttl_seconds for a live fixture -- the list changes up to kickoff.
     """
-    data = apifootball.get("/injuries", {"fixture": fixture_id})
+    data = apifootball.get("/injuries", {"fixture": fixture_id}, ttl_seconds=ttl_seconds)
     seen: set[tuple[int, int]] = set()
     counts: dict[int, int] = defaultdict(int)
     for entry in data.get("response", []):
